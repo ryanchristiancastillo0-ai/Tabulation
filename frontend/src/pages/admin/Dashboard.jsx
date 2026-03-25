@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react'; // Added useEffect
+import React, { useState, useEffect } from 'react';
 import CriteriaManager from '../../components/admin/CreteriaManager';
 import Sidebar from '../../components/admin/Sidebar';
+import { Trash2 } from 'lucide-react';
+import { AlertTriangle, Info, X } from 'lucide-react';
+
 
 function Dashboard() {
   const [dark, setDark] = useState(false);
@@ -10,12 +13,13 @@ function Dashboard() {
   const [contestType, setContestType] = useState('pageant');
   const [aiPrompt, setAiPrompt] = useState('');
   const [judgeCount, setJudgeCount] = useState(3);
-  const [criteria, setCriteria] = useState([]); // Start empty, will fetch from DB
-  
-  const [newCrit, setNewCrit]     = useState('');
+  const [calculationType, setCalculationType] = useState('average'); 
+  const [criteria, setCriteria] = useState([]); 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [newCrit, setNewCrit] = useState('');
   const [newWeight, setNewWeight] = useState(10);
-  const [contestants, setContestants] = useState([]); // Start empty, will fetch from DB
-  
+  const [contestants, setContestants] = useState([]); 
+
   const [newName, setNewName] = useState('');
   const [activeNav, setActiveNav] = useState('overview');
   const [toast, setToast] = useState(false);
@@ -24,38 +28,43 @@ function Dashboard() {
   const API_BASE = "http://localhost:8080/api";
 
   // ── 1. LOAD DATA FROM BACKEND ON MOUNT ──
-  useEffect(() => {
-    const loadAllData = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/get-all-data`);
-        const data = await res.json();
+  const loadAllData = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/get-all-data`);
+      const data = await res.json();
 
-        if (data.settings) {
-          setContestName(data.settings.contest_name || '');
-          setContestType(data.settings.contest_type || 'pageant');
-          setAiPrompt(data.settings.ai_prompt || '');
-          setJudgeCount(data.settings.judge_count || 3);
-        }
+     // Inside loadAllData...
+if (data.settings) {
+  setContestName(data.settings.contest_name || '');
+  setContestType(data.settings.contest_type || 'pageant');
+  setAiPrompt(data.settings.ai_prompt || '');
+  setJudgeCount(data.settings.judge_count || 3);
+  
+  // FIX: Make sure this matches your DB column name (likely computation_type)
+  setCalculationType(data.settings.computation_type || 'average'); 
+}
 
-        if (data.contestants) {
-          setContestants(data.contestants.map(c => ({
-            id: c.id,
-            name: c.name,
-            number: c.entry_number
-          })));
-        }
-
-        if (data.criteria) {
-          setCriteria(data.criteria.map(cr => ({
-            id: cr.id,
-            name: cr.name,
-            weight: cr.percentage
-          })));
-        }
-      } catch (err) {
-        console.error("Failed to load dashboard data:", err);
+      if (data.contestants) {
+        setContestants(data.contestants.map(c => ({
+          id: c.id,
+          name: c.name,
+          number: c.entry_number
+        })));
       }
-    };
+
+      if (data.criteria) {
+        setCriteria(data.criteria.map(cr => ({
+          id: cr.id,
+          name: cr.name,
+          weight: cr.percentage
+        })));
+      }
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+    }
+  };
+
+  useEffect(() => {
     loadAllData();
   }, []);
 
@@ -64,7 +73,8 @@ function Dashboard() {
   const addCriterion = () => {
     if (!newCrit.trim()) return;
     setCriteria([...criteria, { id: Date.now().toString(), name: newCrit.trim(), weight: Number(newWeight) }]);
-    setNewCrit(''); setNewWeight(10);
+    setNewCrit(''); 
+    setNewWeight(10);
   };
 
   const addContestant = () => {
@@ -75,35 +85,66 @@ function Dashboard() {
   };
 
   // ── 2. UPDATED SAVE TO BACKEND ──
-  const handleSave = async () => {
+  // ── 2. UPDATED SAVE TO BACKEND ──
+const handleSave = async () => {
+  try {
+    // 1. Clean the data before sending (Sanitization)
+    const payload = {
+      contest_name: contestName || '',
+      contest_type: contestType || 'pageant',
+      judge_count: Number(judgeCount) || 3,
+      ai_prompt: aiPrompt || '',
+      computation_type: calculationType || 'average',
+      contestants: contestants.map(c => ({
+        name: c.name || '',
+        entry_number: Number(c.number) || 0
+      })),
+      criteria: criteria.map(cr => ({
+        name: cr.name || '',
+        percentage: Number(cr.weight) || 0
+      }))
+    };
+
+    const response = await fetch(`${API_BASE}/save-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      setToast(true);
+      setTimeout(() => setToast(false), 2500);
+      loadAllData(); // Refresh IDs from the DB
+    } else {
+      const errorData = await response.json();
+      alert("Save failed: " + errorData.error);
+    }
+  } catch (err) {
+    alert("Save failed: " + err.message);
+  }
+};
+  // ── 3. DELETE ALL DATA ──
+  const handleDeleteAll = async () => {
+    setShowDeleteModal(false);
     try {
-      const response = await fetch(`${API_BASE}/save-config`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contestName,
-          calcType: contestType,
-          aiPrompt,
-          judgeCount,
-          contestants: contestants.map(c => ({ name: c.name, entry_number: c.number })),
-          criteria: criteria.map(cr => ({ name: cr.name, percentage: cr.weight }))
-        })
+      const response = await fetch(`${API_BASE}/reset-data`, {
+        method: 'DELETE',
       });
 
       if (response.ok) {
         setToast(true);
-        setTimeout(() => setToast(false), 2500);
+        setTimeout(() => window.location.reload(), 1500);
       }
     } catch (err) {
-      alert("Save failed: " + err.message);
+      console.error("Delete failed:", err);
     }
   };
 
   return (
     <div className={dark ? 'dark' : ''}>
       <div className="dash-root flex" style={{ minHeight: '100vh' }}>
-      <Sidebar activeNav={activeNav} setActiveNav={setActiveNav} dark={dark} setDark={setDark}/>
-        
+        <Sidebar activeNav={activeNav} setActiveNav={setActiveNav} dark={dark} setDark={setDark} />
+
         <main className="flex-1 overflow-y-auto" style={{ background: 'var(--bg)', padding: '36px 40px' }}>
 
           {/* top bar */}
@@ -126,10 +167,10 @@ function Dashboard() {
             <div className="flex flex-col gap-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: 'Contestants', value: contestants.length, color: 'var(--accent)',  icon: '◉' },
-                  { label: 'Judges',      value: judgeCount,         color: 'var(--green)',   icon: '⚖' },
-                  { label: 'Criteria',    value: criteria.length,    color: 'var(--amber)',   icon: '◈' },
-                  { label: 'Weight Total',value: `${totalWeight}%`,  color: totalWeight===100 ? 'var(--green)' : 'var(--red)', icon: '▦' },
+                  { label: 'Contestants', value: contestants.length, color: 'var(--accent)', icon: '◉' },
+                  { label: 'Judges', value: judgeCount, color: 'var(--green)', icon: '⚖' },
+                  { label: 'Criteria', value: criteria.length, color: 'var(--amber)', icon: '◈' },
+                  { label: 'Weight Total', value: `${totalWeight}%`, color: totalWeight === 100 ? 'var(--green)' : 'var(--red)', icon: '▦' },
                 ].map(s => (
                   <div className="stat-card" key={s.label}>
                     <div style={{ fontSize: 20 }}>{s.icon}</div>
@@ -151,6 +192,10 @@ function Dashboard() {
                     <span className="badge badge-indigo">{contestType}</span>
                   </div>
                   <div style={{ color: 'var(--text2)' }}>
+                    <span style={{ color: 'var(--text3)', fontWeight: 600, marginRight: 8 }}>Calculation:</span>
+                    <span className="badge badge-indigo">{calculationType === 'average' ? 'Average Score' : 'Rank-Sum (By Place)'}</span>
+                  </div>
+                  <div style={{ color: 'var(--text2)' }}>
                     <span style={{ color: 'var(--text3)', fontWeight: 600, marginRight: 8 }}>Weight check:</span>
                     <span className={`badge ${totalWeight === 100 ? 'badge-green' : 'badge-red'}`}>
                       {totalWeight}% {totalWeight === 100 ? '✓ Valid' : '✗ Must be 100%'}
@@ -162,6 +207,24 @@ function Dashboard() {
                       {aiPrompt ? '✓ Set' : '✗ Not set'}
                     </span>
                   </div>
+                </div>
+              </div>
+
+              {/* DANGER ZONE / DELETE BUTTON */}
+              <div className="panel p-6" style={{ border: '1px solid #fee2e2', background: '#fef2f2' }}>
+                <div className="section-heading" style={{ color: '#991b1b' }}>Danger Zone</div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#991b1b' }}>Reset Competition Data</div>
+                    <div style={{ fontSize: 12, color: '#b91c1c' }}>Clear all scores, criteria, and contestants for a new event.</div>
+                  </div>
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    className="group flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-red-900/20 transform active:scale-95 transition-all duration-200 border border-red-500/20"
+                  >
+                    <Trash2 size={18} className="group-hover:rotate-12 transition-transform duration-200" />
+                    <span>Reset Competition Data</span>
+                  </button>
                 </div>
               </div>
 
@@ -200,7 +263,7 @@ function Dashboard() {
               <div>
                 <div className="field-label">Contest Type</div>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {['pageant','talent show','debate','sports','academic'].map(t => (
+                  {['pageant', 'talent show', 'debate', 'sports', 'academic'].map(t => (
                     <button
                       key={t}
                       onClick={() => setContestType(t)}
@@ -266,13 +329,20 @@ function Dashboard() {
 
           {/* ── CRITERIA ── */}
           {activeNav === 'criteria' && (
-            <CriteriaManager criteria={criteria} setCriteria={setCriteria}/>
+           <CriteriaManager 
+  criteria={criteria} 
+  setCriteria={setCriteria}
+  newCrit={newCrit}
+  setNewCrit={setNewCrit}
+  addCriterion={addCriterion} 
+/>
           )}
 
           {/* ── JUDGES ── */}
           {activeNav === 'judges' && (
-            <div className="panel p-6 flex flex-col gap-6">
-              <div className="section-heading">Judge Configuration</div>
+            <div className="panel p-6 flex flex-col gap-8">
+              <div className="section-heading">Judge & Calculation Configuration</div>
+
               <div>
                 <div className="field-label" style={{ marginBottom: 12 }}>Number of Judges</div>
                 <div className="flex items-center gap-4">
@@ -281,6 +351,35 @@ function Dashboard() {
                     {judgeCount}
                   </span>
                   <button className="counter-btn" onClick={() => setJudgeCount(j => Math.min(20, j + 1))}>+</button>
+                </div>
+              </div>
+
+              <div>
+                <div className="field-label" style={{ marginBottom: 12 }}>Result Calculation Type</div>
+                <div className="flex gap-4">
+                  <div
+                    onClick={() => setCalculationType('average')}
+                    style={{
+                      flex: 1, padding: '16px', borderRadius: 12, cursor: 'pointer', transition: 'all .2s',
+                      border: `2px solid ${calculationType === 'average' ? 'var(--accent)' : 'var(--border)'}`,
+                      background: calculationType === 'average' ? 'var(--accent-lt)' : 'var(--surface2)'
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, color: calculationType === 'average' ? 'var(--accent)' : 'var(--text1)', fontSize: 14 }}>By Average</div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>Standard percentage-based average. Highest score wins.</div>
+                  </div>
+
+                  <div
+                    onClick={() => setCalculationType('rank')}
+                    style={{
+                      flex: 1, padding: '16px', borderRadius: 12, cursor: 'pointer', transition: 'all .2s',
+                      border: `2px solid ${calculationType === 'rank' ? 'var(--accent)' : 'var(--border)'}`,
+                      background: calculationType === 'rank' ? 'var(--accent-lt)' : 'var(--surface2)'
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, color: calculationType === 'rank' ? 'var(--accent)' : 'var(--text1)', fontSize: 14 }}>By Place (Rank-Sum)</div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>Rank points summed from all judges. Lowest sum wins.</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -322,8 +421,86 @@ function Dashboard() {
           <span>✓</span> Configuration saved!
         </div>
       )}
+
+      <Modal 
+        isOpen={showDeleteModal}
+        title="Reset System Data?"
+        message="DANGER: This will permanently delete all contestants, criteria, and scores. This action cannot be undone."
+        onConfirm={handleDeleteAll}
+        onCancel={() => setShowDeleteModal(false)}
+        type="danger"
+      />
     </div>
   );
 }
 
 export default Dashboard;
+
+
+
+// ── REUSABLE MODAL COMPONENT ──
+
+
+const Modal = ({ isOpen, title, message, onConfirm, onCancel, type = 'danger' }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      {/* Backdrop: Darker overlay with heavy blur for focus */}
+      <div 
+        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
+        onClick={onCancel} 
+      />
+
+      {/* Modal Card */}
+      <div className="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl transition-all border border-slate-100 animate-in fade-in zoom-in duration-200">
+        
+        {/* Close Button (Top Right) */}
+        <button 
+          onClick={onCancel} 
+          className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          <X size={20} />
+        </button>
+
+        <div className="flex items-start gap-4">
+          {/* Icon Section */}
+          <div className={`flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-full 
+            ${type === 'danger' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+            {type === 'danger' ? <AlertTriangle size={24} /> : <Info size={24} />}
+          </div>
+
+          {/* Text Content */}
+          <div className="flex-1">
+            <h3 className="text-xl font-bold text-slate-900 leading-6">
+              {title}
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-slate-500">
+              {message}
+            </p>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="mt-8 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+          <button 
+            onClick={onCancel}
+            className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all active:scale-95"
+          >
+            Cancel
+          </button>
+          
+          <button 
+            onClick={onConfirm}
+            className={`px-5 py-2.5 text-sm font-semibold text-white rounded-xl shadow-md transition-all active:scale-95
+              ${type === 'danger' 
+                ? 'bg-red-600 hover:bg-red-700 shadow-red-200' 
+                : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'}`}
+          >
+            {type === 'danger' ? 'Confirm Reset' : 'Confirm'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
