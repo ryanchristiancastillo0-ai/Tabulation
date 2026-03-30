@@ -28,21 +28,28 @@ function Dashboard() {
   const API_BASE = "http://localhost:8080/api";
 
   // ── 1. LOAD DATA FROM BACKEND ON MOUNT ──
+// ── 1. LOAD DATA FROM BACKEND ON MOUNT ──
   const loadAllData = async () => {
     try {
-      const res = await fetch(`${API_BASE}/get-all-data`);
+      const token = localStorage.getItem('adminToken'); // Pull token from storage
+
+      const res = await fetch(`${API_BASE}/get-all-data`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`, // Pass the bouncer
+          'Content-Type': 'application/json'
+        }
+      });
+
       const data = await res.json();
 
-     // Inside loadAllData...
-if (data.settings) {
-  setContestName(data.settings.contest_name || '');
-  setContestType(data.settings.contest_type || 'pageant');
-  setAiPrompt(data.settings.ai_prompt || '');
-  setJudgeCount(data.settings.judge_count || 3);
-  
-  // FIX: Make sure this matches your DB column name (likely computation_type)
-  setCalculationType(data.settings.computation_type || 'average'); 
-}
+      if (data.settings) {
+        setContestName(data.settings.contest_name || '');
+        setContestType(data.settings.contest_type || 'pageant');
+        setAiPrompt(data.settings.ai_prompt || '');
+        setJudgeCount(data.settings.judge_count || 3);
+        setCalculationType(data.settings.computation_type || 'average'); 
+      }
 
       if (data.contestants) {
         setContestants(data.contestants.map(c => ({
@@ -86,59 +93,75 @@ if (data.settings) {
 
   // ── 2. UPDATED SAVE TO BACKEND ──
   // ── 2. UPDATED SAVE TO BACKEND ──
-const handleSave = async () => {
-  try {
-    // 1. Clean the data before sending (Sanitization)
-    const payload = {
-      contest_name: contestName || '',
-      contest_type: contestType || 'pageant',
-      judge_count: Number(judgeCount) || 3,
-      ai_prompt: aiPrompt || '',
-      computation_type: calculationType || 'average',
-      contestants: contestants.map(c => ({
-        name: c.name || '',
-        entry_number: Number(c.number) || 0
-      })),
-      criteria: criteria.map(cr => ({
-        name: cr.name || '',
-        percentage: Number(cr.weight) || 0
-      }))
-    };
+// ── 2. UPDATED SAVE TO BACKEND ──
+  const handleSave = async () => {
+    try {
+      const token = localStorage.getItem('adminToken'); // Get your access token
 
-    const response = await fetch(`${API_BASE}/save-config`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+      const payload = {
+        contest_name: contestName || '',
+        contest_type: contestType || 'pageant',
+        judge_count: Number(judgeCount) || 3,
+        ai_prompt: aiPrompt || '',
+        computation_type: calculationType || 'average',
+        contestants: contestants.map(c => ({
+          name: c.name || '',
+          entry_number: Number(c.number) || 0
+        })),
+        criteria: criteria.map(cr => ({
+          name: cr.name || '',
+          percentage: Number(cr.weight) || 0
+        }))
+      };
 
-    if (response.ok) {
-      setToast(true);
-      setTimeout(() => setToast(false), 2500);
-      loadAllData(); // Refresh IDs from the DB
-    } else {
-      const errorData = await response.json();
-      alert("Save failed: " + errorData.error);
+      const response = await fetch(`${API_BASE}/save-config`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Critical for authentication
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        setToast(true);
+        setTimeout(() => setToast(false), 2500);
+        loadAllData(); // Refresh IDs from the DB
+      } else {
+        const errorData = await response.json();
+        alert("Save failed: " + (errorData.error || "Unauthorized"));
+      }
+    } catch (err) {
+      alert("Save failed: " + err.message);
     }
-  } catch (err) {
-    alert("Save failed: " + err.message);
-  }
-};
+  };
   // ── 3. DELETE ALL DATA ──
+ // ── 3. DELETE ALL DATA ──
   const handleDeleteAll = async () => {
     setShowDeleteModal(false);
     try {
+      const token = localStorage.getItem('adminToken');
+
       const response = await fetch(`${API_BASE}/reset-data`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}` // Token required to delete
+        }
       });
 
       if (response.ok) {
         setToast(true);
         setTimeout(() => window.location.reload(), 1500);
+      } else {
+        const errorData = await response.json();
+        alert("Reset failed: " + (errorData.error || "Unauthorized"));
       }
     } catch (err) {
       console.error("Delete failed:", err);
     }
   };
+
+;
 
   return (
     <div className={dark ? 'dark' : ''}>

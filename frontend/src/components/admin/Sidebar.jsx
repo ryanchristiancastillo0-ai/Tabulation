@@ -1,4 +1,4 @@
-import { LayoutGrid, Trophy, Sparkles, Scale, Users, UserPlus, Moon, Sun } from 'lucide-react';
+import { LayoutGrid, Trophy, Sparkles, Scale, Users, UserPlus, Moon, Sun, LogOut } from 'lucide-react';
 
 export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
   const navItems = [
@@ -9,6 +9,12 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
     { id: 'judges', icon: Users, label: 'Judges' },
     { id: 'contestants', icon: UserPlus, label: 'Contestants' },
   ];
+
+
+    const handleLogout = () => {
+  localStorage.removeItem('adminToken'); // The Guard in App.jsx checks for THIS
+  window.location.href = '/login';       // Force a refresh to clear the "Bouncer"
+}
 
   return (
     <aside className="w-64 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-950">
@@ -38,6 +44,19 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
           </button>
         ))}
       </nav>
+
+     {/* Logout Button Section */}
+      <div className="p-4 border-t border-slate-100 dark:border-slate-800">
+        <button 
+          onClick={handleLogout}
+          className="group w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-red-50 hover:border-red-100 hover:text-red-600 dark:hover:bg-red-900/10 dark:hover:border-red-900/20 transition-all duration-200"
+        >
+          <div className="flex items-center gap-3">
+            <LogOut size={18} className="group-hover:rotate-12 transition-transform" />
+            <span>Sign Out</span>
+          </div>
+        </button>
+      </div>
 
       <div className="p-4 border-t border-slate-100 dark:border-slate-800">
         <button 

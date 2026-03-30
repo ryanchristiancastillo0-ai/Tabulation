@@ -1,166 +1,192 @@
 import { useState, useEffect, useCallback } from 'react';
 
 const JudgeScoreboard = () => {
-  // 1. STATE & STORAGE
   const [judgeId, setJudgeId] = useState(localStorage.getItem('judge_id') || '');
   const [rankings, setRankings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [contestName, setContestName] = useState('Leaderboard');
+  const [compType, setCompType] = useState('average');
 
   const API_BASE = "http://localhost:8080/api";
 
-  // 2. FETCH RANKINGS (Sorted by Highest Total)
-  const fetchMyRankings = useCallback(async (id) => {
+  const fetchMyRankings = useCallback(async (id, type) => {
     if (!id) return;
     setLoading(true);
     try {
-      // Endpoint: Fetches contestant names and summed scores for THIS judge
       const res = await fetch(`${API_BASE}/judge/my-scores?judgeId=${id}`);
       const data = await res.json();
-      
-      // Sort data: Highest Score = Index 0 (First Place)
-      const sorted = data.sort((a, b) => b.total - a.total);
-      setRankings(sorted);
+
+      const formattedData = data.map(item => ({
+        id: item.contestant_id || item.id,
+        name: item.name || item.contestant_name || "Unknown",
+        total: parseFloat(item.total || 0),
+      }));
+
+      // In AVERAGE mode: higher total = better → sort descending
+      // In RANK mode: /judge/my-scores returns raw score totals (NOT rank positions)
+      //   so we still sort descending by total, then assign rank positions ourselves
+      const sorted = [...formattedData].sort((a, b) => b.total - a.total);
+
+      // Assign rank positions (1st place = highest score regardless of mode)
+      const withRanks = sorted.map((item, idx) => ({
+        ...item,
+        rankPosition: idx + 1,
+      }));
+
+      setRankings(withRanks);
     } catch (err) {
       console.error("Scoreboard fetch error:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [API_BASE]);
 
-  // 3. INITIAL LOAD & SETTINGS
   useEffect(() => {
-    // Listen for storage changes in case judge ID changes in another tab
     const storedId = localStorage.getItem('judge_id');
-    if (storedId) {
-      setJudgeId(storedId);
-      fetchMyRankings(storedId);
-    }
+    if (storedId) setJudgeId(storedId);
 
-    // Get Contest Name for the header
     fetch(`${API_BASE}/get-all-data`)
       .then(res => res.json())
-      .then(data => setContestName(data.settings?.contest_name || "Tournament"))
+      .then(data => {
+        setContestName(data.settings?.contest_name || "Tournament");
+        const typeFromDB = data.settings?.computation_type || 'average';
+        setCompType(typeFromDB);
+        if (storedId) fetchMyRankings(storedId, typeFromDB);
+      })
       .catch(err => console.error(err));
-  }, [fetchMyRankings]);
+  }, [fetchMyRankings, API_BASE]);
 
-  // 4. LOGOUT / CLEAR IDENTITY
-  const handleLogout = () => {
-    localStorage.removeItem('judge_id');
-    setJudgeId('');
-    setRankings([]);
+  const getOrdinal = (n) => {
+    const s = ["th", "st", "nd", "rd"], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
   };
 
-  // --- RENDER: IDENTITY MISSING ---
-  if (!judgeId) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white p-10 rounded-3xl shadow-xl border border-red-50 text-center max-w-md w-full">
-          <div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">!</div>
-          <h2 className="text-2xl font-black text-gray-800 mb-2 uppercase italic tracking-tighter">Identity Required</h2>
-          <p className="text-gray-400 font-medium mb-8 leading-relaxed">
-            We don't know who you are yet! Please visit the Judge Panel and select your ID to see your rankings.
-          </p>
-          <button 
-            onClick={() => window.location.href = '/judge'} // Adjust route as needed
-            className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-          >
-            Go to Judge Panel
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (!judgeId) return <div className="p-20 text-center font-black">Identity Missing</div>;
 
-  // --- RENDER: MAIN SCOREBOARD ---
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-12">
-      <div className="max-w-4xl mx-auto">
-        
+    <div className="min-h-screen bg-[#F8FAFC] p-6 md:p-12 text-slate-900 font-sans">
+      <div className="max-w-6xl mx-auto">
+
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <span className="bg-blue-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-[0.2em]">
+              <span className="bg-slate-900 text-white text-[10px] font-black px-3 py-1 rounded-md uppercase tracking-widest">
                 Judge #{judgeId}
               </span>
-              <span className="text-gray-300 font-bold uppercase text-[10px] tracking-widest italic">Live Rankings</span>
+              <span className={`text-[10px] font-black px-3 py-1 rounded-md uppercase tracking-widest ${
+                compType === 'rank'
+                  ? 'bg-orange-100 text-orange-600'
+                  : 'bg-indigo-100 text-indigo-600'
+              }`}>
+                {compType === 'rank' ? 'Rank-Sum System' : 'Average System (High Wins)'}
+              </span>
             </div>
-            <h1 className="text-5xl font-black uppercase tracking-tighter text-gray-900 leading-none">
-              Your <span className="text-blue-600 italic">Winners</span>
+            <h1 className="text-6xl font-black uppercase tracking-tighter text-slate-900 leading-none">
+              Live <span className="text-indigo-600 italic">Standings</span>
             </h1>
-            <p className="text-gray-400 font-bold mt-2 opacity-60 uppercase text-xs">{contestName}</p>
           </div>
-
-          <button 
-            onClick={handleLogout}
-            className="text-xs font-black text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors flex items-center gap-2"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            Switch Judge ID
-          </button>
         </div>
 
-        {/* RANKING LIST */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-40 space-y-4">
-            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-gray-400 font-black uppercase text-[10px] tracking-widest animate-pulse">Syncing Scores...</p>
-          </div>
+          <div className="py-40 text-center animate-pulse text-slate-300 font-black">SYNCING SCORES...</div>
         ) : rankings.length === 0 ? (
-          <div className="bg-white border-2 border-dashed border-gray-200 rounded-[2rem] py-32 text-center">
-            <p className="text-gray-400 font-bold uppercase text-sm italic tracking-widest">No scores submitted for this session yet.</p>
+          <div className="py-40 text-center text-slate-400 font-black uppercase tracking-widest">
+            No scores submitted yet.
           </div>
         ) : (
-          <div className="grid gap-4">
-            {rankings.map((contestant, index) => {
-              const isFirst = index === 0;
-              return (
-                <div 
-                  key={index} 
-                  className={`
-                    group flex items-center justify-between p-6 rounded-3xl transition-all duration-300
-                    ${isFirst 
-                      ? 'bg-white border-2 border-yellow-400 shadow-2xl shadow-yellow-100 scale-[1.02]' 
-                      : 'bg-white border border-gray-100 shadow-sm hover:border-blue-200 hover:-translate-y-1'}
-                  `}
-                >
-                  <div className="flex items-center gap-6">
-                    {/* Rank Badge */}
-                    <div className={`
-                      w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black
-                      ${isFirst ? 'bg-yellow-400 text-yellow-900 rotate-3' : 'bg-gray-50 text-gray-400'}
-                    `}>
-                      {index + 1}
-                    </div>
+          <div className="space-y-8">
 
-                    <div>
-                      <h3 className={`text-xl font-black uppercase tracking-tight ${isFirst ? 'text-gray-900' : 'text-gray-700'}`}>
-                        {contestant.name}
-                      </h3>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{isFirst ? '⭐ Current First Place' : 'Contestant'}</p>
-                    </div>
-                  </div>
+            {/* RANKING TABLE */}
+            <div className="bg-white rounded-[32px] border border-slate-200 shadow-xl shadow-slate-200/40 overflow-hidden">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="p-8 text-[10px] font-black uppercase text-slate-400 tracking-widest">Place</th>
+                    <th className="p-8 text-[10px] font-black uppercase text-slate-400 tracking-widest">Contestant</th>
+                    <th className="p-8 text-center text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                      {compType === 'rank' ? 'Score Total' : 'Score Total'}
+                    </th>
+                    <th className="p-8 text-right text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                      {compType === 'rank' ? 'Rank Given' : 'Final Calculation'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {rankings.map((con, idx) => (
+                    <tr key={con.id ?? idx} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="p-8">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${
+                          idx === 0
+                            ? 'bg-amber-400 text-white shadow-lg shadow-amber-200'
+                            : 'bg-slate-100 text-slate-400'
+                        }`}>
+                          {idx + 1}
+                        </div>
+                      </td>
+                      <td className="p-8">
+                        <div className="font-black text-slate-800 uppercase text-lg leading-tight">{con.name}</div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          Entry #{con.id}
+                        </div>
+                      </td>
+                      <td className="p-8 text-center">
+                        <span className="text-sm font-bold text-slate-500 tabular-nums">
+                          {con.total.toFixed(2)} pts
+                        </span>
+                      </td>
+                      <td className="p-8 text-right">
+                        <div className="flex flex-col items-end">
+                          {compType === 'rank' ? (
+                            <>
+                              {/* In rank mode: show what rank THIS judge is giving this contestant */}
+                              <span className={`text-2xl font-black ${idx === 0 ? 'text-indigo-600' : 'text-slate-900'}`}>
+                                {getOrdinal(con.rankPosition)}
+                              </span>
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                                This Judge's Rank
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className={`text-2xl font-black ${idx === 0 ? 'text-indigo-600' : 'text-slate-900'}`}>
+                                {con.total.toFixed(2)}%
+                              </span>
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                                Current Placement
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-                  {/* Points Section */}
-                  <div className="text-right">
-                    <p className={`text-3xl font-black leading-none ${isFirst ? 'text-blue-600' : 'text-gray-800'}`}>
-                      {contestant.total}
-                    </p>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 italic">Total Points</p>
-                  </div>
+            {/* LOGIC FOOTER */}
+            <div className="p-8 bg-white border border-slate-200 rounded-[24px] flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Computation Rule</span>
+                <span className="text-xs font-black text-slate-800 uppercase italic">
+                  {compType === 'rank'
+                    ? "Rank-Sum System: Each judge ranks contestants by total score. Final winner has lowest rank sum across all judges."
+                    : "Average System: Higher percentage values indicate higher performance."}
+                </span>
+              </div>
+              <div className="hidden md:block w-px h-8 bg-slate-100 mx-8"></div>
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Status</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                  <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Synchronized</span>
                 </div>
-              );
-            })}
+              </div>
+            </div>
+
           </div>
         )}
-
-        <div className="mt-12 text-center text-gray-400 text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">
-          Rankings are updated in real-time based on your latest judge inputs.
-        </div>
-
       </div>
     </div>
   );
