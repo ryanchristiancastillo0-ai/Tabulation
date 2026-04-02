@@ -109,22 +109,27 @@ router.post('/save-config', async (req, res) => {
             contestants,
             criteria,
             computation_type,
-            contest_type
+            contest_type,
+            is_judge_locked // <-- 1. ADDED
         } = req.body;
 
         await connection.beginTransaction();
 
+        // 2. ADDED is_judge_locked = ? TO THE SQL STRING
         const updateSettingsSql = `
             UPDATE settings 
-            SET contest_name = ?, contest_type = ?, judge_count = ?, ai_prompt = ?, computation_type = ? 
+            SET contest_name = ?, contest_type = ?, judge_count = ?, ai_prompt = ?, computation_type = ?, is_judge_locked = ? 
             WHERE id = 1
         `;
+
+        // 3. ADDED is_judge_locked TO THE ARRAY
         await connection.execute(updateSettingsSql, [
             contest_name || '',
             contest_type || 'pageant',
             judge_count || 3,
             ai_prompt || '',
-            computation_type || 'average'
+            computation_type || 'average',
+            is_judge_locked || 0 // Defaults to 0 (unlocked) if not provided
         ]);
 
         await connection.execute("DELETE FROM contestants");
@@ -153,5 +158,4 @@ router.post('/save-config', async (req, res) => {
         connection.release();
     }
 });
-
 module.exports = router;

@@ -64,10 +64,45 @@ export const useJudgeSystem = () => {
     }
   }, [dynamicUI, config, selectedJudge]);
 
-  const submitToDB = async () => {
-    handleSubmitScore({ selectedJudge, config, clearCache, showStatus, API_BASE });
-  };
+ const submitToDB = async () => {
+  if (!selectedJudge) return showStatus("Error", "Please select a judge.", "error");
+  
+  // Collect scores from the AI-generated UI
+  const scoreElements = document.querySelectorAll('.score-dropdown');
+  const scores = Array.from(scoreElements).map(el => {
+    const [ , contestantId, criterionId] = el.id.split('-');
+    return { 
+      contestantId: parseInt(contestantId), 
+      criterionId: parseInt(criterionId), 
+      value: parseFloat(el.value) || 0 
+    };
+  });
 
+  try {
+    setLoading(true);
+    const response = await fetch(`${API_BASE}/judge/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ judgeId: selectedJudge, scores })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      showStatus("Success", "Scores submitted and locked!", "success");
+      
+      // --- THE FIX: RELOAD AFTER 2 SECONDS ---
+      // We give the user 2 seconds to see the "Success" modal before refreshing
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
+  } catch (err) {
+    showStatus("Error", "Failed to connect to server.", "error");
+  } finally {
+    setLoading(false);
+  }
+};
   return { 
     selectedJudge, dynamicUI, config, loading, modal, isOnline, closeModal, submitToDB,
     updateJudge: (val) => { 

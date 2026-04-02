@@ -16,8 +16,7 @@ export const getJudgeDataFetch = async (API_BASE, setLoading, setConfig, setDyna
     });
 
     const uiData = await uiRes.json();
-    const cleanHtml = uiData.html?.replace(/```html|```/g, "").trim() || "";
-    setDynamicUI(cleanHtml);
+   setDynamicUI(uiData);
   } catch (err) {
     showStatus("Error", "System offline.", "warning");
   } finally {
