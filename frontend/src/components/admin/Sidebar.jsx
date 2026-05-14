@@ -1,70 +1,154 @@
-import { LayoutGrid, Trophy, Sparkles, Scale, Users, UserPlus, Moon, Sun, LogOut } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { LayoutGrid, Trophy, Sparkles, Scale, Users, UserPlus, Moon, Sun, LogOut, MonitorCog } from 'lucide-react';
+import fallbackLogo from '../../assets/img/logo.png';
+
+const API_BASE = import.meta.env.VITE_API_URL;
+
+const navItems = [
+  { id: 'overview',    icon: LayoutGrid, label: 'Overview' },
+  { id: 'contest',     icon: Trophy,     label: 'Contest Info' },
+  { id: 'ai',          icon: Sparkles,   label: 'AI Prompt' },
+  { id: 'criteria',    icon: Scale,      label: 'Criteria' },
+  { id: 'judges',      icon: Users,      label: 'Judges' },
+  { id: 'contestants', icon: UserPlus,   label: 'Contestants' },
+  { id: 'system',      icon: MonitorCog, label: 'System' },
+];
 
 export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
-  const navItems = [
-    { id: 'overview', icon: LayoutGrid, label: 'Overview' },
-    { id: 'contest', icon: Trophy, label: 'Contest Info' },
-    { id: 'ai', icon: Sparkles, label: 'AI Prompt' },
-    { id: 'criteria', icon: Scale, label: 'Criteria' },
-    { id: 'judges', icon: Users, label: 'Judges' },
-    { id: 'contestants', icon: UserPlus, label: 'Contestants' },
-  ];
+  const [sysConfig, setSysConfig] = useState({ school_logo: '', portal_name: '', school_name: '' });
 
+  useEffect(() => {
+    fetch(`${API_BASE}/system-config`)
+      .then(r => r.json())
+      .then(data => { if (data) setSysConfig(prev => ({ ...prev, ...data })); })
+      .catch(() => {});
+  }, []);
 
-    const handleLogout = () => {
-  localStorage.removeItem('adminToken'); // The Guard in App.jsx checks for THIS
-  window.location.href = '/login';       // Force a refresh to clear the "Bouncer"
-}
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    window.location.href = '/login';
+  };
+
+  const logoSrc = sysConfig.school_logo || fallbackLogo;
+  const portalName = sysConfig.portal_name || 'CompPortal';
 
   return (
-    <aside className="w-64 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-950">
-      <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">C</div>
-          <div>
-            <h2 className="text-sm font-bold dark:text-white">CompPortal</h2>
-            <p className="text-[10px] text-slate-400 font-mono">ADMIN v1.2</p>
+    <aside
+      className="w-64 flex flex-col"
+      style={{
+        background: 'var(--surface)',
+        borderRight: '1px solid var(--border)',
+        position: 'sticky',
+        top: 0,
+        height: '100vh',
+        overflowY: 'auto',
+        transition: 'background .25s, border-color .25s',
+      }}
+    >
+      {/* ── Logo / Brand ── */}
+      <div
+        className="p-5 flex items-center gap-3"
+        style={{ borderBottom: '1px solid var(--border)' }}
+      >
+        <img
+          src={logoSrc}
+          alt="Logo"
+          className="w-10 h-10 object-contain rounded-lg"
+          style={{ border: '1px solid var(--border)' }}
+          onError={e => { e.currentTarget.src = fallbackLogo; }}
+        />
+        <div>
+          <div className="text-sm font-bold tracking-tight" style={{ color: 'var(--text1)' }}>
+            {portalName}
+          </div>
+          <div
+            className="text-[10px] font-semibold uppercase tracking-wider"
+            style={{ color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}
+          >
+            Admin v1.2
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setActiveNav(item.id)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-              activeNav === item.id 
-                ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' 
-                : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900'
-            }`}
-          >
-            <item.icon size={18} strokeWidth={activeNav === item.id ? 2.5 : 2} />
-            {item.label}
-          </button>
-        ))}
+      {/* ── Badge pill ── */}
+      <div className="px-5 py-3">
+        <div
+          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest"
+          style={{
+            background: 'var(--accent-lt)',
+            color: 'var(--accent)',
+            border: '1px solid var(--accent-bd)',
+          }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent-mid)' }} />
+          Administrator
+        </div>
+      </div>
+
+      {/* ── Nav items ── */}
+      <nav className="flex-1 px-3 pb-3 space-y-0.5">
+        {navItems.map((item) => {
+          const active = activeNav === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveNav(item.id)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              style={{
+                background: active ? 'var(--accent-lt)' : 'transparent',
+                color: active ? 'var(--accent)' : 'var(--text2)',
+                border: active ? '1px solid var(--accent-bd)' : '1px solid transparent',
+              }}
+              onMouseEnter={e => {
+                if (!active) { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text1)'; }
+              }}
+              onMouseLeave={e => {
+                if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text2)'; }
+              }}
+            >
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{
+                  background: active ? 'var(--accent-bd)' : 'var(--surface2)',
+                  color: active ? 'var(--accent)' : 'var(--text3)',
+                }}
+              >
+                <item.icon size={15} strokeWidth={active ? 2.5 : 2} />
+              </div>
+              {item.label}
+            </button>
+          );
+        })}
       </nav>
 
-     {/* Logout Button Section */}
-      <div className="p-4 border-t border-slate-100 dark:border-slate-800">
-        <button 
+      {/* ── Sign out ── */}
+      <div className="px-3 pb-2" style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+        <button
           onClick={handleLogout}
-          className="group w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-red-50 hover:border-red-100 hover:text-red-600 dark:hover:bg-red-900/10 dark:hover:border-red-900/20 transition-all duration-200"
+          className="group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all"
+          style={{ color: 'var(--text2)', border: '1px solid transparent' }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#fff1f2'; e.currentTarget.style.color = '#be123c'; e.currentTarget.style.borderColor = '#fecdd3'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text2)'; e.currentTarget.style.borderColor = 'transparent'; }}
         >
-          <div className="flex items-center gap-3">
-            <LogOut size={18} className="group-hover:rotate-12 transition-transform" />
-            <span>Sign Out</span>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--surface2)' }}>
+            <LogOut size={15} strokeWidth={2} />
           </div>
+          Sign Out
         </button>
       </div>
 
-      <div className="p-4 border-t border-slate-100 dark:border-slate-800">
-        <button 
+      {/* ── Dark / Light toggle ── */}
+      <div className="px-3 pb-4">
+        <button
           onClick={() => setDark(!dark)}
-          className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-medium dark:text-slate-300"
+          className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
+          style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text2)' }}
         >
           <span>{dark ? 'Dark Mode' : 'Light Mode'}</span>
-          {dark ? <Moon size={16} /> : <Sun size={16} />}
+          {dark
+            ? <Moon size={15} style={{ color: 'var(--accent)' }} />
+            : <Sun size={15} style={{ color: 'var(--accent)' }} />
+          }
         </button>
       </div>
     </aside>

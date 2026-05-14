@@ -1,110 +1,86 @@
-const express = require('express');
-const router = express.Router();
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const pool = require('../config/db');
+// routes/auth.js
+// POST /api/auth/login  →  returns JWT containing school_id
+//
+// Mount in server.js as:
+//   app.use('/api/auth', require('./routes/auth'));
+//
+// AdminLogin.jsx was previously calling /api/admin/login — update that one line
+// in AdminLogin.jsx to /api/auth/login, or mount this router at both paths:
+//   app.use('/api/admin', require('./routes/auth'));   // backward compat alias
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
+const express  = require('express');
+const router   = express.Router();
+const bcrypt   = require('bcrypt');
+const jwt      = require('jsonwebtoken');
+const pool     = require('../config/db');
 
-// ── ADMIN REGISTER (One-time use) ──
-router.post('/register', async (req, res) => {
-    try {
-        const { name, email, password } = req.body;
-        
-        if (!name || !email || !password) {
-            return res.status(400).json({ error: "All fields are required." });
-        }
+const JWT_SECRET  = process.env.JWT_SECRET  || 'change_this_secret';
+const JWT_EXPIRES = process.env.JWT_EXPIRES || '8h';
 
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        await pool.execute(
-            "INSERT INTO admins (name, email, password) VALUES (?, ?, ?)",
-            [name, email, hashedPassword]
-        );
-
-        res.json({ success: true, message: "Admin registered successfully." });
-    } catch (err) {
-        res.status(500).json({ error: "Registration failed: " + err.message });
-    }
-});
-
-// ── ADMIN LOGIN ──
+// ── LOGIN ──────────────────────────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    try {
-        const [users] = await pool.execute('SELECT * FROM admins WHERE email = ?', [email]);
-        
-        if (users.length === 0) {
-            return res.status(401).json({ error: "Invalid credentials." });
-        }
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
 
-        const user = users[0];
-        const isMatch = await bcrypt.compare(password, user.password);
+  try {
+    // Fetch admin + join school to make sure school is active
+    const [rows] = await pool.execute(
+      `SELECT a.id AS admin_id, a.name, a.email, a.password, a.school_id,
+              s.school_name, s.school_logo, s.subscription_plan, s.status AS school_status
+       FROM   admins  a
+       JOIN   schools s ON s.id = a.school_id
+       WHERE  a.email = ?
+       LIMIT  1`,
+      [email]
+    );
 
-        if (!isMatch) {
-            return res.status(401).json({ error: "Invalid credentials." });
-        }
-
-        // Generate JWT
-        const token = jwt.sign(
-            { id: user.id, email: user.email }, 
-            JWT_SECRET, 
-            { expiresIn: '2h' }
-        );
-
-        res.json({ 
-            success: true,
-            token, 
-            message: "Login successful",
-            admin: { id: user.id, name: user.name, email: user.email }
-        });
-
-    } catch (err) {
-        console.error("Login Error:", err);
-        res.status(500).json({ error: "Server error: " + err.message });
-    }
-});
-
-// ── RESET PASSWORD ──
-router.post('/reset-password', async (req, res) => {
-    const { email, newPassword } = req.body;
-
-    if (!email || !newPassword) {
-        return res.status(400).json({ error: "Email and new password are required." });
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    try {
-        // Check if admin exists
-        const [users] = await pool.execute('SELECT * FROM admins WHERE email = ?', [email]);
-        
-        if (users.length === 0) {
-            return res.status(404).json({ error: "No account found with that email address." });
-        }
+    const admin = rows[0];
 
-        // Hash new password
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-        // Update DB
-        await pool.execute('UPDATE admins SET password = ? WHERE email = ?', [hashedPassword, email]);
-
-        return res.status(200).json({ 
-            success: true,
-            message: "Password updated successfully."
-        });
-
-    } catch (err) {
-        console.error("Reset Password Error:", err);
-        return res.status(500).json({ error: "Internal server error." });
+    if (admin.school_status !== 'active') {
+      return res.status(403).json({ error: 'Your school account is inactive. Contact support.' });
     }
-});
 
-// ── LOGOUT ──
-// Note: JWT is stateless. Real logout happens on the Frontend by 
-// removing the token from LocalStorage. This route is for cleanup/logging.
-router.post('/logout', (req, res) => {
-    res.json({ success: true, message: "Logged out successfully." });
+    const passwordMatch = await bcrypt.compare(password, admin.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    // Sign JWT — school_id lives in the payload
+    const token = jwt.sign(
+      {
+        admin_id:  admin.admin_id,
+        admin_email: admin.email,
+        school_id: admin.school_id,
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES }
+    );
+
+    res.json({
+      success: true,
+      token,
+      admin: {
+        id:          admin.admin_id,
+        name:        admin.name,
+        email:       admin.email,
+        school_id:   admin.school_id,
+        school_name: admin.school_name,
+        school_logo: admin.school_logo,
+        plan:        admin.subscription_plan,
+      },
+    });
+
+  } catch (err) {
+    console.error('Login error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

@@ -6,7 +6,8 @@ const pool = mysql.createPool({
     password: process.env.DB_PASS || '',
     database: process.env.DB_NAME || 'tabulation_db',
     waitForConnections: true,
-    connectionLimit: 10
+    connectionLimit: 10,
+    
 });
 
 module.exports = pool;

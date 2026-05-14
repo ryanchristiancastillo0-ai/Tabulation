@@ -7,6 +7,8 @@ import JudgeScoreboard from './pages/judge/JudgeScoreboard'
 import LeaderBoard from './components/admin/Leaderboard'
 import AdminLogin from './components/admin/LoginForm'
 import ForgotPassword from './components/admin/Forgotpassword'
+import CreateSchoolForm from './pages/school/SchoolForm';
+import { ContestProvider } from './providers/ContestContext';
 
 /**
  * ── ADMIN PROTECTION GUARD ──
@@ -26,7 +28,8 @@ const AdminProtectedRoute = () => {
 
 export default function App() {
   return (
-    <Routes>
+ <ContestProvider pollInterval={4000}>
+     <Routes>
       {/* ── PUBLIC ROUTES ── */}
       <Route path='/' element={<Home />} />
       <Route path='/login' element={<AdminLogin />} />
@@ -46,8 +49,12 @@ export default function App() {
       <Route path='/judge' element={<JudgeTable />} />
       <Route path='/judge/scoreboard' element={<JudgeScoreboard />} />
       
+      {/* School  */}
+       <Route path='/school' element={<CreateSchoolForm/>} />
+
       {/* ── 404 CATCH-ALL ── */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+ </ContestProvider>
   );
 }

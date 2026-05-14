@@ -1,111 +1,261 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
+/* ─────────────────────────────────────────────
+   Tailwind config is assumed to be set up in
+   your project with the same tokens as the
+   original HTML (primary, outline-variant, etc.)
+   If not, the inline-style fallbacks below keep
+   things working out-of-the-box.
+───────────────────────────────────────────── */
+
 const Home = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="relative min-h-screen bg-[#f5f6fa] font-sans flex items-center justify-center p-6 overflow-hidden">
-      {/* Background Pattern & Gradients */}
-      <div className="absolute inset-0 pointer-events-none opacity-55 [mask-image:radial-gradient(ellipse_85%_85%_at_50%_50%,black_0%,transparent_100%)]" 
-           style={{ backgroundImage: 'radial-gradient(circle, #d1d5e0 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
-      <div className="absolute inset-0 pointer-events-none opacity-20"
-           style={{ background: 'radial-gradient(ellipse 55% 40% at 20% 10%, rgba(79,70,229,0.3) 0%, transparent 70%), radial-gradient(ellipse 45% 35% at 85% 85%, rgba(16,185,129,0.3) 0%, transparent 70%)' }} />
+    <div className="bg-[#f7f9fb] text-[#191c1e] font-['Inter',sans-serif] min-h-screen selection:bg-[#10b981]/20 selection:text-[#00422b]">
 
-      <div className="relative z-10 w-full max-w-[860px] animate-in fade-in slide-in-from-bottom-6 duration-700">
-        <header className="text-center mb-14">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-indigo-200 bg-indigo-50 text-[10.5px] font-bold tracking-[0.18em] text-indigo-600 uppercase font-mono mb-6">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600/50" />
-            Official Access Portal
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600/50" />
+      {/* ── Top Nav ── */}
+      <nav className="bg-[#f7f9fb] sticky top-0 z-50 border-b border-[#e0e3e5] w-full">
+        <div className="flex justify-between items-center max-w-[1280px] mx-auto px-12 h-20">
+          <div className="text-2xl font-bold text-[#006c49] tracking-tight">
+           Veridict
           </div>
-          <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 leading-none tracking-tight mb-4">
-            Competition <span className="text-indigo-600 relative after:content-[''] after:absolute after:bottom-1 after:left-0 after:right-0 after:h-1 after:bg-indigo-600/30 after:rounded-full">Portal</span>
-          </h1>
-          <p className="text-slate-500 max-w-md mx-auto text-sm md:text-base leading-relaxed">
-            Select your access level to proceed to your designated workspace
-          </p>
-        </header>
 
-        <div className="flex items-center gap-4 mb-8">
-          <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">Choose Your Role</span>
-          <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+       
+          <div className="flex items-center gap-4">
+            <button onClick={()=>navigate('/login')} className="text-base text-[#3c4a42] hover:text-[#006c49] transition-colors">
+              Sign In
+            </button>
+            <button onClick={()=>navigate('/school')} className="bg-[#10b981] text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:opacity-90 transition-all">
+              Get Started
+            </button>
+          </div>
         </div>
+      </nav>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <RoleCard 
-            type="admin"
-            title="Administrator"
-            badge="Admin"
-            icon="🔐"
-            desc="Full system access to manage the competition lifecycle — from setup through to final results."
-            features={['Manage scoring criteria & weights', 'Register contestants & judges', 'View tabulated results']}
-            onClick={() => navigate('/login')}
-          />
-          <RoleCard 
-            type="judge"
-            title="Official Judge"
-            badge="Judge"
-            icon="⚖️"
-            desc="Access your dedicated scoring panel to evaluate contestants and submit scores in real-time."
-            features={['Real-time scoring panel', 'Per-criterion evaluation', 'Live score submission']}
-            onClick={() => navigate('/judge-login')}
-          />
+      <main>
+        {/* ── Hero ── */}
+        <section className="relative min-h-[80vh] flex items-center overflow-hidden">
+          {/* Background image + overlay */}
+          <div className="absolute inset-0 z-0">
+            <img
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUuamHQHsEjOeAOmQU5psjn0fOyEY_Xge0mfvs0kgNHFS8whxXhAg4IV-BbJS4G4PGar5R2u4jjgIiBjIYv7Ss7H8RJvvucD8538JvUeEPUoyMni1dVuVVNCc7n818O4IfyTt8mrdXK9EhkK8kzBf8-qgLGg1NGItlTMfmuuTnD0J9UV_Cu3Ylh-EPRLUkHk_y_PgINEfuOgjsLc5rL56CFkNWSXPUt7ikcb08zajwwnrD1hgUjcyqMeTW9OaNP9PPVeClU5b2hyON"
+              alt="Academic Innovation"
+              className="w-full h-full object-cover"
+            />
+            {/* Glass overlay */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background: 'rgba(247, 249, 251, 0.85)',
+                backdropFilter: 'blur(8px)',
+              }}
+            />
+          </div>
+
+          {/* Hero content */}
+          <div className="relative z-10 max-w-[1280px] mx-auto px-12 py-24">
+            <div className="max-w-3xl">
+              <span className="inline-block px-3 py-1 bg-[#10b981]/10 text-[#006c49] text-xs font-semibold rounded-full mb-6 uppercase tracking-widest">
+                Competition Portal
+              </span>
+
+              <h1 className="text-5xl md:text-6xl font-extrabold text-[#191c1e] mb-6 leading-tight tracking-tight">
+                Professional Online Judging Platform{' '}
+                <span className="text-[#006c49]">for Schools & Competitions</span>
+              </h1>
+
+              <p className="text-lg text-[#3c4a42] mb-10 max-w-2xl leading-relaxed">
+               Create your school's judging workspace,
+manage judges, contestants, and scoring
+in real time.
+              </p>
+
+              <div className="flex flex-wrap gap-4">
+                <button onClick={()=>navigate('/school')} className="bg-[#10b981] text-white px-8 py-4 rounded-lg text-sm font-bold flex items-center gap-2 hover:opacity-90 transition-all">
+                 Create School Account
+                  <span className="text-lg leading-none">→</span>
+                </button>
+                <button onClick={()=>navigate('/login')} className="bg-white border border-[#bbcabf] text-[#545f73] px-8 py-4 rounded-lg text-sm font-bold hover:bg-[#f2f4f6] transition-all">
+                 Sign In
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Role Cards ── */}
+        <section className="py-32 bg-[#f7f9fb]">
+          <div className="max-w-[1280px] mx-auto px-12">
+            <div className="text-center mb-20">
+              <h2 className="text-3xl font-semibold text-[#191c1e] mb-4 tracking-tight">
+                Specialized Evaluation Portals
+              </h2>
+              <p className="text-base text-[#3c4a42]">
+                Purpose-built interfaces for the keystones of your organization.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Administrator Card */}
+              <RoleCard
+                type="admin"
+                icon="🔐"
+                title="System Coordinator"
+                desc="Oversee the entire evaluation lifecycle. Design custom rubrics, manage judge assignments, and monitor real-time scoring progress and data aggregation."
+                features={[
+                  'Manage scoring criteria',
+                  'Register contestants',
+                  'View tabulated results',
+                ]}
+                ctaLabel="Access Dashboard"
+                ctaVariant="filled"
+                onClick={() => navigate('/login')}
+              />
+
+              {/* Judge Card */}
+              <RoleCard
+                type="judge"
+                icon="⚖️"
+                title="Expert Evaluator"
+                desc="Deliver high-quality assessments within a distraction-free environment. Utilize advanced tools for consistent scoring and detailed qualitative feedback."
+                features={[
+                  'Real-time scoring',
+                  'Criterion evaluation',
+                  'Live score submission',
+                ]}
+                ctaLabel="Start Judging"
+                ctaVariant="outline"
+                onClick={() => navigate('/judge')}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Stats / Trust ── */}
+        <section className="py-24 border-t border-[#e0e3e5]">
+          <div className="max-w-[1280px] mx-auto px-12 grid grid-cols-2 md:grid-cols-4 gap-12">
+            {[
+              { value: '99.9%', label: 'Uptime SLA' },
+              { value: '500+', label: 'Institutions' },
+              { value: '12M', label: 'Active Learners' },
+              { value: 'ISO', label: '27001 Certified' },
+            ].map(({ value, label }) => (
+              <div key={label} className="text-center">
+                <div className="text-[40px] font-extrabold text-[#006c49] mb-2 leading-none">
+                  {value}
+                </div>
+                <div className="text-xs font-semibold text-[#3c4a42] uppercase tracking-widest">
+                  {label}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      {/* ── Footer ── */}
+      <footer className="bg-[#f2f4f6] w-full py-16 border-t border-[#e0e3e5]">
+        <div className="grid grid-cols-1 md:grid-cols-2 max-w-[1280px] mx-auto px-12 gap-12">
+          <div>
+            <div className="text-xl font-bold text-[#191c1e] mb-4">
+              Lumina Global Education
+            </div>
+            <p className="text-sm text-[#3c475a] max-w-sm leading-relaxed">
+              Pioneering the future of institutional intelligence through secure,
+              scalable, and intuitive software solutions.
+            </p>
+            <div className="mt-8 text-sm text-[#3c475a]">
+              © {new Date().getFullYear()} Lumina Global Education. All rights reserved.
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8">
+            <div className="flex flex-col gap-3">
+              <span className="text-xs font-bold text-[#191c1e] uppercase mb-2 tracking-wider">
+                Legal
+              </span>
+              {['Privacy Policy', 'Terms of Service', 'Compliance'].map((item) => (
+                <a
+                  key={item}
+                  href="#"
+                  className="text-sm text-[#3c475a] hover:text-[#006c49] transition-colors"
+                >
+                  {item}
+                </a>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3">
+              <span className="text-xs font-bold text-[#191c1e] uppercase mb-2 tracking-wider">
+                Support
+              </span>
+              {['Contact Us', 'Security Whitepaper', 'API Status'].map((item) => (
+                <a
+                  key={item}
+                  href="#"
+                  className="text-sm text-[#3c475a] hover:text-[#006c49] transition-colors"
+                >
+                  {item}
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
-
-        <footer className="mt-12 flex flex-wrap items-center justify-center gap-4 text-slate-400 font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em]">
-          <span>Secure System</span>
-          <div className="w-1 h-1 rounded-full bg-slate-300" />
-          <span>Powered by Gemini 3.1 & MySQL</span>
-          <div className="w-1 h-1 rounded-full bg-slate-300" />
-          <span>v1.0</span>
-        </footer>
-      </div>
+      </footer>
     </div>
   );
 };
 
-const RoleCard = ({ type, title, badge, icon, desc, features, onClick }) => {
-  const isAdmin = type === 'admin';
-  const colorClass = isAdmin ? 'hover:border-indigo-200 border-indigo-100 hover:shadow-indigo-100/50' : 'hover:border-emerald-200 border-emerald-100 hover:shadow-emerald-100/50';
-  const accentClass = isAdmin ? 'bg-indigo-600' : 'bg-emerald-500';
-
+/* ─────────────────────────────────────────────
+   RoleCard — same props interface as before,
+   new Lumina visual style
+───────────────────────────────────────────── */
+const RoleCard = ({ type, icon, title, desc, features, ctaLabel, ctaVariant, onClick }) => {
   return (
-    <div 
+    <div
       onClick={onClick}
-      className={`group relative bg-white border-[1.5px] rounded-2xl p-8 cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl border-slate-200 ${colorClass}`}
+      className="bg-white border border-[#bbcabf] p-10 rounded-xl cursor-pointer flex flex-col h-full transition-all duration-300 hover:-translate-y-1 hover:border-[#10b981] hover:shadow-[0px_10px_30px_rgba(30,41,59,0.06)]"
     >
-      <div className={`absolute top-0 left-0 right-0 h-1 transition-opacity opacity-0 group-hover:opacity-100 ${accentClass}`} />
-      
-      <span className={`absolute top-5 right-5 text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-md border font-mono ${isAdmin ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-emerald-50 border-emerald-200 text-emerald-600'}`}>
-        {badge}
-      </span>
-
-      <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl mb-6 transition-transform group-hover:scale-110 border ${isAdmin ? 'bg-indigo-50 border-indigo-200' : 'bg-emerald-50 border-emerald-200'}`}>
+      {/* Icon badge */}
+      <div className="w-14 h-14 bg-[#f2f4f6] rounded-lg flex items-center justify-center mb-8 text-3xl">
         {icon}
       </div>
 
-      <h2 className="text-xl font-extrabold text-slate-900 mb-2 tracking-tight">{title}</h2>
-      <p className="text-[13.5px] text-slate-500 leading-relaxed mb-6">{desc}</p>
+      <h3 className="text-2xl font-semibold text-[#191c1e] mb-4">{title}</h3>
 
-      <ul className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-2 mb-7">
-        {features.map((f, i) => (
-          <li key={i} className="flex items-center gap-2.5 text-[12.5px] font-semibold text-slate-600">
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${accentClass}`} />
-            {f}
+      <p className="text-base text-[#3c4a42] mb-8 flex-grow leading-relaxed">{desc}</p>
+
+      <ul className="space-y-3 mb-10">
+        {features.map((feature, index) => (
+          <li key={index} className="flex items-center gap-3 text-sm text-[#3c4a42] font-medium">
+            {/* Checkmark */}
+            <svg
+              className="w-5 h-5 text-[#006c49] flex-shrink-0"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clipRule="evenodd"
+              />
+            </svg>
+            {feature}
           </li>
         ))}
       </ul>
 
-      <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-        <span className={`text-xs font-bold tracking-wider uppercase ${isAdmin ? 'text-indigo-600' : 'text-emerald-600'}`}>
-          Enter {isAdmin ? 'Dashboard' : 'Scoring'}
-        </span>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:translate-x-1 ${isAdmin ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
-          →
-        </div>
-      </div>
+      {/* CTA button */}
+      {ctaVariant === 'filled' ? (
+        <button className="w-full bg-[#10b981] text-white py-4 rounded-lg text-sm font-bold hover:opacity-90 transition-all">
+          {ctaLabel}
+        </button>
+      ) : (
+        <button className="w-full bg-white border border-[#006c49] text-[#006c49] py-4 rounded-lg text-sm font-bold hover:bg-[#006c49]/5 transition-all">
+          {ctaLabel}
+        </button>
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  KeyRound, ArrowLeft, Mail, Lock, Eye, 
+import {
+  KeyRound, ArrowLeft, Mail, Lock, Eye,
   EyeOff, RefreshCw, AlertCircle, Loader2, CheckCircle2
 } from 'lucide-react';
 
@@ -15,12 +15,11 @@ const ForgotPassword = () => {
   const [error, setError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Front-end Validation
+
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match.');
       return;
@@ -33,21 +32,17 @@ const ForgotPassword = () => {
       const response = await fetch(`${API_BASE}/admin/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, newPassword })
+        body: JSON.stringify({ email, newPassword }),
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Reset failed.');
       }
 
-      // Show success state
       setIsSuccess(true);
-      
-      // Wait 2 seconds so they can see the checkmark, then go to login
-      setTimeout(() => navigate('/login'), 2000); 
-
+      setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -55,122 +50,288 @@ const ForgotPassword = () => {
     }
   };
 
+  /* ── shared input focus/blur handlers ── */
+  const onFocus = (e) => {
+    e.target.style.borderColor = '#10b981';
+    e.target.style.background = '#fff';
+    e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)';
+  };
+  const onBlur = (e) => {
+    e.target.style.borderColor = '#e0e3e5';
+    e.target.style.background = '#f2f4f6';
+    e.target.style.boxShadow = 'none';
+  };
+
+  const inputBase = {
+    background: '#f2f4f6',
+    border: '1.5px solid #e0e3e5',
+    color: '#191c1e',
+  };
+
   return (
-    <div className="relative min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-4 overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none opacity-30" 
-           style={{ backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-      
-      <div className="relative z-10 w-full max-w-[380px] animate-in fade-in zoom-in-95 duration-300">
-        <div className="bg-white rounded-[20px] p-6 md:p-8 border border-slate-200 shadow-xl text-center">
-          
-          <div className="flex items-center justify-between mb-5">
-            <button 
+    <div
+      className="min-h-screen w-full flex items-center justify-center p-4 overflow-hidden"
+      style={{ background: '#f7f9fb', fontFamily: "'Inter', sans-serif" }}
+    >
+      {/* Dot-grid */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-40"
+        style={{
+          backgroundImage: 'radial-gradient(circle, #bbcabf 1px, transparent 1px)',
+          backgroundSize: '28px 28px',
+        }}
+      />
+
+      {/* Ambient glow */}
+      <div
+        className="absolute top-0 right-0 w-[520px] h-[520px] rounded-full pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)',
+          filter: 'blur(60px)',
+        }}
+      />
+
+      <div className="relative z-10 w-full max-w-[420px]">
+        <div
+          className="bg-white rounded-2xl border p-8 md:p-10"
+          style={{
+            borderColor: '#e0e3e5',
+            boxShadow: '0 8px 40px rgba(30,41,59,0.07)',
+          }}
+        >
+          {/* Top row */}
+          <div className="flex items-center justify-between mb-8">
+            <button
               onClick={() => navigate('/login')}
-              className="p-2 -ml-2 text-slate-400 hover:text-indigo-600 transition-colors"
+              className="p-2 -ml-2 rounded-lg transition-colors hover:bg-[#f2f4f6]"
+              style={{ color: '#6c7a71' }}
             >
               <ArrowLeft size={20} />
             </button>
-            <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
-              <KeyRound size={22} strokeWidth={2.5} />
+
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center"
+              style={{ background: '#f2f4f6', color: '#006c49' }}
+            >
+              <KeyRound size={22} strokeWidth={2.2} />
             </div>
+
             <div className="w-8" />
           </div>
 
           {!isSuccess ? (
             <>
-              <div className="mb-5 text-center">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Reset Password</h2>
-                <p className="text-[11px] text-slate-500 mt-1 uppercase tracking-wider">Update admin credentials</p>
+              {/* Heading */}
+              <div className="mb-7">
+                <span
+                  className="inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-3"
+                  style={{ background: 'rgba(16,185,129,0.08)', color: '#006c49' }}
+                >
+                  Credential Recovery
+                </span>
+                <h2
+                  className="text-2xl font-bold tracking-tight"
+                  style={{ color: '#191c1e' }}
+                >
+                  Reset Password
+                </h2>
+                <p className="text-sm mt-1" style={{ color: '#6c7a71' }}>
+                  Update your administrator credentials below.
+                </p>
               </div>
 
+              {/* Divider */}
+              <div className="h-px mb-7" style={{ background: '#e0e3e5' }} />
+
+              {/* Error */}
               {error && (
-                <div className="flex items-center gap-2 bg-red-50 border border-red-100 text-red-600 p-2.5 rounded-lg text-xs font-medium mb-4 text-left">
-                  <AlertCircle size={14} />
-                  {error}
+                <div
+                  className="flex items-center gap-2 p-3 rounded-lg text-xs font-medium mb-5 border"
+                  style={{ background: '#fff1f2', borderColor: '#fecdd3', color: '#be123c' }}
+                >
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{error}</span>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-3.5 text-left">
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Email */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1 ml-1">Email Address</label>
-                  <div className="relative group">
-                    <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  <label
+                    className="block text-[11px] font-bold uppercase tracking-wider mb-1.5"
+                    style={{ color: '#3c4a42' }}
+                  >
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail
+                      size={15}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2"
+                      style={{ color: '#6c7a71' }}
+                    />
                     <input
                       type="email"
                       required
-                      className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-indigo-500 outline-none transition-all"
                       placeholder="admin@email.com"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                      className="w-full pl-10 pr-4 py-3 rounded-lg text-sm outline-none transition-all"
+                      style={inputBase}
+                      onFocus={onFocus}
+                      onBlur={onBlur}
                     />
                   </div>
                 </div>
 
+                {/* New Password */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1 ml-1">New Password</label>
-                  <div className="relative group">
-                    <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  <label
+                    className="block text-[11px] font-bold uppercase tracking-wider mb-1.5"
+                    style={{ color: '#3c4a42' }}
+                  >
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <Lock
+                      size={15}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2"
+                      style={{ color: '#6c7a71' }}
+                    />
                     <input
-                      type={showPw ? "text" : "password"}
+                      type={showPw ? 'text' : 'password'}
                       required
-                      className="w-full pl-10 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-indigo-500 outline-none transition-all"
                       placeholder="••••••••"
                       value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
+                      onChange={(e) => { setNewPassword(e.target.value); setError(''); }}
+                      className="w-full pl-10 pr-11 py-3 rounded-lg text-sm outline-none transition-all"
+                      style={inputBase}
+                      onFocus={onFocus}
+                      onBlur={onBlur}
                     />
                     <button
                       type="button"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
                       onClick={() => setShowPw(!showPw)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded transition-colors"
+                      style={{ color: '#6c7a71' }}
                     >
                       {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
 
+                {/* Confirm Password */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1 ml-1">Confirm Password</label>
-                  <div className="relative group">
-                    <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  <label
+                    className="block text-[11px] font-bold uppercase tracking-wider mb-1.5"
+                    style={{ color: '#3c4a42' }}
+                  >
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <Lock
+                      size={15}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2"
+                      style={{ color: '#6c7a71' }}
+                    />
                     <input
                       type="password"
                       required
-                      className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-indigo-500 outline-none transition-all"
                       placeholder="••••••••"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }}
+                      className="w-full pl-10 pr-4 py-3 rounded-lg text-sm outline-none transition-all"
+                      style={inputBase}
+                      onFocus={onFocus}
+                      onBlur={onBlur}
                     />
                   </div>
                 </div>
 
-                <button 
-                  type="submit" 
+                {/* Submit */}
+                <button
+                  type="submit"
                   disabled={loading}
-                  className="w-full py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-70 mt-3 shadow-md bg-slate-900 hover:bg-slate-800"
+                  className="w-full py-3.5 rounded-lg font-bold text-sm text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60 mt-1"
+                  style={{ background: '#006c49', boxShadow: '0 4px 14px rgba(0,108,73,0.25)' }}
+                  onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#10b981'; }}
+                  onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#006c49'; }}
                 >
-                  {loading ? <Loader2 size={18} className="animate-spin" /> : <><span className="text-sm">Update Password</span> <RefreshCw size={16} /></>}
+                  {loading ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <>
+                      <span>Update Password</span>
+                      <RefreshCw size={16} />
+                    </>
+                  )}
                 </button>
               </form>
             </>
           ) : (
-            <div className="py-8 animate-in zoom-in-95">
-              <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 size={40} />
+            /* ── Success state ── */
+            <div className="py-6 text-center">
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5"
+                style={{ background: 'rgba(16,185,129,0.1)', color: '#006c49' }}
+              >
+                <CheckCircle2 size={38} />
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Password Updated!</h3>
-              <p className="text-sm text-slate-500 mt-2">Redirecting you to login...</p>
+              <span
+                className="inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-3"
+                style={{ background: 'rgba(16,185,129,0.08)', color: '#006c49' }}
+              >
+                Success
+              </span>
+              <h3
+                className="text-xl font-bold tracking-tight"
+                style={{ color: '#191c1e' }}
+              >
+                Password Updated!
+              </h3>
+              <p className="text-sm mt-2" style={{ color: '#6c7a71' }}>
+                Redirecting you to sign in...
+              </p>
+              {/* Progress bar */}
+              <div
+                className="mt-6 h-1 rounded-full overflow-hidden"
+                style={{ background: '#e0e3e5' }}
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    background: '#10b981',
+                    width: '100%',
+                    animation: 'shrink 2s linear forwards',
+                  }}
+                />
+              </div>
+              <style>{`
+                @keyframes shrink {
+                  from { width: 100%; }
+                  to   { width: 0%; }
+                }
+              `}</style>
             </div>
           )}
 
-          <div className="mt-6 pt-4 border-t border-slate-100">
-            <button 
+          {/* Footer link */}
+          <div className="mt-6 pt-5 border-t" style={{ borderColor: '#e0e3e5' }}>
+            <button
               onClick={() => navigate('/login')}
-              className="text-[11px] font-bold text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-tight"
+              className="w-full text-[11px] font-bold uppercase tracking-wider transition-colors"
+              style={{ color: '#6c7a71' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#006c49')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#6c7a71')}
             >
-              Back to Sign In
+              ← Back to Sign In
             </button>
           </div>
         </div>
+
+        <p className="text-center text-[11px] mt-4" style={{ color: '#6c7a71' }}>
+          Secure access · Lumina Enterprise v1.0
+        </p>
       </div>
     </div>
   );

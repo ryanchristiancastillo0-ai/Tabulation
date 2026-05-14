@@ -4,30 +4,40 @@ const crypto = require('crypto');
 const pool = require('../config/db');
 const { generateWithFallback } = require('../config/ai');
 
-// ── 1. GENERATE AI JUDGE UI ──
+// ── 1. GENERATE AI JUDGE UI (PUBLIC - no auth) ──
 router.post('/render-ui', async (req, res) => {
     try {
-        const { contestants, criteria, aiPrompt: incomingPrompt } = req.body;
-          
-        const [rows] = await pool.execute("SELECT contest_name, ai_prompt FROM settings WHERE id = 1");
+        const { contestants, criteria, aiPrompt: incomingPrompt, school_id } = req.body;
+
+        if (!school_id) return res.status(400).json({ error: 'school_id is required.' });
+        if (!contestants?.length || !criteria?.length) {
+            return res.status(400).json({ error: 'contestants and criteria are required.' });
+        }
+
+        const [rows] = await pool.execute(
+            "SELECT contest_name, ai_prompt FROM settings WHERE school_id = ? LIMIT 1",
+            [school_id]
+        );
         const settings = rows[0] || { contest_name: "Event", ai_prompt: "Modern and Professional" };
         const finalDesignGoal = incomingPrompt || settings.ai_prompt || "Modern and Professional";
 
         const configHash = crypto.createHash('md5')
-            .update(finalDesignGoal + JSON.stringify(criteria))
+            .update(finalDesignGoal + JSON.stringify(criteria) + String(school_id))
             .digest('hex');
 
-        const [cache] = await pool.execute("SELECT header_content, html_content FROM ui_cache WHERE prompt_hash = ?", [configHash]);
+        const [cache] = await pool.execute(
+            "SELECT header_content, html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ?",
+            [configHash, school_id]
+        );
 
         if (cache.length > 0) {
-            return res.json({ 
-                headerHtml: cache[0].header_content, 
-                html: cache[0].html_content 
+            return res.json({
+                headerHtml: cache[0].header_content,
+                html: cache[0].html_content
             });
         }
 
-        // PROMPT 1: THE TABLE (Now with strict color enforcement)
-      const aiInstruction = `
+        const aiInstruction = `
             Act as a Senior Tailwind Developer.
             [THEME]: "${finalDesignGoal}"
             [COLOR SCHEME]: 
@@ -37,8 +47,8 @@ router.post('/render-ui', async (req, res) => {
 
             [CONTEXT]:
             - Contest: ${settings.contest_name}
-            - Data: ${JSON.stringify(contestants.map(c => ({id: c.id, n: c.name, num: c.entry_number})))}
-            - Criteria: ${JSON.stringify(criteria.map(cr => ({id: cr.id, name: cr.name, percentage: cr.percentage})))}
+            - Data: ${JSON.stringify(contestants.map(c => ({ id: c.id, n: c.name, num: c.entry_number })))}
+            - Criteria: ${JSON.stringify(criteria.map(cr => ({ id: cr.id, name: cr.name, percentage: cr.percentage })))}
 
             [MANDATORY]:
             - Render EXACTLY ${contestants.length} rows. 
@@ -51,11 +61,11 @@ router.post('/render-ui', async (req, res) => {
             [OUTPUT]: Return ONLY a <div> containing the Tailwind-styled <table>. No markdown.
         `;
 
-        // PROMPT 2: THE CRITERIA HEADER
         const criteriaInstruction = `
             Act as a Senior UI Designer.
             [THEME]: "${finalDesignGoal}"
             [TASK]: Create a criteria percentage summary section.
+            [DATA]: ${JSON.stringify(criteria.map(cr => ({ name: cr.name, percentage: cr.percentage })))}
             [STYLE]: Use Tailwind. Ensure the background <div> matches the "${finalDesignGoal}" theme perfectly.
             [OUTPUT]: Return ONLY the HTML <div>. No markdown.
         `;
@@ -65,34 +75,47 @@ router.post('/render-ui', async (req, res) => {
             generateWithFallback(criteriaInstruction)
         ]);
 
-        const cleanTable = tableHTML.replace(/```html/g, "").replace(/```/g, "").trim();
+        const cleanTable  = tableHTML.replace(/```html/g, "").replace(/```/g, "").trim();
         const cleanHeader = headerHTML.replace(/```html/g, "").replace(/```/g, "").trim();
 
         await pool.execute(
-            "INSERT INTO ui_cache (prompt_hash, header_content, html_content) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE header_content = VALUES(header_content), html_content = VALUES(html_content)",
-            [configHash, cleanHeader, cleanTable]
+            `INSERT INTO ui_cache (prompt_hash, school_id, header_content, html_content) 
+             VALUES (?, ?, ?, ?) 
+             ON DUPLICATE KEY UPDATE 
+               header_content = VALUES(header_content), 
+               html_content   = VALUES(html_content)`,
+            [configHash, school_id, cleanHeader, cleanTable]
         );
 
         res.json({ headerHtml: cleanHeader, html: cleanTable });
+
     } catch (err) {
-        res.status(500).json({ error: "Failed" });
+        console.error('render-ui error:', err.message);
+        res.status(500).json({ error: err.message });
     }
 });
-// ── 2. SUBMIT JUDGE SCORES ──
+
+// ── 2. SUBMIT JUDGE SCORES (PUBLIC - judges have no JWT) ──
 router.post('/submit', async (req, res) => {
     try {
-        const { judgeId, scores } = req.body;
-        if (!judgeId || !scores) return res.status(400).json({ error: "Missing Judge ID or Scores" });
+        const { judgeId, scores, school_id } = req.body;
 
-        // Use a transaction for safer batch inserts
+        if (!judgeId || !scores)   return res.status(400).json({ error: "Missing Judge ID or Scores" });
+        if (!school_id)            return res.status(400).json({ error: "Missing school_id" });
+        if (!Array.isArray(scores) || scores.length === 0) {
+            return res.status(400).json({ error: "Scores array is empty" });
+        }
+
         const connection = await pool.getConnection();
         try {
             await connection.beginTransaction();
-            const sql = `INSERT INTO scores (judge_id, contestant_id, criterion_id, score_value) 
-                         VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE score_value = VALUES(score_value)`;
-
+            const sql = `
+                INSERT INTO scores (school_id, judge_id, contestant_id, criterion_id, score_value) 
+                VALUES (?, ?, ?, ?, ?) 
+                ON DUPLICATE KEY UPDATE score_value = VALUES(score_value)
+            `;
             for (const s of scores) {
-                await connection.execute(sql, [judgeId, s.contestantId, s.criterionId, s.value]);
+                await connection.execute(sql, [school_id, judgeId, s.contestantId, s.criterionId, s.value]);
             }
             await connection.commit();
             res.json({ success: true, message: "Scores successfully saved" });
@@ -108,37 +131,45 @@ router.post('/submit', async (req, res) => {
     }
 });
 
-// ── 3. GET SCORE SUMMARY (RANKINGS) ──
+// ── 3. GET SCORE SUMMARY (PUBLIC) ──
 router.get('/my-scores', async (req, res) => {
     try {
-        const { judgeId } = req.query;
-        if (!judgeId) return res.status(400).json({ error: "Judge ID is required" });
+        const { judgeId, school_id } = req.query;
+        if (!judgeId)   return res.status(400).json({ error: "Judge ID is required" });
+        if (!school_id) return res.status(400).json({ error: "school_id is required" });
 
-        const sql = `
-            SELECT c.name, SUM(s.score_value) as total 
-            FROM scores s
-            JOIN contestants c ON s.contestant_id = c.id
-            WHERE s.judge_id = ?
-            GROUP BY c.id, c.name
-            ORDER BY total DESC
-        `;
-        const [rankings] = await pool.execute(sql, [judgeId]);
+        const [rankings] = await pool.execute(
+            `SELECT c.name, SUM(s.score_value) as total 
+             FROM scores s
+             JOIN contestants c ON s.contestant_id = c.id AND c.school_id = ?
+             WHERE s.judge_id = ? AND s.school_id = ?
+             GROUP BY c.id, c.name
+             ORDER BY total DESC`,
+            [school_id, judgeId, school_id]
+        );
         res.json(rankings);
     } catch (err) {
+        console.error('my-scores error:', err.message);
         res.status(500).json({ error: "Failed to fetch rankings" });
     }
 });
 
-// ── 4. GET RAW SCORES FOR UI PERSISTENCE ──
+// ── 4. GET RAW SCORES FOR UI PERSISTENCE (PUBLIC) ──
 router.get('/my-scores-raw/:judgeId', async (req, res) => {
     try {
         const { judgeId } = req.params;
+        const { school_id } = req.query;
+        if (!school_id) return res.status(400).json({ error: "school_id is required" });
+
         const [scores] = await pool.execute(
-            "SELECT contestant_id, criterion_id, score_value FROM scores WHERE judge_id = ?", 
-            [judgeId]
+            `SELECT contestant_id, criterion_id, score_value 
+             FROM scores 
+             WHERE judge_id = ? AND school_id = ?`,
+            [judgeId, school_id]
         );
         res.json(scores);
     } catch (err) {
+        console.error('my-scores-raw error:', err.message);
         res.status(500).json({ error: "Failed to fetch raw scores" });
     }
 });
