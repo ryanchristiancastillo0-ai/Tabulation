@@ -16,7 +16,6 @@ function getSchoolId() {
   }
 }
 
-// ── Get auth token from localStorage ──────────────────────────────────────────
 function getAuthToken() {
   try {
     const auth = localStorage.getItem('auth');
@@ -29,7 +28,6 @@ function getAuthToken() {
   }
 }
 
-// ── Authenticated fetch helper ─────────────────────────────────────────────────
 function authFetch(url, options = {}) {
   const token = getAuthToken();
   return fetch(url, {
@@ -42,8 +40,6 @@ function authFetch(url, options = {}) {
   });
 }
 
-// ─── Context ──────────────────────────────────────────────────────────────────
-
 const ContestContext = createContext(null);
 
 export const useContestContext = () => {
@@ -52,30 +48,22 @@ export const useContestContext = () => {
   return ctx;
 };
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
-
 export const ContestProvider = ({ children, pollInterval = 4000 }) => {
   const schoolId = getSchoolId();
 
-  // ── Lock state ──
   const [isJudgeLocked,   setIsJudgeLocked]   = useState(false);
   const [lockLoading,     setLockLoading]     = useState(false);
   const [lockError,       setLockError]       = useState(null);
-
-  // ── Contest meta ──
   const [contestName,     setContestName]     = useState('');
   const [judgeCount,      setJudgeCount]      = useState(0);
   const [calculationType, setCalculationType] = useState('average');
-
-  const [ready, setReady] = useState(false);
+  const [ready,           setReady]           = useState(false);
 
   const lockedRef = useRef(isJudgeLocked);
   useEffect(() => { lockedRef.current = isJudgeLocked; }, [isJudgeLocked]);
 
-  // ── Fetch config — uses PUBLIC endpoint so no auth needed ─────────────────
   const fetchConfig = useCallback(async () => {
     try {
-      // Public endpoint — no auth header needed, uses school_id query param
       const res  = await fetch(`${API_BASE}/public/get-all-data?school_id=${schoolId}`);
       const data = await res.json();
 
@@ -87,10 +75,7 @@ export const ContestProvider = ({ children, pollInterval = 4000 }) => {
           settings.is_judge_locked === true ||
           settings.is_judge_locked === '1';
 
-        if (serverLocked !== lockedRef.current) {
-          setIsJudgeLocked(serverLocked);
-        }
-
+        if (serverLocked !== lockedRef.current) setIsJudgeLocked(serverLocked);
         if (settings.contest_name     !== undefined) setContestName(settings.contest_name || '');
         if (settings.judge_count      !== undefined) setJudgeCount(Number(settings.judge_count) || 0);
         if (settings.computation_type !== undefined) setCalculationType(settings.computation_type || 'average');
@@ -102,65 +87,54 @@ export const ContestProvider = ({ children, pollInterval = 4000 }) => {
     }
   }, [schoolId, ready]);
 
-  // ── Initial fetch + polling ──
   useEffect(() => {
     fetchConfig();
     const interval = setInterval(fetchConfig, pollInterval);
     return () => clearInterval(interval);
   }, [fetchConfig, pollInterval]);
 
-  // ── Lock / Unlock — PROTECTED endpoint, needs auth header ────────────────
+  // ── Lock / Unlock (admin only, protected endpoint) ────────────────────────
   const setLockState = useCallback(async (locked) => {
     setLockLoading(true);
     setLockError(null);
-
-    // Optimistic update
-    setIsJudgeLocked(locked);
+    setIsJudgeLocked(locked); // optimistic
 
     try {
-      const res = await authFetch(`${API_BASE}/save-config`, {
+      const res  = await authFetch(`${API_BASE}/save-config`, {
         method: 'POST',
-        body: JSON.stringify({
-          is_judge_locked: locked ? 1 : 0,
-        }),
+        body: JSON.stringify({ is_judge_locked: locked ? 1 : 0 }),
       });
-
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Failed to save lock state');
-
     } catch (err) {
-      // Rollback on failure
-      setIsJudgeLocked(!locked);
+      setIsJudgeLocked(!locked); // rollback
       setLockError(err.message);
       console.error('[ContestContext] setLockState error:', err.message);
     } finally {
       setLockLoading(false);
     }
-  }, [schoolId]);
+  }, []);
 
   const lockJudges   = useCallback(() => setLockState(true),  [setLockState]);
   const unlockJudges = useCallback(() => setLockState(false), [setLockState]);
   const toggleLock   = useCallback(() => setLockState(!lockedRef.current), [setLockState]);
-
-  const refresh = useCallback(() => fetchConfig(), [fetchConfig]);
-
-  const value = {
-    isJudgeLocked,
-    lockLoading,
-    lockError,
-    lockJudges,
-    unlockJudges,
-    toggleLock,
-    contestName,
-    judgeCount,
-    calculationType,
-    ready,
-    refresh,
-    schoolId,
-  };
+  const refresh      = useCallback(() => fetchConfig(), [fetchConfig]);
 
   return (
-    <ContestContext.Provider value={value}>
+    <ContestContext.Provider value={{
+      isJudgeLocked,
+      lockLoading,
+      lockError,
+      lockJudges,
+      unlockJudges,
+      toggleLock,
+      contestName,
+      judgeCount,
+      calculationType,
+      ready,
+      refresh,
+      schoolId,
+    }}>
       {children}
     </ContestContext.Provider>
   );

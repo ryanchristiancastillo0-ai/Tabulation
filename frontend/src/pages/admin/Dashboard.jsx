@@ -33,6 +33,7 @@ function Dashboard() {
   const [secondaryColor, setSecondaryColor] = useState("#0f172a");
   const [footerText, setFooterText] = useState("");
   const [logoRadius, setLogoRadius] = useState(12);
+  const [headerTemplate, setHeaderTemplate] = useState('structured'); 
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [activeNav, setActiveNav] = useState("overview");
@@ -93,6 +94,8 @@ function Dashboard() {
       if (data.secondary_color !== undefined) setSecondaryColor(data.secondary_color ?? "#0f172a");
       if (data.footer_text     !== undefined) setFooterText(data.footer_text ?? "");
       if (data.logo_radius     !== undefined) setLogoRadius(Number(data.logo_radius ?? 12));
+     
+if (data.header_template !== undefined) setHeaderTemplate(data.header_template ?? 'structured'); // ADD THIS
     } catch (err) {
       console.error("system-config load error:", err);
     }
@@ -135,6 +138,7 @@ function Dashboard() {
         secondary_color: secondaryColor,
         footer_text:     footerText,
         logo_radius:     logoRadius,
+        header_template: headerTemplate
       });
 
       showToast("success", "Configuration saved!");
@@ -148,16 +152,24 @@ function Dashboard() {
   };
 
   // ── Delete / reset ────────────────────────────────────────────────────────
-  const onDelete = async () => {
-    setShowDeleteModal(false);
-    try {
-      await apiClient.delete('/reset-data');
-      showToast("success", "All data cleared.");
-      await loadAllData();
-    } catch (err) {
-      showToast("error", "Reset failed: " + err.message);
-    }
-  };
+
+const onDelete = async () => {
+  setShowDeleteModal(false);
+  try {
+    await apiClient.delete('/reset-data');
+
+    // FIX: clear all judge UI caches from localStorage so the judge
+    // page doesn't load a stale UI after reset
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('ui_html_cache_'))
+      .forEach(k => localStorage.removeItem(k));
+
+    showToast("success", "All data cleared.");
+    await loadAllData();
+  } catch (err) {
+    showToast("error", "Reset failed: " + err.message);
+  }
+};
 
   const totalWeight = criteria.reduce((s, c) => s + Number(c.weight || 0), 0);
 
@@ -266,6 +278,8 @@ function Dashboard() {
             setFooterText={setFooterText}
             logoRadius={logoRadius}
             setLogoRadius={setLogoRadius}
+            headerTemplate={headerTemplate}        
+setHeaderTemplate={setHeaderTemplate} 
           />
         </main>
       </div>

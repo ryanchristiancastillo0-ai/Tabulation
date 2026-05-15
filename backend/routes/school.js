@@ -60,6 +60,18 @@ router.post('/create', async (req, res) => {
             [admin_name, admin_email, hashedPassword, school_id]
         );
 
+        // ── Step 3: seed system_config with school logo so sidebar shows it ──
+if (school_logo) {
+  await conn.execute(
+    `INSERT INTO system_config (school_id, school_logo, school_name)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       school_logo  = VALUES(school_logo),
+       school_name  = VALUES(school_name)`,
+    [school_id, school_logo, school_name]
+  );
+}
+
         await conn.commit();
         conn.release();
 

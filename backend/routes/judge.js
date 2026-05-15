@@ -173,5 +173,46 @@ router.get('/my-scores-raw/:judgeId', async (req, res) => {
         res.status(500).json({ error: "Failed to fetch raw scores" });
     }
 });
+// ── 5. GET CACHED UI ONLY — no AI, safe for background refresh ──
+router.get('/render-ui-cached', async (req, res) => {
+    try {
+        const { school_id, criteria_signature } = req.query;
+        if (!school_id) return res.status(400).json({ error: 'school_id is required.' });
+
+        // We need the prompt hash to look up the right cache row.
+        // The client sends a criteria_signature; we combine it with the ai_prompt
+        // to reproduce the same hash the POST route uses.
+        const [rows] = await pool.execute(
+            "SELECT ai_prompt FROM settings WHERE school_id = ? LIMIT 1",
+            [school_id]
+        );
+        const aiPrompt = rows[0]?.ai_prompt || 'Modern and Professional';
+
+        const configHash = require('crypto')
+            .createHash('md5')
+            .update(aiPrompt + criteria_signature + String(school_id))
+            .digest('hex');
+
+        const [cache] = await pool.execute(
+            "SELECT header_content, html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ?",
+            [configHash, school_id]
+        );
+
+        if (cache.length > 0) {
+            return res.json({
+                headerHtml: cache[0].header_content,
+                html:       cache[0].html_content,
+                fromCache:  true,
+            });
+        }
+
+        // Nothing in DB — tell the client to do a full POST instead
+        return res.json({ fromCache: false });
+
+    } catch (err) {
+        console.error('render-ui-cached error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 module.exports = router;

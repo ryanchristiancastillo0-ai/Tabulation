@@ -3,7 +3,7 @@ import {
   Trash2, Lock, Unlock, Upload, CheckCircle, AlertCircle, Loader,
   Users, Scale, ListChecks, PieChart, LayoutDashboard, Trophy,
   Tag, Calculator, Sparkles, ShieldCheck, AlertTriangle,
-  Building2, Star, Activity,
+  Building2, Star, Activity, Palette, LayoutTemplate, SlidersHorizontal,
 } from 'lucide-react';
 import CriteriaManager from './CreteriaManager';
 import apiClient from '../../utils/apiClient';
@@ -265,18 +265,14 @@ const AIConfigSection = ({ aiPrompt, setAiPrompt }) => {
 };
 
 // ─── JUDGES ───────────────────────────────────────────────────────────────────
-// ↓↓↓ THIS IS THE KEY CHANGE — uses ContestContext instead of local prop ↓↓↓
 
 const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculationType }) => {
-  // Pull live lock state + actions from context
   const { isJudgeLocked, toggleLock, lockLoading, lockError } = useContestContext();
 
   return (
     <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 28 }}>
       <div className="flex items-center justify-between">
         <div className="section-heading" style={{ margin: 0 }}>Judge & Calculation Configuration</div>
-
-        {/* ── Real-time lock toggle ── */}
         <div className="flex items-center gap-3 p-2 rounded-xl" style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
           <div className="w-2.5 h-2.5 rounded-full" style={{
             background: isJudgeLocked ? 'var(--red)' : 'var(--accent-mid)',
@@ -303,47 +299,28 @@ const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculat
                 ? <Lock size={13} />
                 : <Unlock size={13} />
             }
-            {lockLoading
-              ? 'SAVING…'
-              : isJudgeLocked
-                ? 'JUDGES LOCKED'
-                : 'LOCK JUDGES'
-            }
+            {lockLoading ? 'SAVING…' : isJudgeLocked ? 'JUDGES LOCKED' : 'LOCK JUDGES'}
           </button>
         </div>
       </div>
 
-      {/* Lock status feedback */}
       {lockError && (
-        <div style={{
-          background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 10,
-          padding: '10px 14px', fontSize: 12, color: '#dc2626',
-          display: 'flex', alignItems: 'center', gap: 8,
-        }}>
+        <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8 }}>
           <AlertTriangle size={13} />
           Failed to save: {lockError}
         </div>
       )}
 
-      {/* Live status pill */}
       <div style={{
         background: isJudgeLocked ? '#fff1f2' : 'var(--accent-lt)',
         border: `1px solid ${isJudgeLocked ? '#fecdd3' : 'var(--accent-bd)'}`,
-        borderRadius: 10,
-        padding: '10px 16px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        fontSize: 12,
-        fontWeight: 600,
+        borderRadius: 10, padding: '10px 16px',
+        display: 'flex', alignItems: 'center', gap: 10,
+        fontSize: 12, fontWeight: 600,
         color: isJudgeLocked ? '#dc2626' : 'var(--accent)',
         transition: 'all .3s',
       }}>
-        <div style={{
-          width: 8, height: 8, borderRadius: '50%',
-          background: isJudgeLocked ? '#ef4444' : 'var(--accent-mid)',
-          animation: 'pulse 2s infinite',
-        }} />
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: isJudgeLocked ? '#ef4444' : 'var(--accent-mid)', animation: 'pulse 2s infinite' }} />
         {isJudgeLocked
           ? 'Judges are currently LOCKED — scoring is disabled on the judge portal. Changes take effect immediately.'
           : 'Judges are UNLOCKED — scoring is active on the judge portal. Toggle to lock instantly.'
@@ -465,6 +442,180 @@ const LogoUploadField = ({ label, value, onChange }) => {
   );
 };
 
+// ─── HEADER TEMPLATES ─────────────────────────────────────────────────────────
+
+const HEADER_TEMPLATES = [
+  // ── Template 1: Structured — two-row, logo left, select judge prominent right ──
+  {
+    id: 'structured',
+    name: 'Structured',
+    desc: 'Two-row layout — branding top, contest info & judge selector bottom',
+    icon: <LayoutTemplate size={18} />,
+    render: ({ primary, secondary, schoolLogo, portalName, schoolName, footerText, logoRadius }) => {
+      const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
+      return (
+        <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', fontFamily: 'inherit' }}>
+          {/* Row 1 — branding bar */}
+          <div style={{ background: primary, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            {schoolLogo ? (
+              <img src={schoolLogo} alt="logo" style={{ width: 34, height: 34, borderRadius: r, objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.35)', flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 34, height: 34, borderRadius: r, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1.5px solid rgba(255,255,255,0.25)' }}>
+                <Building2 size={15} style={{ color: '#fff' }} />
+              </div>
+            )}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: '#fff', lineHeight: 1.2 }}>{portalName || 'Veridict'}</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>{schoolName || 'Official Judging Portal'}</div>
+            </div>
+            {/* Live badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: secondary, display: 'inline-block' }} />
+              <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.9)', letterSpacing: '0.1em' }}>LIVE</span>
+            </div>
+          </div>
+          {/* Accent rule */}
+          <div style={{ height: 2, background: secondary }} />
+          {/* Row 2 — contest + judge selector */}
+          <div style={{ background: 'var(--surface)', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 16, borderBottom: '1px solid var(--border)' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text3)', marginBottom: 2 }}>Active Contest</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text1)' }}>Sample Contest Name 2025</div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text3)' }}>Judging As</div>
+              <select style={{ appearance: 'none', padding: '6px 28px 6px 12px', background: primary, border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: 'inherit', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.7)'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: 28 }}>
+                <option>Select Judge…</option>
+                <option>Judge 1</option>
+                <option>Judge 2</option>
+                <option>Judge 3</option>
+              </select>
+            </div>
+          </div>
+          {/* Footer */}
+          {footerText && (
+            <div style={{ background: 'var(--surface2)', padding: '5px 20px', fontSize: 10, color: 'var(--text3)', textAlign: 'center', borderTop: '1px solid var(--border)' }}>{footerText}</div>
+          )}
+        </div>
+      );
+    },
+  },
+
+  // ── Template 2: Compact — single solid bar, logo + title center, judge right ──
+  {
+    id: 'compact',
+    name: 'Compact Bar',
+    desc: 'Single-row header — identity left, contest center, judge selector right',
+    icon: <SlidersHorizontal size={18} />,
+    render: ({ primary, secondary, schoolLogo, portalName, schoolName, footerText, logoRadius }) => {
+      const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
+      return (
+        <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', fontFamily: 'inherit' }}>
+          {/* Single main bar */}
+          <div style={{ background: primary, padding: '0 20px', minHeight: 60, display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Left — logo + name */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 16, borderRight: '1px solid rgba(255,255,255,0.18)', flexShrink: 0 }}>
+              {schoolLogo ? (
+                <img src={schoolLogo} alt="logo" style={{ width: 32, height: 32, borderRadius: r, objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.3)' }} />
+              ) : (
+                <div style={{ width: 32, height: 32, borderRadius: r, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid rgba(255,255,255,0.2)' }}>
+                  <Building2 size={13} style={{ color: '#fff' }} />
+                </div>
+              )}
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 12, color: '#fff', lineHeight: 1.1 }}>{portalName || 'Veridict'}</div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', marginTop: 1 }}>{schoolName || 'Judge Portal'}</div>
+              </div>
+            </div>
+            {/* Center — contest title */}
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.5)', marginBottom: 2 }}>Now Judging</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>Sample Contest Name 2025</div>
+            </div>
+            {/* Right — judge selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 16, borderLeft: '1px solid rgba(255,255,255,0.18)', flexShrink: 0 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: secondary, flexShrink: 0 }} />
+              <select style={{ appearance: 'none', padding: '7px 30px 7px 12px', background: 'rgba(255,255,255,0.14)', border: '1.5px solid rgba(255,255,255,0.25)', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: 'inherit', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.6)'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>
+                <option style={{ background: primary, color: '#fff' }}>Select Judge…</option>
+                <option style={{ background: primary, color: '#fff' }}>Judge 1</option>
+                <option style={{ background: primary, color: '#fff' }}>Judge 2</option>
+              </select>
+            </div>
+          </div>
+          {/* Bottom accent + footer */}
+          <div style={{ height: 3, background: `linear-gradient(90deg, transparent, ${secondary}, transparent)` }} />
+          {footerText && (
+            <div style={{ background: 'var(--surface2)', padding: '5px 20px', fontSize: 10, color: 'var(--text3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{footerText}</span>
+              <span style={{ color: 'var(--text3)', opacity: 0.6 }}>Encrypted · Secure Session</span>
+            </div>
+          )}
+        </div>
+      );
+    },
+  },
+
+  // ── Template 3: Elevated — white card header with colored accent left border, judge dropdown prominent ──
+  {
+    id: 'elevated',
+    name: 'Elevated Card',
+    desc: 'White card style — colored left accent, contest & judge info clearly separated',
+    icon: <Palette size={18} />,
+    render: ({ primary, secondary, schoolLogo, portalName, schoolName, footerText, logoRadius }) => {
+      const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
+      return (
+        <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', fontFamily: 'inherit' }}>
+          {/* Colored top strip */}
+          <div style={{ height: 4, background: primary }} />
+          {/* Main white card */}
+          <div style={{ background: 'var(--surface)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Logo */}
+            <div style={{ flexShrink: 0, padding: '6px', background: `${primary}12`, borderRadius: logoRadius >= 999 ? '50%' : `${Math.min((logoRadius || 0) + 4, 16)}px`, border: `1.5px solid ${primary}30` }}>
+              {schoolLogo ? (
+                <img src={schoolLogo} alt="logo" style={{ width: 36, height: 36, borderRadius: r, objectFit: 'cover', display: 'block' }} />
+              ) : (
+                <div style={{ width: 36, height: 36, borderRadius: r, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Building2 size={16} style={{ color: primary }} />
+                </div>
+              )}
+            </div>
+            {/* Identity */}
+            <div style={{ borderRight: '1px solid var(--border)', paddingRight: 16, flexShrink: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--text1)', lineHeight: 1.2 }}>{portalName || 'Veridict'}</div>
+              <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>{schoolName || 'Official Judging Portal'}</div>
+            </div>
+            {/* Contest info */}
+            <div style={{ flex: 1, paddingLeft: 4 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text3)', marginBottom: 3 }}>Active Contest</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text1)' }}>Sample Contest Name 2025</div>
+            </div>
+            {/* Judge selector — most prominent element */}
+            <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text3)' }}>Judging As</div>
+              <select style={{ appearance: 'none', padding: '8px 32px 8px 14px', background: primary, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: 'inherit', boxShadow: `0 2px 10px ${primary}40`, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.75)'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}>
+                <option>Select Judge…</option>
+                <option>Judge 1</option>
+                <option>Judge 2</option>
+                <option>Judge 3</option>
+              </select>
+            </div>
+          </div>
+          {/* Footer */}
+          {footerText && (
+            <div style={{ background: 'var(--surface2)', padding: '6px 20px', fontSize: 10, color: 'var(--text3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)' }}>
+              <span>{footerText}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: secondary, display: 'inline-block' }} />
+                Secure Session
+              </span>
+            </div>
+          )}
+        </div>
+      );
+    },
+  },
+];
+
 // ─── SYSTEM CONFIG ────────────────────────────────────────────────────────────
 
 const SystemConfigSection = ({
@@ -472,29 +623,53 @@ const SystemConfigSection = ({
   schoolLogo, setSchoolLogo, backgroundLogo, setBackgroundLogo,
   primaryColor, setPrimaryColor, secondaryColor, setSecondaryColor,
   footerText, setFooterText, logoRadius, setLogoRadius,
+  // header template — optional; component owns local state so clicking always works
+  headerTemplate: headerTemplateProp,
+  setHeaderTemplate: setHeaderTemplateProp,
 }) => {
-  const [saveStatus, setSaveStatus] = React.useState('idle');
-  const [errorMsg, setErrorMsg] = React.useState('');
 
-  const handleSave = async () => {
-    setSaveStatus('saving');
-    setErrorMsg('');
+  const [configTab, setConfigTab] = React.useState('branding');
+
+   
+
+  // Self-contained local state — selection works even if parent hasn't wired the prop
+  const [localTemplate, setLocalTemplate] = React.useState(headerTemplateProp || 'structured');
+  React.useEffect(() => {
+    if (headerTemplateProp && headerTemplateProp !== localTemplate) setLocalTemplate(headerTemplateProp);
+  }, [headerTemplateProp]);
+  const headerTemplate = localTemplate;
+  const setHeaderTemplate = (id) => {
+    setLocalTemplate(id);
+    if (typeof setHeaderTemplateProp === 'function') setHeaderTemplateProp(id);
+  };
+
+  // Add this useEffect inside SystemConfigSection, after the existing localTemplate state
+useEffect(() => {
+  const fetchSaved = async () => {
     try {
-      const data = await apiClient.post('/save-system-config', {
-        school_name: schoolName, portal_name: portalName,
-        school_logo: schoolLogo, background_logo: backgroundLogo,
-        primary_color: primaryColor, secondary_color: secondaryColor,
-        footer_text: footerText, logo_radius: logoRadius,
-      });
-      if (!data.success) throw new Error(data.error || 'Save failed');
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
+      const schoolId = (() => {
+        try {
+          const p = new URLSearchParams(window.location.search);
+          if (p.get('school_id')) return p.get('school_id');
+          const u = localStorage.getItem('adminUser');
+          if (u) return JSON.parse(u)?.school_id || 1;
+        } catch { return 1; }
+        return 1;
+      })();
+      const res = await fetch(`${API_BASE}/public/system-config?school_id=${schoolId}`);
+      const data = await res.json();
+      if (data?.header_template) {
+        setLocalTemplate(data.header_template);
+        if (typeof setHeaderTemplateProp === 'function') setHeaderTemplateProp(data.header_template);
+      }
     } catch (err) {
-      setErrorMsg(err.message);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 5000);
+      console.warn('Could not load saved header template:', err);
     }
   };
+  fetchSaved();
+}, []); // runs once on mount
+
+ 
 
   const primary   = primaryColor   || '#006c49';
   const secondary = secondaryColor || '#10b981';
@@ -505,105 +680,221 @@ const SystemConfigSection = ({
     { label: 'Pill', value: 16 }, { label: 'Circle', value: 999 },
   ];
 
+  const tabs = [
+    { id: 'branding', label: 'Branding & Colors', icon: <Palette size={14} /> },
+    { id: 'header', label: 'Header Template', icon: <LayoutTemplate size={14} /> },
+  ];
+
+  const activeTemplate = HEADER_TEMPLATES.find(t => t.id === (headerTemplate || 'structured')) || HEADER_TEMPLATES[0];
+
   return (
     <div className="panel p-6 flex flex-col gap-6">
       <div className="section-heading" style={{ margin: 0 }}>System Configuration</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div><div className="field-label">School Name</div><input className="field-input" placeholder="e.g. Harvard University" value={schoolName} onChange={e => setSchoolName(e.target.value)} /></div>
-        <div><div className="field-label">Portal Name</div><input className="field-input" placeholder="e.g. Veridict" value={portalName} onChange={e => setPortalName(e.target.value)} /></div>
+
+      {/* ── Tab switcher ── */}
+      <div style={{ display: 'flex', gap: 4, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 12, padding: 4 }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setConfigTab(tab.id)}
+            style={{
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+              padding: '9px 14px', borderRadius: 9, border: 'none', cursor: 'pointer',
+              fontSize: 13, fontWeight: 700, fontFamily: 'inherit', transition: 'all .18s',
+              background: configTab === tab.id ? 'var(--surface)' : 'transparent',
+              color: configTab === tab.id ? 'var(--accent)' : 'var(--text3)',
+              boxShadow: configTab === tab.id ? 'var(--shadow-sm)' : 'none',
+            }}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <LogoUploadField label="School Logo" value={schoolLogo} onChange={setSchoolLogo} />
-        <LogoUploadField label="Background Logo" value={backgroundLogo} onChange={setBackgroundLogo} />
-      </div>
-      <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div className="flex items-center justify-between">
-          <div className="field-label" style={{ margin: 0 }}>Logo Border Radius</div>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-lt)', padding: '2px 10px', borderRadius: 6 }}>
-            {logoRadius >= 999 ? '50% (circle)' : `${logoRadius}px`}
-          </span>
+
+      {/* ══════════════════════════════════════════════════════
+          TAB: BRANDING & COLORS (original section)
+      ══════════════════════════════════════════════════════ */}
+      {configTab === 'branding' && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><div className="field-label">School Name</div><input className="field-input" placeholder="e.g. Harvard University" value={schoolName} onChange={e => setSchoolName(e.target.value)} /></div>
+            <div><div className="field-label">Portal Name</div><input className="field-input" placeholder="e.g. Veridict" value={portalName} onChange={e => setPortalName(e.target.value)} /></div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <LogoUploadField label="School Logo" value={schoolLogo} onChange={setSchoolLogo} />
+            <LogoUploadField label="Background Logo" value={backgroundLogo} onChange={setBackgroundLogo} />
+          </div>
+          <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="flex items-center justify-between">
+              <div className="field-label" style={{ margin: 0 }}>Logo Border Radius</div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-lt)', padding: '2px 10px', borderRadius: 6 }}>
+                {logoRadius >= 999 ? '50% (circle)' : `${logoRadius}px`}
+              </span>
+            </div>
+            <input type="range" min={0} max={999} step={1} value={logoRadius} onChange={e => setLogoRadius(Number(e.target.value))} style={{ width: '100%', accentColor: primary, cursor: 'pointer' }} />
+            <div className="flex gap-2 flex-wrap">
+              {radiusPresets.map(p => (
+                <button key={p.label} onClick={() => setLogoRadius(p.value)} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s', border: `1.5px solid ${logoRadius === p.value ? 'var(--accent-mid)' : 'var(--border)'}`, background: logoRadius === p.value ? 'var(--accent-lt)' : 'var(--surface2)', color: logoRadius === p.value ? 'var(--accent)' : 'var(--text2)' }}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            {schoolLogo ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <img src={schoolLogo} alt="preview" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: r, border: '2px solid var(--accent-bd)', transition: 'border-radius .2s' }} />
+                <div style={{ fontSize: 12, color: 'var(--text3)' }}>Live preview of your logo shape</div>
+              </div>
+            ) : (
+              <div style={{ width: 56, height: 56, background: 'var(--accent-lt)', border: '2px dashed var(--accent-bd)', borderRadius: r, transition: 'border-radius .2s' }} />
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div className="field-label">Primary Color</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} style={{ width: 42, height: 42, border: '1px solid var(--border)', borderRadius: 8, background: 'transparent', cursor: 'pointer' }} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text2)' }}>{primaryColor}</span>
+              </div>
+            </div>
+            <div>
+              <div className="field-label">Secondary Color</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input type="color" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} style={{ width: 42, height: 42, border: '1px solid var(--border)', borderRadius: 8, background: 'transparent', cursor: 'pointer' }} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text2)' }}>{secondaryColor}</span>
+              </div>
+            </div>
+          </div>
+          <div><div className="field-label">Footer Text</div><input className="field-input" placeholder="e.g. Powered by Veridict" value={footerText} onChange={e => setFooterText(e.target.value)} /></div>
+        </>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          TAB: HEADER TEMPLATE (NEW)
+      ══════════════════════════════════════════════════════ */}
+      {configTab === 'header' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* Info banner */}
+          <div style={{ background: 'var(--accent-lt)', border: '1px solid var(--accent-bd)', borderRadius: 10, padding: '12px 16px', fontSize: 13, color: 'var(--accent)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <LayoutTemplate size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+            <div>Choose a <strong>header layout</strong> for the judge portal. It uses your branding colors and logo automatically — configure those in the Branding tab.</div>
+          </div>
+
+          {/* Template cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {HEADER_TEMPLATES.map(tpl => {
+              const isActive = headerTemplate === tpl.id;
+              return (
+                <div
+                  key={tpl.id}
+                  onClick={() => setHeaderTemplate(tpl.id)}
+                  style={{
+                    border: `2px solid ${isActive ? 'var(--accent-mid)' : 'var(--border)'}`,
+                    borderRadius: 14,
+                    padding: 14,
+                    cursor: 'pointer',
+                    transition: 'all .18s',
+                    background: isActive ? 'var(--accent-lt)' : 'var(--surface2)',
+                    boxShadow: isActive ? '0 0 0 3px var(--accent-lt)' : 'none',
+                  }}
+                >
+                  {/* Card header row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                    <div style={{
+                      width: 34, height: 34, borderRadius: 9,
+                      background: isActive ? 'var(--accent)' : 'var(--surface)',
+                      border: `1px solid ${isActive ? 'var(--accent-bd)' : 'var(--border)'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: isActive ? '#fff' : 'var(--text3)',
+                      flexShrink: 0,
+                    }}>
+                      {tpl.icon}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: isActive ? 'var(--accent)' : 'var(--text1)' }}>{tpl.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 1 }}>{tpl.desc}</div>
+                    </div>
+                    {isActive && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 700 }}>
+                        <CheckCircle size={11} /> Selected
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Live template preview */}
+                  <div style={{ pointerEvents: 'none' }}>
+                    {tpl.render({ primary, secondary, schoolLogo, portalName, schoolName, footerText, logoRadius })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Custom / Override note */}
+          <div style={{ border: '1px dashed var(--border)', borderRadius: 10, padding: '14px 16px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <SlidersHorizontal size={14} style={{ color: 'var(--text3)', marginTop: 1, flexShrink: 0 }} />
+            <div style={{ fontSize: 12, color: 'var(--text3)' }}>
+              Templates inherit your <strong style={{ color: 'var(--text2)' }}>primary color</strong>, <strong style={{ color: 'var(--text2)' }}>logo</strong>, and <strong style={{ color: 'var(--text2)' }}>footer text</strong> automatically. Adjust those in the <strong style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => setConfigTab('branding')}>Branding tab</strong> and the preview updates live.
+            </div>
+          </div>
         </div>
-        <input type="range" min={0} max={999} step={1} value={logoRadius} onChange={e => setLogoRadius(Number(e.target.value))} style={{ width: '100%', accentColor: primary, cursor: 'pointer' }} />
-        <div className="flex gap-2 flex-wrap">
-          {radiusPresets.map(p => (
-            <button key={p.label} onClick={() => setLogoRadius(p.value)} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s', border: `1.5px solid ${logoRadius === p.value ? 'var(--accent-mid)' : 'var(--border)'}`, background: logoRadius === p.value ? 'var(--accent-lt)' : 'var(--surface2)', color: logoRadius === p.value ? 'var(--accent)' : 'var(--text2)' }}>
-              {p.label}
-            </button>
+      )}
+
+      {/* ── Live preview (always visible, reflects active template) ── */}
+<div>
+  <div className="field-label" style={{ marginBottom: 10 }}>
+    Live Preview — <span style={{ fontWeight: 500, color: 'var(--text3)' }}>{activeTemplate.name}</span>
+  </div>
+
+  {/* Header preview */}
+  {activeTemplate.render({ primary, secondary, schoolLogo, portalName, schoolName, footerText, logoRadius })}
+
+  {/* Footer preview */}
+  <div style={{ marginTop: 12, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
+    <div style={{ background: primary, padding: '20px 24px' }}>
+      {/* Top section */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
+            {portalName || 'Veridict'}
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 4, maxWidth: 280, lineHeight: 1.5 }}>
+            Professional judging and tabulation platform for Catholic schools and academic institutions in the Philippines.
+          </div>
+        </div>
+        {/* Status badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '10px 14px' }}>
+          <div style={{ position: 'relative', width: 12, height: 12, flexShrink: 0 }}>
+            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: secondary, opacity: 0.5, animation: 'pulse 2s infinite' }} />
+            <div style={{ position: 'absolute', inset: 2, borderRadius: '50%', background: secondary }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Secure System Active</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', marginTop: 1 }}>Encrypted judging session</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '0 0 14px' }} />
+
+      {/* Bottom row */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+          © {new Date().getFullYear()} {schoolName || 'Veridict'}. All rights reserved.
+        </div>
+        <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+          {['Privacy', 'Security', 'Support'].map(link => (
+            <span key={link} style={{ cursor: 'pointer' }}>{link}</span>
           ))}
         </div>
-        {schoolLogo ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <img src={schoolLogo} alt="preview" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: r, border: '2px solid var(--accent-bd)', transition: 'border-radius .2s' }} />
-            <div style={{ fontSize: 12, color: 'var(--text3)' }}>Live preview of your logo shape</div>
-          </div>
-        ) : (
-          <div style={{ width: 56, height: 56, background: 'var(--accent-lt)', border: '2px dashed var(--accent-bd)', borderRadius: r, transition: 'border-radius .2s' }} />
-        )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <div className="field-label">Primary Color</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} style={{ width: 42, height: 42, border: '1px solid var(--border)', borderRadius: 8, background: 'transparent', cursor: 'pointer' }} />
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text2)' }}>{primaryColor}</span>
-          </div>
-        </div>
-        <div>
-          <div className="field-label">Secondary Color</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <input type="color" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} style={{ width: 42, height: 42, border: '1px solid var(--border)', borderRadius: 8, background: 'transparent', cursor: 'pointer' }} />
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text2)' }}>{secondaryColor}</span>
-          </div>
-        </div>
-      </div>
-      <div><div className="field-label">Footer Text</div><input className="field-input" placeholder="e.g. Powered by Veridict" value={footerText} onChange={e => setFooterText(e.target.value)} /></div>
-      <div>
-        <div className="field-label" style={{ marginBottom: 10 }}>Live Preview</div>
-        <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ background: primary, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {schoolLogo ? (
-                <img src={schoolLogo} alt="logo" style={{ width: 34, height: 34, borderRadius: r, objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.4)', transition: 'border-radius .2s' }} />
-              ) : (
-                <div style={{ width: 34, height: 34, borderRadius: r, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid rgba(255,255,255,0.3)' }}>
-                  <Activity size={14} style={{ color: '#fff' }} />
-                </div>
-              )}
-              <div>
-                <div style={{ fontWeight: 800, fontSize: 13, color: '#fff', lineHeight: 1.2 }}>{portalName || 'Veridict'}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{schoolName || 'Judge Portal'}</div>
-              </div>
-            </div>
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.2)', color: '#fff', fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', padding: '2px 10px', borderRadius: 999, marginBottom: 2 }}>Live Judging Session</span>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Sample Contest Name</div>
-            </div>
-            <select style={{ appearance: 'none', padding: '6px 24px 6px 10px', background: 'rgba(255,255,255,0.95)', border: '1.5px solid rgba(255,255,255,0.4)', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#191c1e', fontFamily: 'inherit' }}>
-              <option>Select Judge</option><option>Judge 1</option><option>Judge 2</option>
-            </select>
-          </div>
-          <div style={{ height: 3, background: `linear-gradient(90deg, rgba(255,255,255,0.3), ${secondary}, rgba(255,255,255,0.3))` }} />
-          <div style={{ background: primary, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {schoolLogo && <img src={schoolLogo} alt="logo" style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: r, border: '1.5px solid rgba(255,255,255,0.4)', transition: 'border-radius .2s' }} />}
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>{portalName || 'Veridict'}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>{schoolName || ''}</div>
-              </div>
-            </div>
-            {footerText && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: 500, textAlign: 'center' }}>{footerText}</div>}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#fff', fontWeight: 600 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: secondary }} />
-              Encrypted · Secure Session
-            </div>
-          </div>
-        </div>
-      </div>
-      <button onClick={handleSave} disabled={saveStatus === 'saving'} style={{ padding: '10px 28px', background: saveStatus === 'saving' ? 'var(--surface2)' : primary, color: saveStatus === 'saving' ? 'var(--text3)' : '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: saveStatus === 'saving' ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start', transition: 'all .2s' }}>
-        {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'success' ? 'Saved!' : 'Save Configuration'}
-      </button>
-      {saveStatus === 'error' && <div style={{ fontSize: 12, color: '#dc2626' }}>{errorMsg}</div>}
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  </div>
+</div>
+
+  
+    
     </div>
   );
 };
@@ -617,7 +908,6 @@ const SectionRender = ({
   aiPrompt, setAiPrompt,
   judgeCount, setJudgeCount,
   calculationType, setCalculationType,
-  // NOTE: isJudgeLocked / setIsJudgeLocked no longer needed here — context handles it
   criteria, setCriteria,
   contestants, setContestants,
   newCrit, setNewCrit,
@@ -633,8 +923,9 @@ const SectionRender = ({
   secondaryColor, setSecondaryColor,
   footerText, setFooterText,
   logoRadius, setLogoRadius,
+  // NEW: header template props (wire up in parent: const [headerTemplate, setHeaderTemplate] = useState('structured'))
+  headerTemplate, setHeaderTemplate,
 }) => {
-  // still need isJudgeLocked for the Overview badge — pull from context
   const { isJudgeLocked } = useContestContext();
 
   const addCriterion = () => {
@@ -673,7 +964,6 @@ const SectionRender = ({
         <CriteriaManager criteria={criteria} setCriteria={setCriteria} newCrit={newCrit} setNewCrit={setNewCrit} addCriterion={addCriterion} />
       )}
       {activeNav === 'judges' && (
-        // ↓ isJudgeLocked and setIsJudgeLocked are GONE — JudgesSection uses context internally
         <JudgesSection
           judgeCount={judgeCount} setJudgeCount={setJudgeCount}
           calculationType={calculationType} setCalculationType={setCalculationType}
@@ -692,6 +982,7 @@ const SectionRender = ({
           secondaryColor={secondaryColor} setSecondaryColor={setSecondaryColor}
           footerText={footerText} setFooterText={setFooterText}
           logoRadius={logoRadius} setLogoRadius={setLogoRadius}
+          headerTemplate={headerTemplate} setHeaderTemplate={setHeaderTemplate}
         />
       )}
     </>

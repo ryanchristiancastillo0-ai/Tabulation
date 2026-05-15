@@ -16,6 +16,7 @@ function getToken() {
 
 async function request(path, options = {}) {
   const token = getToken();
+  console.log(JSON.parse(atob(token.split('.')[1])));
 
   const headers = {
     'Content-Type': 'application/json',

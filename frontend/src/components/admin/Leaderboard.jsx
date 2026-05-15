@@ -272,7 +272,15 @@ const LeaderBoard = () => {
       const judgeEntries = await Promise.all(
         resolvedIds.map(async (jId) => {
           try {
-            const res    = await apiClient.get(`/judge/my-scores?judgeId=${jId}`);
+       const schoolId =
+  configData?.school_id ||
+  configData?.settings?.school_id;
+
+console.log("School ID:", schoolId);
+
+const res = await apiClient.get(
+  `/judge/my-scores?judgeId=${jId}&school_id=${schoolId}`
+);
             const scores = Array.isArray(res) ? res
                          : Array.isArray(res?.data) ? res.data : [];
             return [jId, scores];

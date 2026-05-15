@@ -324,45 +324,68 @@ router.post('/save-config', async (req, res) => {
 
     await connection.beginTransaction();
 
+    // ── FIX: Build the UPDATE clause dynamically so fields that were NOT
+    // sent in the request (e.g. lock toggle only sends is_judge_locked)
+    // are never overwritten with empty/default values. ──────────────────
+    const fields   = [];
+    const values   = [];
+
+    // Always required for the INSERT path
+    const insertValues = [
+      school_id,
+      contest_name     ?? '',
+      contest_type     ?? 'pageant',
+      judge_count      ?? 3,
+      ai_prompt        ?? '',
+      computation_type ?? 'average',
+      is_judge_locked  ?? 0,
+    ];
+
+    // Only include a field in ON DUPLICATE KEY UPDATE if the caller sent it
+    if (contest_name     !== undefined) { fields.push('contest_name     = VALUES(contest_name)');     }
+    if (contest_type     !== undefined) { fields.push('contest_type     = VALUES(contest_type)');     }
+    if (judge_count      !== undefined) { fields.push('judge_count      = VALUES(judge_count)');      }
+    if (ai_prompt        !== undefined) { fields.push('ai_prompt        = VALUES(ai_prompt)');        }
+    if (computation_type !== undefined) { fields.push('computation_type = VALUES(computation_type)'); }
+    if (is_judge_locked  !== undefined) { fields.push('is_judge_locked  = VALUES(is_judge_locked)');  }
+
+    // If somehow nothing was sent, still do a safe no-op upsert
+    const updateClause = fields.length > 0
+      ? fields.join(',\n         ')
+      : 'is_judge_locked = is_judge_locked'; // no-op
+
     await connection.execute(
       `INSERT INTO settings
          (school_id, contest_name, contest_type, judge_count, ai_prompt, computation_type, is_judge_locked)
        VALUES (?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
-         contest_name     = VALUES(contest_name),
-         contest_type     = VALUES(contest_type),
-         judge_count      = VALUES(judge_count),
-         ai_prompt        = VALUES(ai_prompt),
-         computation_type = VALUES(computation_type),
-         is_judge_locked  = VALUES(is_judge_locked)`,
-      [
-        school_id,
-        contest_name     || '',
-        contest_type     || 'pageant',
-        judge_count      || 3,
-        ai_prompt        || '',
-        computation_type || 'average',
-        is_judge_locked  || 0,
-      ]
+         ${updateClause}`,
+      insertValues
     );
 
-    await connection.execute('DELETE FROM contestants WHERE school_id = ?', [school_id]);
-    if (contestants && contestants.length > 0) {
-      for (const c of contestants) {
-        await connection.execute(
-          'INSERT INTO contestants (school_id, name, entry_number) VALUES (?, ?, ?)',
-          [school_id, c.name || 'Unnamed', c.entry_number || 0]
-        );
+    // ── Contestants — only touch if the caller sent the array ──────────
+    if (contestants !== undefined) {
+      await connection.execute('DELETE FROM contestants WHERE school_id = ?', [school_id]);
+      if (contestants.length > 0) {
+        for (const c of contestants) {
+          await connection.execute(
+            'INSERT INTO contestants (school_id, name, entry_number) VALUES (?, ?, ?)',
+            [school_id, c.name || 'Unnamed', c.entry_number || 0]
+          );
+        }
       }
     }
 
-    await connection.execute('DELETE FROM criteria WHERE school_id = ?', [school_id]);
-    if (criteria && criteria.length > 0) {
-      for (const cr of criteria) {
-        await connection.execute(
-          'INSERT INTO criteria (school_id, name, percentage) VALUES (?, ?, ?)',
-          [school_id, cr.name || 'New Criteria', cr.percentage || 0]
-        );
+    // ── Criteria — only touch if the caller sent the array ─────────────
+    if (criteria !== undefined) {
+      await connection.execute('DELETE FROM criteria WHERE school_id = ?', [school_id]);
+      if (criteria.length > 0) {
+        for (const cr of criteria) {
+          await connection.execute(
+            'INSERT INTO criteria (school_id, name, percentage) VALUES (?, ?, ?)',
+            [school_id, cr.name || 'New Criteria', cr.percentage || 0]
+          );
+        }
       }
     }
 
@@ -375,7 +398,6 @@ router.post('/save-config', async (req, res) => {
     connection.release();
   }
 });
-
 // GET /api/system-config
 router.get('/system-config', async (req, res) => {
   const school_id = req.school_id;
@@ -399,34 +421,37 @@ router.post('/save-system-config', async (req, res) => {
     const {
       school_name, portal_name, school_logo, background_logo,
       primary_color, secondary_color, footer_text, logo_radius,
+       header_template, 
     } = req.body;
 
     await pool.execute(
-      `INSERT INTO system_config
-         (school_id, school_name, portal_name, school_logo, background_logo,
-          primary_color, secondary_color, footer_text, logo_radius)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         school_name     = VALUES(school_name),
-         portal_name     = VALUES(portal_name),
-         school_logo     = VALUES(school_logo),
-         background_logo = VALUES(background_logo),
-         primary_color   = VALUES(primary_color),
-         secondary_color = VALUES(secondary_color),
-         footer_text     = VALUES(footer_text),
-         logo_radius     = VALUES(logo_radius)`,
-      [
-        school_id,
-        school_name     || null,
-        portal_name     || null,
-        school_logo     || null,
-        background_logo || null,
-        primary_color   || '#22c55e',
-        secondary_color || '#0f172a',
-        footer_text     || null,
-        logo_radius     != null ? Number(logo_radius) : 12,
-      ]
-    );
+  `INSERT INTO system_config
+     (school_id, school_name, portal_name, school_logo, background_logo,
+      primary_color, secondary_color, footer_text, logo_radius, header_template)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+   ON DUPLICATE KEY UPDATE
+     school_name     = VALUES(school_name),
+     portal_name     = VALUES(portal_name),
+     school_logo     = VALUES(school_logo),
+     background_logo = VALUES(background_logo),
+     primary_color   = VALUES(primary_color),
+     secondary_color = VALUES(secondary_color),
+     footer_text     = VALUES(footer_text),
+     logo_radius     = VALUES(logo_radius),
+     header_template = VALUES(header_template)`,
+  [
+    school_id,
+    school_name     || null,
+    portal_name     || null,
+    school_logo     || null,
+    background_logo || null,
+    primary_color   || '#22c55e',
+    secondary_color || '#0f172a',
+    footer_text     || null,
+    logo_radius     != null ? Number(logo_radius) : 12,
+    header_template || 'structured',
+  ]
+);
 
     res.json({ success: true, message: 'System configuration updated.' });
   } catch (err) {

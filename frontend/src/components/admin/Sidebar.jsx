@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { LayoutGrid, Trophy, Sparkles, Scale, Users, UserPlus, Moon, Sun, LogOut, MonitorCog } from 'lucide-react';
-import fallbackLogo from '../../assets/img/logo.png';
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
@@ -29,7 +28,7 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
     window.location.href = '/login';
   };
 
-  const logoSrc = sysConfig.school_logo || fallbackLogo;
+
   const portalName = sysConfig.portal_name || 'CompPortal';
 
   return (
@@ -51,9 +50,9 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
         style={{ borderBottom: '1px solid var(--border)' }}
       >
         <img
-          src={logoSrc}
+          src='/img/USAL_LOGO.png'
           alt="Logo"
-          className="w-10 h-10 object-contain rounded-lg"
+          className="w-13 h-13 object-contain rounded-full"
           style={{ border: '1px solid var(--border)' }}
           onError={e => { e.currentTarget.src = fallbackLogo; }}
         />
