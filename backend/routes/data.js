@@ -60,10 +60,31 @@ router.get('/public/leaderboard', async (req, res) => {
       'SELECT computation_type, judge_count FROM settings WHERE school_id = ? LIMIT 1',
       [school_id]
     );
-    if (!settings[0]) return res.status(404).json({ error: 'No settings found.' });
 
-    const { computation_type: type, judge_count } = settings[0];
+    // No settings row yet → no contest configured, return empty standings
+    if (!settings[0]) return res.json([]);
 
+    const { computation_type: type } = settings[0];
+
+    // ── AVERAGE MODE ─────────────────────────────────────────────────────────
+    // FIX: divide by COUNT(DISTINCT judge_id) instead of the settings judge_count
+    // value. This ensures the average is always correct regardless of how many
+    // judges have actually submitted, and works correctly across all schools.
+    if (type === 'average') {
+      const [results] = await pool.execute(
+        `SELECT c.name,
+                SUM(s.score_value) / COUNT(DISTINCT s.judge_id) AS final_score
+         FROM   scores      s
+         JOIN   contestants c ON c.id = s.contestant_id AND c.school_id = ?
+         WHERE  s.school_id = ?
+         GROUP  BY c.id
+         ORDER  BY final_score DESC`,
+        [school_id, school_id]
+      );
+      return res.json(results);
+    }
+
+    // ── RANK-SUM MODE ─────────────────────────────────────────────────────────
     const [rawScores] = await pool.execute(
       `SELECT s.judge_id, s.contestant_id, c.name,
               SUM(s.score_value) AS judge_total
@@ -74,21 +95,6 @@ router.get('/public/leaderboard', async (req, res) => {
       [school_id, school_id]
     );
 
-    if (type === 'average') {
-      const [results] = await pool.execute(
-        `SELECT c.name,
-                SUM(s.score_value) / ? AS final_score
-         FROM   scores      s
-         JOIN   contestants c ON c.id = s.contestant_id AND c.school_id = ?
-         WHERE  s.school_id = ?
-         GROUP  BY c.id
-         ORDER  BY final_score DESC`,
-        [judge_count, school_id, school_id]
-      );
-      return res.json(results);
-    }
-
-    // Rank-sum mode
     const judgeRanks = {};
     rawScores.forEach(s => {
       if (!judgeRanks[s.judge_id]) judgeRanks[s.judge_id] = [];
@@ -194,8 +200,25 @@ router.get('/leaderboard', async (req, res) => {
     );
     if (!settings[0]) return res.status(404).json({ error: 'No settings found for this school.' });
 
-    const { computation_type: type, judge_count } = settings[0];
+    const { computation_type: type } = settings[0];
 
+    // ── AVERAGE MODE ─────────────────────────────────────────────────────────
+    // FIX: same fix as the public route — use COUNT(DISTINCT judge_id)
+    if (type === 'average') {
+      const [results] = await pool.execute(
+        `SELECT c.name,
+                SUM(s.score_value) / COUNT(DISTINCT s.judge_id) AS final_score
+         FROM   scores      s
+         JOIN   contestants c ON c.id = s.contestant_id AND c.school_id = ?
+         WHERE  s.school_id = ?
+         GROUP  BY c.id
+         ORDER  BY final_score DESC`,
+        [school_id, school_id]
+      );
+      return res.json(results);
+    }
+
+    // ── RANK-SUM MODE ─────────────────────────────────────────────────────────
     const [rawScores] = await pool.execute(
       `SELECT s.judge_id, s.contestant_id, c.name,
               SUM(s.score_value) AS judge_total
@@ -206,21 +229,6 @@ router.get('/leaderboard', async (req, res) => {
       [school_id, school_id]
     );
 
-    if (type === 'average') {
-      const [results] = await pool.execute(
-        `SELECT c.name,
-                SUM(s.score_value) / ? AS final_score
-         FROM   scores      s
-         JOIN   contestants c ON c.id = s.contestant_id AND c.school_id = ?
-         WHERE  s.school_id = ?
-         GROUP  BY c.id
-         ORDER  BY final_score DESC`,
-        [judge_count, school_id, school_id]
-      );
-      return res.json(results);
-    }
-
-    // Rank-sum mode
     const judgeRanks = {};
     rawScores.forEach(s => {
       if (!judgeRanks[s.judge_id]) judgeRanks[s.judge_id] = [];
@@ -297,7 +305,8 @@ router.delete('/reset-data', async (req, res) => {
     await connection.execute('DELETE FROM contestants  WHERE school_id = ?', [school_id]);
     await connection.execute('DELETE FROM criteria     WHERE school_id = ?', [school_id]);
     await connection.execute(
-      `UPDATE settings SET contest_name = '', judge_count = 3, ai_prompt = 'Modern and Professional'
+      `UPDATE settings SET contest_name = '', judge_count = 3, ai_prompt = 'Modern and Professional',
+       computation_type = 'average', contest_type = 'pageant', is_judge_locked = 0
        WHERE school_id = ?`,
       [school_id]
     );
@@ -310,6 +319,7 @@ router.delete('/reset-data', async (req, res) => {
     connection.release();
   }
 });
+
 
 // POST /api/save-config
 router.post('/save-config', async (req, res) => {
@@ -324,46 +334,52 @@ router.post('/save-config', async (req, res) => {
 
     await connection.beginTransaction();
 
-    // ── FIX: Build the UPDATE clause dynamically so fields that were NOT
-    // sent in the request (e.g. lock toggle only sends is_judge_locked)
-    // are never overwritten with empty/default values. ──────────────────
-    const fields   = [];
-    const values   = [];
-
-    // Always required for the INSERT path
-    const insertValues = [
-      school_id,
-      contest_name     ?? '',
-      contest_type     ?? 'pageant',
-      judge_count      ?? 3,
-      ai_prompt        ?? '',
-      computation_type ?? 'average',
-      is_judge_locked  ?? 0,
-    ];
-
-    // Only include a field in ON DUPLICATE KEY UPDATE if the caller sent it
-    if (contest_name     !== undefined) { fields.push('contest_name     = VALUES(contest_name)');     }
-    if (contest_type     !== undefined) { fields.push('contest_type     = VALUES(contest_type)');     }
-    if (judge_count      !== undefined) { fields.push('judge_count      = VALUES(judge_count)');      }
-    if (ai_prompt        !== undefined) { fields.push('ai_prompt        = VALUES(ai_prompt)');        }
-    if (computation_type !== undefined) { fields.push('computation_type = VALUES(computation_type)'); }
-    if (is_judge_locked  !== undefined) { fields.push('is_judge_locked  = VALUES(is_judge_locked)');  }
-
-    // If somehow nothing was sent, still do a safe no-op upsert
-    const updateClause = fields.length > 0
-      ? fields.join(',\n         ')
-      : 'is_judge_locked = is_judge_locked'; // no-op
-
-    await connection.execute(
-      `INSERT INTO settings
-         (school_id, contest_name, contest_type, judge_count, ai_prompt, computation_type, is_judge_locked)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         ${updateClause}`,
-      insertValues
+    // Use explicit UPDATE instead of INSERT ... ON DUPLICATE KEY UPDATE VALUES()
+    // VALUES() is deprecated in MySQL 8+ and causes unpredictable multi-row updates
+    const [existing] = await connection.execute(
+      'SELECT id FROM settings WHERE school_id = ? LIMIT 1',
+      [school_id]
     );
 
-    // ── Contestants — only touch if the caller sent the array ──────────
+    if (existing.length > 0) {
+      // Row exists — UPDATE only this school's row
+      await connection.execute(
+        `UPDATE settings SET
+           contest_name     = ?,
+           contest_type     = ?,
+           judge_count      = ?,
+           ai_prompt        = ?,
+           computation_type = ?,
+           is_judge_locked  = ?
+         WHERE school_id = ?`,
+        [
+          contest_name     ?? '',
+          contest_type     ?? 'pageant',
+          judge_count      ?? 3,
+          ai_prompt        ?? '',
+          computation_type ?? 'average',
+          is_judge_locked  ?? 0,
+          school_id,
+        ]
+      );
+    } else {
+      // No row yet — INSERT a fresh one
+      await connection.execute(
+        `INSERT INTO settings
+           (school_id, contest_name, contest_type, judge_count, ai_prompt, computation_type, is_judge_locked)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          school_id,
+          contest_name     ?? '',
+          contest_type     ?? 'pageant',
+          judge_count      ?? 3,
+          ai_prompt        ?? '',
+          computation_type ?? 'average',
+          is_judge_locked  ?? 0,
+        ]
+      );
+    }
+
     if (contestants !== undefined) {
       await connection.execute('DELETE FROM contestants WHERE school_id = ?', [school_id]);
       if (contestants.length > 0) {
@@ -376,7 +392,6 @@ router.post('/save-config', async (req, res) => {
       }
     }
 
-    // ── Criteria — only touch if the caller sent the array ─────────────
     if (criteria !== undefined) {
       await connection.execute('DELETE FROM criteria WHERE school_id = ?', [school_id]);
       if (criteria.length > 0) {
@@ -398,9 +413,12 @@ router.post('/save-config', async (req, res) => {
     connection.release();
   }
 });
+
 // GET /api/system-config
 router.get('/system-config', async (req, res) => {
-  const school_id = req.school_id;
+ const school_id = req.school_id;
+  console.log('💾 save-config called with school_id:', school_id); // ← add this
+  console.log('💾 req.admin:', req.admin);  
 
   try {
     const [config] = await pool.execute(
@@ -421,37 +439,37 @@ router.post('/save-system-config', async (req, res) => {
     const {
       school_name, portal_name, school_logo, background_logo,
       primary_color, secondary_color, footer_text, logo_radius,
-       header_template, 
+      header_template,
     } = req.body;
 
     await pool.execute(
-  `INSERT INTO system_config
-     (school_id, school_name, portal_name, school_logo, background_logo,
-      primary_color, secondary_color, footer_text, logo_radius, header_template)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-   ON DUPLICATE KEY UPDATE
-     school_name     = VALUES(school_name),
-     portal_name     = VALUES(portal_name),
-     school_logo     = VALUES(school_logo),
-     background_logo = VALUES(background_logo),
-     primary_color   = VALUES(primary_color),
-     secondary_color = VALUES(secondary_color),
-     footer_text     = VALUES(footer_text),
-     logo_radius     = VALUES(logo_radius),
-     header_template = VALUES(header_template)`,
-  [
-    school_id,
-    school_name     || null,
-    portal_name     || null,
-    school_logo     || null,
-    background_logo || null,
-    primary_color   || '#22c55e',
-    secondary_color || '#0f172a',
-    footer_text     || null,
-    logo_radius     != null ? Number(logo_radius) : 12,
-    header_template || 'structured',
-  ]
-);
+      `INSERT INTO system_config
+         (school_id, school_name, portal_name, school_logo, background_logo,
+          primary_color, secondary_color, footer_text, logo_radius, header_template)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         school_name     = VALUES(school_name),
+         portal_name     = VALUES(portal_name),
+         school_logo     = VALUES(school_logo),
+         background_logo = VALUES(background_logo),
+         primary_color   = VALUES(primary_color),
+         secondary_color = VALUES(secondary_color),
+         footer_text     = VALUES(footer_text),
+         logo_radius     = VALUES(logo_radius),
+         header_template = VALUES(header_template)`,
+      [
+        school_id,
+        school_name     || null,
+        portal_name     || null,
+        school_logo     || null,
+        background_logo || null,
+        primary_color   || '#22c55e',
+        secondary_color || '#0f172a',
+        footer_text     || null,
+        logo_radius     != null ? Number(logo_radius) : 12,
+        header_template || 'structured',
+      ]
+    );
 
     res.json({ success: true, message: 'System configuration updated.' });
   } catch (err) {

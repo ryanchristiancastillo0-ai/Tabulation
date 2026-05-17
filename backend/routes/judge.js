@@ -5,6 +5,9 @@ const pool = require('../config/db');
 const { generateWithFallback } = require('../config/ai');
 
 // ── 1. GENERATE AI JUDGE UI (PUBLIC - no auth) ──
+// NOTE: headerHtml (criteria summary) is no longer AI-generated.
+// The frontend renders it statically from config.criteria.
+// Only the scoring TABLE is AI-generated here to save tokens.
 router.post('/render-ui', async (req, res) => {
     try {
         const { contestants, criteria, aiPrompt: incomingPrompt, school_id } = req.body;
@@ -26,14 +29,14 @@ router.post('/render-ui', async (req, res) => {
             .digest('hex');
 
         const [cache] = await pool.execute(
-            "SELECT header_content, html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ?",
+            "SELECT html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ?",
             [configHash, school_id]
         );
 
         if (cache.length > 0) {
             return res.json({
-                headerHtml: cache[0].header_content,
-                html: cache[0].html_content
+                html: cache[0].html_content,
+                // headerHtml intentionally omitted — frontend renders criteria statically
             });
         }
 
@@ -61,33 +64,21 @@ router.post('/render-ui', async (req, res) => {
             [OUTPUT]: Return ONLY a <div> containing the Tailwind-styled <table>. No markdown.
         `;
 
-        const criteriaInstruction = `
-            Act as a Senior UI Designer.
-            [THEME]: "${finalDesignGoal}"
-            [TASK]: Create a criteria percentage summary section.
-            [DATA]: ${JSON.stringify(criteria.map(cr => ({ name: cr.name, percentage: cr.percentage })))}
-            [STYLE]: Use Tailwind. Ensure the background <div> matches the "${finalDesignGoal}" theme perfectly.
-            [OUTPUT]: Return ONLY the HTML <div>. No markdown.
-        `;
-
-        const [tableHTML, headerHTML] = await Promise.all([
-            generateWithFallback(aiInstruction),
-            generateWithFallback(criteriaInstruction)
-        ]);
-
-        const cleanTable  = tableHTML.replace(/```html/g, "").replace(/```/g, "").trim();
-        const cleanHeader = headerHTML.replace(/```html/g, "").replace(/```/g, "").trim();
+        const tableHTML = await generateWithFallback(aiInstruction);
+        const cleanTable = tableHTML.replace(/```html/g, "").replace(/```/g, "").trim();
 
         await pool.execute(
-            `INSERT INTO ui_cache (prompt_hash, school_id, header_content, html_content) 
-             VALUES (?, ?, ?, ?) 
+            `INSERT INTO ui_cache (prompt_hash, school_id, html_content) 
+             VALUES (?, ?, ?) 
              ON DUPLICATE KEY UPDATE 
-               header_content = VALUES(header_content), 
-               html_content   = VALUES(html_content)`,
-            [configHash, school_id, cleanHeader, cleanTable]
+               html_content = VALUES(html_content)`,
+            [configHash, school_id, cleanTable]
         );
 
-        res.json({ headerHtml: cleanHeader, html: cleanTable });
+        res.json({
+            html: cleanTable,
+            // headerHtml intentionally omitted — frontend renders criteria statically
+        });
 
     } catch (err) {
         console.error('render-ui error:', err.message);
@@ -173,15 +164,13 @@ router.get('/my-scores-raw/:judgeId', async (req, res) => {
         res.status(500).json({ error: "Failed to fetch raw scores" });
     }
 });
+
 // ── 5. GET CACHED UI ONLY — no AI, safe for background refresh ──
 router.get('/render-ui-cached', async (req, res) => {
     try {
         const { school_id, criteria_signature } = req.query;
         if (!school_id) return res.status(400).json({ error: 'school_id is required.' });
 
-        // We need the prompt hash to look up the right cache row.
-        // The client sends a criteria_signature; we combine it with the ai_prompt
-        // to reproduce the same hash the POST route uses.
         const [rows] = await pool.execute(
             "SELECT ai_prompt FROM settings WHERE school_id = ? LIMIT 1",
             [school_id]
@@ -194,15 +183,15 @@ router.get('/render-ui-cached', async (req, res) => {
             .digest('hex');
 
         const [cache] = await pool.execute(
-            "SELECT header_content, html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ?",
+            "SELECT html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ?",
             [configHash, school_id]
         );
 
         if (cache.length > 0) {
             return res.json({
-                headerHtml: cache[0].header_content,
-                html:       cache[0].html_content,
-                fromCache:  true,
+                html:      cache[0].html_content,
+                fromCache: true,
+                // headerHtml intentionally omitted — frontend renders criteria statically
             });
         }
 

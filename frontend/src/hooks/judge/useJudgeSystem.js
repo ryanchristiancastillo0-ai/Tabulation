@@ -29,7 +29,8 @@ function getUiCacheKey(schoolId, criteria) {
 function saveUiToLocalStorage(schoolId, criteria, ui) {
   try {
     const key = getUiCacheKey(schoolId, criteria);
-    localStorage.setItem(key, JSON.stringify(ui));
+    // Only store html — headerHtml is now rendered statically by the frontend
+    localStorage.setItem(key, JSON.stringify({ html: ui.html }));
   } catch (e) {
     console.warn('[UICache] could not save HTML cache:', e.message);
   }
@@ -174,19 +175,18 @@ export const useJudgeSystem = () => {
         setDynamicUI(localCached);
         setLoading(false);
 
-        // Background refresh — hits cache-only endpoint, NEVER triggers AI
+        // Background refresh — hits cache-only endpoint, NEVER triggers AI.
+        // Only compares html now; headerHtml is rendered statically by the frontend.
         judgeGet(
           `/judge/render-ui-cached?school_id=${school_id}` +
           `&criteria_signature=${encodeURIComponent(criteriaSignature)}`
         )
           .then(data => {
             if (!data.fromCache) return;
-            const changed =
-              data.html       !== localCached.html ||
-              data.headerHtml !== localCached.headerHtml;
-            if (changed) {
+            // Only re-render if the AI scoring table itself changed
+            if (data.html !== localCached.html) {
               saveUiToLocalStorage(school_id, criteria, data);
-              setDynamicUI(data);
+              setDynamicUI({ html: data.html });
             }
           })
           .catch(() => {
@@ -206,9 +206,9 @@ export const useJudgeSystem = () => {
           aiPrompt: settings?.ai_prompt || '',
         });
 
-        if (data.html || data.headerHtml) {
+        if (data.html) {
           saveUiToLocalStorage(school_id, criteria, data);
-          setDynamicUI(data);
+          setDynamicUI({ html: data.html });
         } else {
           showStatus('Error', data.error || 'UI generation failed.', 'error');
         }
@@ -286,6 +286,7 @@ export const useJudgeSystem = () => {
     setSelectedJudge(val);
     localStorage.setItem('judge_id', val);
     selectedJudgeRef.current = val;
+    window.location.reload();
 
     if (dynamicUI && config.criteria?.length > 0) {
       getHydra_and_Calcu(

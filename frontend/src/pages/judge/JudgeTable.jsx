@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, memo } from 'react';
 import {
   WifiOff, ShieldCheck, Activity, Lock,
   ChevronRight, Menu, X, User, Trophy, Shield,
+  Building2,
 } from 'lucide-react';
 import { StatusModal } from '../../components/judge/StatusModal';
 import { useJudgeSystem } from '../../hooks/judge/useJudgeSystem';
@@ -68,7 +69,7 @@ function useSystemConfig() {
     secondary_color: '#10b981',
     footer_text:     '',
     logo_radius:     12,
-    header_template: 'structured', 
+    header_template: 'structured',
   });
 
   useEffect(() => {
@@ -94,17 +95,13 @@ function useSystemConfig() {
 }
 
 /* ── Contest name poller ─────────────────────────────────────────── */
-// FIX: Dedicated poller for contest name so it never shows stale
-// "Syncing contest…" after lock/unlock actions that don't reload config.
 function useContestName(configSettingsName, pollInterval = 5000) {
   const [contestName, setContestName] = useState(configSettingsName || '');
 
-  // Sync immediately when config loads
   useEffect(() => {
     if (configSettingsName) setContestName(configSettingsName);
   }, [configSettingsName]);
 
-  // Keep polling so unlock/lock never leaves a stale name
   useEffect(() => {
     const schoolId = getSchoolId();
     const poll = async () => {
@@ -116,7 +113,7 @@ function useContestName(configSettingsName, pollInterval = 5000) {
           if (name) setContestName(name);
         }
       } catch {
-        // silent — stale name is better than a crash
+        // silent
       }
     };
     const interval = setInterval(poll, pollInterval);
@@ -190,7 +187,7 @@ function LogoMark({ sysConfig, size = 34 }) {
 }
 
 /* ── Judge Selector ──────────────────────────────────────────────── */
-function JudgeSelector({ selectedJudge, judgeCount, updateJudge, isJudgeLocked, primary, compact = false }) {
+function JudgeSelector({ selectedJudge, judgeCount, updateJudge, isJudgeLocked, primary, compact = false, darkBg = false }) {
   const selectDisabled = isJudgeLocked && !!selectedJudge;
 
   return (
@@ -213,26 +210,335 @@ function JudgeSelector({ selectedJudge, judgeCount, updateJudge, isJudgeLocked, 
           paddingRight:  32,
           minWidth:      compact ? '110px' : undefined,
           width:         compact ? undefined : '100%',
-          background:    selectDisabled ? 'rgba(255,255,255,0.50)' : 'rgba(255,255,255,0.95)',
-          border:        selectDisabled ? '1.5px solid rgba(255,100,100,0.5)' : '1.5px solid rgba(255,255,255,0.4)',
-          color:         selectDisabled ? '#6b7280' : '#191c1e',
+          background:    darkBg
+            ? (selectDisabled ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.14)')
+            : (selectDisabled ? 'rgba(255,255,255,0.50)' : 'rgba(255,255,255,0.95)'),
+          border:        darkBg
+            ? '1.5px solid rgba(255,255,255,0.25)'
+            : (selectDisabled ? '1.5px solid rgba(255,100,100,0.5)' : '1.5px solid rgba(255,255,255,0.4)'),
+          color:         darkBg ? '#fff' : (selectDisabled ? '#6b7280' : '#191c1e'),
           cursor:        selectDisabled ? 'not-allowed' : 'pointer',
           opacity:       selectDisabled ? 0.7 : 1,
         }}
       >
-        <option value="">Select Judge</option>
+        <option value="" style={{ color: '#191c1e' }}>Select Judge</option>
         {Array.from({ length: judgeCount || 0 }, (_, i) => (
-          <option key={i + 1} value={i + 1}>Judge {i + 1}</option>
+          <option key={i + 1} value={i + 1} style={{ color: '#191c1e' }}>Judge {i + 1}</option>
         ))}
       </select>
       <div
         className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-        style={{ color: selectDisabled ? '#ef4444' : primary }}
+        style={{ color: darkBg ? 'rgba(255,255,255,0.6)' : (selectDisabled ? '#ef4444' : primary) }}
       >
         {selectDisabled ? <Lock size={12} /> : <ShieldCheck size={12} />}
       </div>
     </div>
   );
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   HEADER TEMPLATES
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── Template: Structured (two-row) ─────────────────────────────── */
+function HeaderStructured({ sysConfig, contestName, selectedJudge, judgeCount, updateJudge, isJudgeLocked }) {
+  const primary   = sysConfig.primary_color   || '#006c49';
+  const secondary = sysConfig.secondary_color || '#10b981';
+  const logoRadius = sysConfig.logo_radius != null ? sysConfig.logo_radius : 12;
+  const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
+
+  return (
+    <div style={{ width: '100%' }}>
+      <div
+        style={{
+          background: primary,
+          padding: '10px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        {sysConfig.school_logo ? (
+          <img
+            src={sysConfig.school_logo}
+            alt="logo"
+            style={{
+              width: 34, height: 34, borderRadius: r,
+              objectFit: 'cover',
+              border: '1.5px solid rgba(255,255,255,0.35)',
+              flexShrink: 0,
+            }}
+          />
+        ) : (
+          <div style={{
+            width: 34, height: 34, borderRadius: r,
+            background: 'rgba(255,255,255,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+            border: '1.5px solid rgba(255,255,255,0.25)',
+          }}>
+            <Building2 size={15} style={{ color: '#fff' }} />
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 13, color: '#fff', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {sysConfig.portal_name || 'Veridict'}
+          </div>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {sysConfig.school_name || 'Official Judging Portal'}
+          </div>
+        </div>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          padding: '4px 10px', borderRadius: 999,
+          background: 'rgba(255,255,255,0.12)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          flexShrink: 0,
+        }}>
+          <span style={{ width: 5, height: 5, borderRadius: '50%', background: secondary, display: 'inline-block' }} />
+          <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.9)', letterSpacing: '0.1em' }}>LIVE</span>
+        </div>
+      </div>
+
+      <div style={{ height: 2, background: secondary }} />
+
+      <div style={{
+        background: '#fff',
+        padding: '10px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+        borderBottom: '1px solid rgba(0,0,0,0.08)',
+      }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7280', marginBottom: 2 }}>
+            Active Contest
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#191c1e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {contestName || 'Loading…'}
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7280' }}>
+            Judging As
+          </div>
+          <JudgeSelector
+            selectedJudge={selectedJudge}
+            judgeCount={judgeCount}
+            updateJudge={updateJudge}
+            isJudgeLocked={isJudgeLocked}
+            primary={primary}
+            compact={true}
+            darkBg={false}
+          />
+        </div>
+      </div>
+
+      {sysConfig.footer_text && (
+        <div style={{
+          background: '#f9fafb',
+          padding: '5px 20px',
+          fontSize: 10,
+          color: '#6b7280',
+          textAlign: 'center',
+          borderBottom: '1px solid rgba(0,0,0,0.06)',
+        }}>
+          {sysConfig.footer_text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Template: Compact Bar (single row) ─────────────────────────── */
+function HeaderCompact({ sysConfig, contestName, selectedJudge, judgeCount, updateJudge, isJudgeLocked }) {
+  const primary   = sysConfig.primary_color   || '#006c49';
+  const secondary = sysConfig.secondary_color || '#10b981';
+  const logoRadius = sysConfig.logo_radius != null ? sysConfig.logo_radius : 12;
+  const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
+
+  return (
+    <div style={{ width: '100%' }}>
+      <div style={{
+        background: primary,
+        padding: '0 20px',
+        minHeight: 60,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          paddingRight: 16,
+          borderRight: '1px solid rgba(255,255,255,0.18)',
+          flexShrink: 0,
+        }}>
+          {sysConfig.school_logo ? (
+            <img src={sysConfig.school_logo} alt="logo" style={{ width: 32, height: 32, borderRadius: r, objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.3)' }} />
+          ) : (
+            <div style={{ width: 32, height: 32, borderRadius: r, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid rgba(255,255,255,0.2)' }}>
+              <Building2 size={13} style={{ color: '#fff' }} />
+            </div>
+          )}
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 12, color: '#fff', lineHeight: 1.1, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {sysConfig.portal_name || 'Veridict'}
+            </div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', marginTop: 1, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {sysConfig.school_name || 'Judge Portal'}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.5)', marginBottom: 2 }}>
+            Now Judging
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {contestName || 'Loading…'}
+          </div>
+        </div>
+
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          paddingLeft: 16,
+          borderLeft: '1px solid rgba(255,255,255,0.18)',
+          flexShrink: 0,
+        }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: secondary, flexShrink: 0 }} />
+          <JudgeSelector
+            selectedJudge={selectedJudge}
+            judgeCount={judgeCount}
+            updateJudge={updateJudge}
+            isJudgeLocked={isJudgeLocked}
+            primary={primary}
+            compact={true}
+            darkBg={true}
+          />
+        </div>
+      </div>
+
+      <div style={{ height: 3, background: `linear-gradient(90deg, transparent, ${secondary}, transparent)` }} />
+
+      {sysConfig.footer_text && (
+        <div style={{
+          background: '#f9fafb',
+          padding: '5px 20px',
+          fontSize: 10,
+          color: '#6b7280',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: '1px solid rgba(0,0,0,0.06)',
+        }}>
+          <span>{sysConfig.footer_text}</span>
+          <span style={{ color: '#9ca3af', opacity: 0.7 }}>Encrypted · Secure Session</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Template: Elevated Card ─────────────────────────────────────── */
+function HeaderElevated({ sysConfig, contestName, selectedJudge, judgeCount, updateJudge, isJudgeLocked }) {
+  const primary   = sysConfig.primary_color   || '#006c49';
+  const secondary = sysConfig.secondary_color || '#10b981';
+  const logoRadius = sysConfig.logo_radius != null ? sysConfig.logo_radius : 12;
+  const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
+  const wrapR = logoRadius >= 999 ? '50%' : `${Math.min((logoRadius || 0) + 4, 16)}px`;
+
+  return (
+    <div style={{ width: '100%' }}>
+      <div style={{ height: 4, background: primary }} />
+
+      <div style={{
+        background: '#fff',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+        borderBottom: '1px solid rgba(0,0,0,0.08)',
+      }}>
+        <div style={{
+          flexShrink: 0,
+          padding: 6,
+          background: `${primary}12`,
+          borderRadius: wrapR,
+          border: `1.5px solid ${primary}30`,
+        }}>
+          {sysConfig.school_logo ? (
+            <img src={sysConfig.school_logo} alt="logo" style={{ width: 36, height: 36, borderRadius: r, objectFit: 'cover', display: 'block' }} />
+          ) : (
+            <div style={{ width: 36, height: 36, borderRadius: r, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Building2 size={16} style={{ color: primary }} />
+            </div>
+          )}
+        </div>
+
+        <div style={{ borderRight: '1px solid #e5e7eb', paddingRight: 16, flexShrink: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 13, color: '#191c1e', lineHeight: 1.2, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {sysConfig.portal_name || 'Veridict'}
+          </div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {sysConfig.school_name || 'Official Judging Portal'}
+          </div>
+        </div>
+
+        <div style={{ flex: 1, paddingLeft: 4, minWidth: 0 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#6b7280', marginBottom: 3 }}>
+            Active Contest
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#191c1e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {contestName || 'Loading…'}
+          </div>
+        </div>
+
+        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#6b7280' }}>
+            Judging As
+          </div>
+          <JudgeSelector
+            selectedJudge={selectedJudge}
+            judgeCount={judgeCount}
+            updateJudge={updateJudge}
+            isJudgeLocked={isJudgeLocked}
+            primary={primary}
+            compact={true}
+            darkBg={false}
+          />
+        </div>
+      </div>
+
+      {sysConfig.footer_text && (
+        <div style={{
+          background: '#f9fafb',
+          padding: '6px 20px',
+          fontSize: 10,
+          color: '#6b7280',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: '1px solid rgba(0,0,0,0.06)',
+        }}>
+          <span>{sysConfig.footer_text}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: secondary, display: 'inline-block' }} />
+            Secure Session
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Dynamic Header Router ───────────────────────────────────────── */
+function DynamicHeaderContent({ sysConfig, contestName, selectedJudge, judgeCount, updateJudge, isJudgeLocked }) {
+  const template = sysConfig.header_template || 'structured';
+  const sharedProps = { sysConfig, contestName, selectedJudge, judgeCount, updateJudge, isJudgeLocked };
+
+  if (template === 'compact')  return <HeaderCompact  {...sharedProps} />;
+  if (template === 'elevated') return <HeaderElevated {...sharedProps} />;
+  return <HeaderStructured {...sharedProps} />;
 }
 
 /* ── Mobile Drawer ───────────────────────────────────────────────── */
@@ -252,7 +558,6 @@ function MobileDrawer({
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 z-[60] transition-opacity duration-300"
         style={{
@@ -262,8 +567,6 @@ function MobileDrawer({
         }}
         onClick={onClose}
       />
-
-      {/* Slide-in panel */}
       <div
         className="fixed top-0 right-0 z-[70] h-full flex flex-col"
         style={{
@@ -275,7 +578,6 @@ function MobileDrawer({
           transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
         }}
       >
-        {/* Drawer header */}
         <div
           className="flex items-center justify-between px-5 py-4 shrink-0"
           style={{ background: primary }}
@@ -303,16 +605,12 @@ function MobileDrawer({
           </button>
         </div>
 
-        {/* Accent bar */}
         <div
           className="h-[3px] shrink-0"
           style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})` }}
         />
 
-        {/* Drawer body */}
         <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-5">
-
-          {/* Contest info card */}
           <div
             className="rounded-xl p-4"
             style={{ background: `${primary}10`, border: `1px solid ${primary}20` }}
@@ -328,7 +626,6 @@ function MobileDrawer({
             </div>
           </div>
 
-          {/* Judge selector */}
           <div>
             <div className="flex items-center gap-2 mb-2.5">
               <User size={12} style={{ color: primary }} />
@@ -352,7 +649,6 @@ function MobileDrawer({
             )}
           </div>
 
-          {/* Connection status */}
           <div
             className="rounded-xl p-4"
             style={{
@@ -377,7 +673,6 @@ function MobileDrawer({
             </div>
           </div>
 
-          {/* Security note — pinned to bottom */}
           <div className="flex items-center gap-2 opacity-40 mt-auto pt-2">
             <Shield size={11} className="text-[#3c4a42] shrink-0" />
             <span className="text-[10px] font-bold tracking-wider uppercase text-[#3c4a42]">
@@ -396,90 +691,56 @@ function JudgeHeader({
   judgeCount, updateJudge, isOnline, isJudgeLocked,
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  const primary   = sysConfig.primary_color   || '#006c49';
-  const secondary = sysConfig.secondary_color || '#10b981';
+  const primary = sysConfig.primary_color || '#006c49';
 
   return (
     <>
       <header
         className="sticky top-0 z-50 w-full"
-        style={{ background: primary, boxShadow: `0 2px 16px ${primary}60` }}
+        style={{ boxShadow: `0 2px 16px ${primary}60` }}
       >
-        {/* ── Status banners ── */}
         {!isOnline && <OfflineBanner />}
         {isJudgeLocked && <LockBanner selectedJudge={selectedJudge} />}
 
-        {/* ── Main nav row ── */}
+        <div className="hidden sm:block">
+          <DynamicHeaderContent
+            sysConfig={sysConfig}
+            contestName={contestName}
+            selectedJudge={selectedJudge}
+            judgeCount={judgeCount}
+            updateJudge={updateJudge}
+            isJudgeLocked={isJudgeLocked}
+          />
+        </div>
+
         <div
-          className="w-full max-w-screen-xl mx-auto flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-6 lg:px-12"
-          style={{ height: 60 }}
+          className="sm:hidden flex items-center justify-between gap-2 px-3"
+          style={{ background: primary, height: 56 }}
         >
-          {/* Left: logo + name */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
-            <LogoMark sysConfig={sysConfig} size={34} />
+          <div className="flex items-center gap-2 min-w-0">
+            <LogoMark sysConfig={sysConfig} size={30} />
             <div className="min-w-0">
               <div
-                className="font-extrabold text-sm sm:text-base text-white leading-tight tracking-tight"
-                style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                className="font-extrabold text-sm text-white leading-tight"
+                style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
               >
                 {sysConfig.portal_name || 'Veridict'}
               </div>
-              <div
-                className="hidden sm:block text-xs font-medium"
-                style={{ color: 'rgba(255,255,255,0.7)', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-              >
-                {sysConfig.school_name || 'Judge Portal'}
-              </div>
             </div>
           </div>
-
-          {/* Center: contest name — desktop only */}
-          <div className="hidden sm:flex flex-1 flex-col items-center text-center px-2 min-w-0">
-            <span
-              className="inline-block text-white text-xs font-bold tracking-widest uppercase px-3 py-0.5 rounded-full mb-1 whitespace-nowrap"
-              style={{ background: 'rgba(255,255,255,0.2)' }}
-            >
-              Live Judging Session
-            </span>
-            <div
-              className="text-xs sm:text-sm font-bold text-white tracking-tight"
-              style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-            >
-              {/* FIX: show placeholder only while truly empty, never flicker back */}
-              {contestName || 'Loading…'}
-            </div>
-          </div>
-
-          {/* Right: desktop selector / mobile controls */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Desktop */}
-            <div className="hidden sm:block">
-              <JudgeSelector
-                selectedJudge={selectedJudge}
-                judgeCount={judgeCount}
-                updateJudge={updateJudge}
-                isJudgeLocked={isJudgeLocked}
-                primary={primary}
-                compact={true}
-              />
-            </div>
-
-            {/* Mobile: active judge pill */}
             {selectedJudge && (
               <div
-                className="sm:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold"
                 style={{ background: 'rgba(255,255,255,0.2)', color: '#fff' }}
               >
                 <User size={11} />
                 <span>J{selectedJudge}</span>
               </div>
             )}
-
-            {/* Mobile: hamburger */}
             <button
               onClick={() => setDrawerOpen(true)}
-              className="sm:hidden flex items-center justify-center w-9 h-9 rounded-lg transition-all active:scale-95"
+              className="flex items-center justify-center w-9 h-9 rounded-lg transition-all active:scale-95"
               style={{ background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.25)' }}
               aria-label="Open menu"
             >
@@ -488,22 +749,14 @@ function JudgeHeader({
           </div>
         </div>
 
-        {/* Contest name row — mobile only */}
         <div
           className="sm:hidden px-3 pb-1.5 text-center text-xs font-semibold truncate"
-          style={{ color: 'rgba(255,255,255,0.85)' }}
+          style={{ background: primary, color: 'rgba(255,255,255,0.85)' }}
         >
           {contestName || 'Loading…'}
         </div>
-
-        {/* Bottom accent bar */}
-        <div
-          className="h-[3px]"
-          style={{ background: `linear-gradient(90deg, rgba(255,255,255,0.3), ${secondary}, rgba(255,255,255,0.3))` }}
-        />
       </header>
 
-      {/* Drawer rendered at this level so it can overlay the sticky header */}
       <MobileDrawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -529,68 +782,147 @@ function JudgeFooter({ sysConfig }) {
       style={{ backgroundColor: primary }}
     >
       <div className="max-w-screen-xl mx-auto px-6 lg:px-10 py-8">
-        
-        {/* Top Section */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          
-          {/* Brand */}
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-white">
               {sysConfig.portal_name || 'Veridict'}
             </h2>
-
             <p className="text-sm mt-1 text-white/70 max-w-md leading-relaxed">
               Professional judging and tabulation platform for Catholic schools
               and academic institutions in the Philippines.
             </p>
           </div>
-
-          {/* Status */}
           <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-3 rounded-xl border border-white/10">
             <div className="relative flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-400"></span>
             </div>
-
             <div>
-              <p className="text-sm font-semibold text-white">
-                Secure System Active
-              </p>
-              <p className="text-xs text-white/60">
-                Encrypted judging session
-              </p>
+              <p className="text-sm font-semibold text-white">Secure System Active</p>
+              <p className="text-xs text-white/60">Encrypted judging session</p>
             </div>
           </div>
         </div>
-
-        {/* Divider */}
         <div className="w-full h-px bg-white/10 my-6" />
-
-        {/* Bottom */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-sm">
-          
           <p className="text-white/60 text-center md:text-left">
-            © {new Date().getFullYear()}{" "}
+            © {new Date().getFullYear()}{' '}
             {sysConfig.school_name || 'Veridict'}.
             All rights reserved.
           </p>
-
           <div className="flex items-center gap-5 text-white/60">
-            <span className="hover:text-white transition-colors cursor-pointer">
-              Privacy
-            </span>
-
-            <span className="hover:text-white transition-colors cursor-pointer">
-              Security
-            </span>
-
-            <span className="hover:text-white transition-colors cursor-pointer">
-              Support
-            </span>
+            <span className="hover:text-white transition-colors cursor-pointer">Privacy</span>
+            <span className="hover:text-white transition-colors cursor-pointer">Security</span>
+            <span className="hover:text-white transition-colors cursor-pointer">Support</span>
           </div>
         </div>
       </div>
     </footer>
+  );
+}
+
+/* ── Static Criteria Header ──────────────────────────────────────── */
+// FIX: title row now uses justify-content: center so the label + total
+// are centred instead of flush left/right.
+function CriteriaHeader({ criteria, primary, secondary }) {
+  if (!criteria?.length) return null;
+
+  const totalWeight = criteria.reduce((sum, c) => sum + Number(c.percentage ?? 0), 0);
+
+  return (
+    <div
+      className="w-full rounded-xl sm:rounded-2xl mb-4 sm:mb-7 overflow-hidden"
+      style={{
+        background: '#fff',
+        border:     `1px solid ${primary}20`,
+        boxShadow:  `0 2px 12px ${primary}0d`,
+      }}
+    >
+      {/* Title row — centered */}
+      <div
+        style={{
+          display:        'flex',
+          alignItems:     'center',
+          justifyContent: 'center',   /* ← FIX: was space-between, now center */
+          gap:            12,
+          padding:        '12px 28px',
+          borderBottom:   `1px solid ${primary}12`,
+          background:     `linear-gradient(90deg, ${primary}0a, #fff)`,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              width:     6,
+              height:    6,
+              borderRadius: '50%',
+              background:   secondary,
+              boxShadow:    `0 0 0 3px ${secondary}30`,
+              flexShrink:   0,
+            }}
+          />
+          <span
+            style={{
+              fontSize:      11,
+              fontWeight:    700,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color:         '#3c4a42',
+            }}
+          >
+            Scoring Criteria
+          </span>
+        </div>
+
+        <span
+          style={{
+            fontSize:   11,
+            fontWeight: 700,
+            color:      totalWeight === 100 ? '#6b7280' : '#dc2626',
+          }}
+        >
+          {totalWeight}% total
+        </span>
+      </div>
+
+      {/* Criteria rows */}
+      <div style={{ padding: '16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {criteria.map((c, i) => {
+          const weight = Number(c.percentage ?? 0);
+          return (
+            <div key={c.id ?? i}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#191c1e' }}>
+                  {c.name}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: primary, fontVariantNumeric: 'tabular-nums' }}>
+                  {weight}%
+                </span>
+              </div>
+              <div
+                style={{
+                  width:        '100%',
+                  height:       6,
+                  borderRadius: 999,
+                  overflow:     'hidden',
+                  background:   `${primary}14`,
+                }}
+              >
+                <div
+                  style={{
+                    height:     '100%',
+                    width:      `${Math.min(weight, 100)}%`,
+                    borderRadius: 999,
+                    background: `linear-gradient(90deg, ${primary}, ${secondary})`,
+                    transition: 'width 0.6s ease',
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -744,7 +1076,6 @@ function GlobalStyles() {
         100% { transform: translateX(0); opacity: 0.7; }
       }
 
-      /* ── Scroll container ── */
       .ai-scroll-container {
         width: 100%;
         overflow-x: auto;
@@ -756,7 +1087,6 @@ function GlobalStyles() {
       .ai-scroll-container::-webkit-scrollbar-track  { background: transparent; }
       .ai-scroll-container::-webkit-scrollbar-thumb  { background: #cbd5e1; border-radius: 999px; }
 
-      /* ── AI content ── */
       .ai-rendered-content {
         font-size: clamp(11px, 1.8vw, 14px);
         display: inline-block;
@@ -780,12 +1110,19 @@ function GlobalStyles() {
         max-width: 100px;
       }
       .ai-rendered-content > div {
-        width: auto !important;
+        width: 100% !important;
+        min-width: 100% !important;
         max-width: none !important;
+        box-sizing: border-box !important;
         overflow: visible !important;
       }
+      .ai-rendered-content > div > table,
+      .ai-rendered-content table {
+        width: 100% !important;
+        min-width: 100% !important;
+        box-sizing: border-box !important;
+      }
 
-      /* ── Scroll hint ── */
       .scroll-hint { display: none; }
       @media (max-width: 639px) {
         .scroll-hint {
@@ -821,14 +1158,8 @@ function JudgeTable() {
 
   const sysConfig     = useSystemConfig();
   const isJudgeLocked = useJudgeLockState(4000);
+  const contestName   = useContestName(config.settings?.contest_name, 5000);
 
-  // FIX: useContestName keeps polling independently so "Syncing contest…"
-  // never persists after a lock/unlock action wipes or delays the config.
-  // It seeds from config.settings.contest_name when it arrives, then keeps
-  // a live poll running so any admin change reflects within ~5 s.
-  const contestName = useContestName(config.settings?.contest_name, 5000);
-
-  const headerHtml = dynamicUI?.headerHtml || '';
   const tableHtml  = typeof dynamicUI === 'string' ? dynamicUI : dynamicUI?.html || '';
 
   const primary   = sysConfig.primary_color   || '#006c49';
@@ -849,24 +1180,24 @@ function JudgeTable() {
         onClose={closeModal}
       />
 
-    <JudgeHeader
-  sysConfig={sysConfig}
-  contestName={contestName}
-  selectedJudge={selectedJudge}
-  judgeCount={config.settings?.judge_count}
-  updateJudge={updateJudge}
-  isOnline={isOnline}
-  isJudgeLocked={isJudgeLocked}
-  headerTemplate={sysConfig.header_template || 'structured'} // ADD THIS
-/>
+      <JudgeHeader
+        sysConfig={sysConfig}
+        contestName={contestName}
+        selectedJudge={selectedJudge}
+        judgeCount={config.settings?.judge_count}
+        updateJudge={updateJudge}
+        isOnline={isOnline}
+        isJudgeLocked={isJudgeLocked}
+      />
 
       <main className="flex-1 w-full max-w-screen-xl mx-auto px-3 sm:px-6 lg:px-12 py-4 sm:py-8 lg:py-10">
 
-        {/* AI-generated criteria header — also scroll-safe */}
-        {!loading && headerHtml && (
-          <div className="dynamic-header-area mb-4 sm:mb-7 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <div style={{ display: 'inline-block', minWidth: '100%' }} dangerouslySetInnerHTML={{ __html: headerHtml }} />
-          </div>
+        {!loading && (
+          <CriteriaHeader
+            criteria={config.criteria}
+            primary={primary}
+            secondary={secondary}
+          />
         )}
 
         <ScoringCard
