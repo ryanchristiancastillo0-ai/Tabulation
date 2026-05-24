@@ -1,33 +1,35 @@
-import {useState} from 'react'
+import { useState } from 'react';
 import {
-   Mail, Check,
-  
-   User, Lock, Eye, EyeOff, 
+  Mail, Check, User, Lock, Eye, EyeOff,
 } from 'lucide-react';
-import {inputCls,StrengthBar,Field} from './index'
+import { inputCls, StrengthBar, Field } from './index';
+
 export default function AdminAccountSection({ form, setField, errors }) {
   const [showPw,      setShowPw]      = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   return (
-    <div className="px-9 py-8 border-b border-slate-200">
-      <div className="flex items-center justify-between mb-1.5">
+    <div className="px-4 sm:px-9 py-6 sm:py-8 border-b border-slate-200">
+
+      {/* Header */}
+      <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 mb-1.5">
         <div className="text-sm font-bold text-emerald-700 flex items-center gap-2">
           <User size={14} /> Admin Account
         </div>
-        <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+        <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full self-start xs:self-auto">
           Linked to this school
         </span>
       </div>
-      <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+
+      <p className="text-xs text-slate-400 mb-5 sm:mb-6 leading-relaxed">
         This will be the primary admin login for your school's portal.
         Each school gets its own isolated admin account.
       </p>
 
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4 sm:gap-5">
 
-        {/* Name + Email */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Name + Email — stacks on mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Admin Name *" icon={User} error={errors.admin_name}>
             <input
               className={inputCls(errors.admin_name)}
@@ -47,8 +49,8 @@ export default function AdminAccountSection({ form, setField, errors }) {
           </Field>
         </div>
 
-        {/* Password + Confirm */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Password + Confirm — stacks on mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Password *" icon={Lock} error={errors.admin_password}>
             <div className="relative">
               <input

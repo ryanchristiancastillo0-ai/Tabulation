@@ -1,14 +1,15 @@
-import {PLANS} from '../../constant/navlist'
-import {Check,
- Star
-} from 'lucide-react';
+import { PLANS } from '../../constant/navlist';
+import { Check, Star } from 'lucide-react';
+
 export default function SubscriptionSection({ value, setField }) {
   return (
-    <div className="px-9 py-8 border-b border-slate-200">
-      <div className="text-sm font-bold text-emerald-700 mb-5 flex items-center gap-2">
+    <div className="px-4 sm:px-9 py-6 sm:py-8 border-b border-slate-200">
+      <div className="text-sm font-bold text-emerald-700 mb-4 sm:mb-5 flex items-center gap-2">
         <Star size={14} /> Subscription Plan
       </div>
-      <div className="grid grid-cols-3 gap-3">
+
+      {/* 1 col on mobile, 3 on sm+ */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {PLANS.map((plan) => {
           const active = value === plan.id;
           return (
@@ -27,18 +28,22 @@ export default function SubscriptionSection({ value, setField }) {
                   Most Popular
                 </div>
               )}
-              <div className={`text-lg font-extrabold mb-0.5 ${active ? 'text-emerald-700' : 'text-slate-900'}`}>
-                {plan.price}
+
+              {/* Row layout on mobile, stacked on sm+ */}
+              <div className="flex sm:flex-col items-center sm:items-start gap-3 sm:gap-0">
+                <div className={`text-base sm:text-lg font-extrabold sm:mb-0.5 ${active ? 'text-emerald-700' : 'text-slate-900'}`}>
+                  {plan.price}
+                </div>
+                <div className="flex flex-col">
+                  <div className={`text-sm font-bold ${active ? 'text-emerald-700' : 'text-slate-900'}`}>
+                    {plan.label}
+                  </div>
+                  <div className="text-xs text-slate-600 sm:mt-1">{plan.desc}</div>
+                </div>
               </div>
-              <div className={`text-sm font-bold ${active ? 'text-emerald-700' : 'text-slate-900'}`}>
-                {plan.label}
-              </div>
-              <div className="text-xs text-slate-600 mt-1">{plan.desc}</div>
+
               {active && (
-                <div
-                  className="absolute top-2.5 right-2.5 rounded-full bg-emerald-400 flex items-center justify-center"
-                  style={{ width: 18, height: 18 }}
-                >
+                <div className="absolute top-2.5 right-2.5 w-[18px] h-[18px] rounded-full bg-emerald-400 flex items-center justify-center">
                   <Check size={10} className="text-white" />
                 </div>
               )}

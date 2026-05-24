@@ -5,6 +5,7 @@ import SectionRender, {
   MobileNavDrawer,
 
 } from "../../components/admin/sectionRender"
+
 import {MobileTopBar} from '../../components/admin/index'
 import apiClient from "../../utils/apiClient";
 import {navItems} from '../../constant/navlist.jsx'
@@ -176,6 +177,8 @@ function Dashboard() {
             activeNav={activeNav}
             setActiveNav={setActiveNav}
             navItems={navItems}
+              dark={dark}       
+  setDark={setDark} 
           />
         )}
 

@@ -83,4 +83,54 @@ router.post('/login', async (req, res) => {
   }
 });
 
+
+// ── RESET PASSWORD ─────────────────────────────────────────────────────────────
+router.post('/reset-password', async (req, res) => {
+  const { email, newPassword } = req.body;
+
+  if (!email || !newPassword) {
+    return res.status(400).json({ error: 'Email and new password are required.' });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  }
+
+  try {
+    // Check if admin with that email exists
+    const [rows] = await pool.execute(
+      `SELECT a.id AS admin_id, s.status AS school_status
+       FROM   admins  a
+       JOIN   schools s ON s.id = a.school_id
+       WHERE  a.email = ?
+       LIMIT  1`,
+      [email]
+    );
+
+    if (rows.length === 0) {
+      // Vague on purpose — don't reveal whether email exists
+      return res.status(404).json({ error: 'No account found with that email.' });
+    }
+
+    const admin = rows[0];
+
+    if (admin.school_status !== 'active') {
+      return res.status(403).json({ error: 'Your school account is inactive. Contact support.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    await pool.execute(
+      `UPDATE admins SET password = ? WHERE id = ?`,
+      [hashedPassword, admin.admin_id]
+    );
+
+    res.json({ success: true, message: 'Password updated successfully.' });
+
+  } catch (err) {
+    console.error('Reset password error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
