@@ -1,5 +1,5 @@
 import { CheckCircle2, AlertCircle, XCircle, ArrowRight } from 'lucide-react';
-export const StatusModal = ({ isOpen, title, message, type, onClose }) => {
+export default function StatusModal({ isOpen, title, message, type, onClose })  {
   if (!isOpen) return null;
   const themes = {
     success: { icon: <CheckCircle2 className="text-emerald-500" size={44} />, btn: "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200", accent: "border-emerald-100 bg-emerald-50/50" },

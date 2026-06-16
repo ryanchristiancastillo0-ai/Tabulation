@@ -1,6 +1,8 @@
-import React from 'react';
+
 import { Plus, Trash2, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { useCriteriaGenerator } from '../../hooks/admin/useCriteriaGenerator';
+import { useCriteriaGenerator } from '../../hooks/judge/useCreteria';
+
+
 
 const CriteriaManager = () => {
   const { 

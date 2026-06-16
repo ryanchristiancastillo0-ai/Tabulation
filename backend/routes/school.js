@@ -49,7 +49,7 @@ router.post('/create', async (req, res) => {
             ]
         );
 
-        const school_id = schoolResult.insertId; // real auto-increment ID
+        const school_id = schoolResult.insertId;
 
         // ── Step 2: insert admin linked to that school ─────────────────
         const hashedPassword = await bcrypt.hash(admin_password, 10);
@@ -58,6 +58,30 @@ router.post('/create', async (req, res) => {
             `INSERT INTO admins (name, email, password, school_id)
              VALUES (?, ?, ?, ?)`,
             [admin_name, admin_email, hashedPassword, school_id]
+        );
+
+        // ── Step 3: seed system_config with school logo so sidebar shows it ──
+        if (school_logo) {
+            await conn.execute(
+                `INSERT INTO system_config (school_id, school_logo, school_name)
+                 VALUES (?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                   school_logo = VALUES(school_logo),
+                   school_name = VALUES(school_name)`,
+                [school_id, school_logo, school_name]
+            );
+        }
+
+        // ── Step 4: seed an empty settings row for this school ─────────
+        // This is CRITICAL. Without this row, save-config's
+        // INSERT ... ON DUPLICATE KEY UPDATE has no existing row to match
+        // on school_id, so MySQL may update a different school's row instead.
+        await conn.execute(
+            `INSERT INTO settings
+                (school_id, contest_name, contest_type, judge_count, ai_prompt, computation_type, is_judge_locked)
+             VALUES (?, '', 'pageant', 3, 'Modern and Professional', 'average', 0)
+             ON DUPLICATE KEY UPDATE school_id = school_id`,
+            [school_id]
         );
 
         await conn.commit();

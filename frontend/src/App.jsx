@@ -1,12 +1,12 @@
 import { Route, Routes, Navigate, Outlet } from 'react-router-dom'
 import './index.css'
-import Home from './components/home'
+import Home from './pages/Home/home'
 import JudgeTable from './pages/judge/JudgeTable'
 import Dashboard from './pages/admin/Dashboard'
 import JudgeScoreboard from './pages/judge/JudgeScoreboard'
-import LeaderBoard from './components/admin/Leaderboard'
-import AdminLogin from './components/admin/LoginForm'
-import ForgotPassword from './components/admin/Forgotpassword'
+import LeaderBoard from './pages/Leaderboard/Leaderboard'
+import AdminLogin from './pages/Auth/LoginForm'
+import ForgotPassword from './pages/Auth/Forgotpassword'
 import CreateSchoolForm from './pages/school/SchoolForm';
 import { ContestProvider } from './providers/ContestContext';
 

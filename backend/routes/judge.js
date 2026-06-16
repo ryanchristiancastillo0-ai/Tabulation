@@ -5,6 +5,9 @@ const pool = require('../config/db');
 const { generateWithFallback } = require('../config/ai');
 
 // ── 1. GENERATE AI JUDGE UI (PUBLIC - no auth) ──
+// NOTE: headerHtml (criteria summary) is no longer AI-generated.
+// The frontend renders it statically from config.criteria.
+// Only the scoring TABLE is AI-generated here to save tokens.
 router.post('/render-ui', async (req, res) => {
     try {
         const { contestants, criteria, aiPrompt: incomingPrompt, school_id } = req.body;
@@ -26,68 +29,72 @@ router.post('/render-ui', async (req, res) => {
             .digest('hex');
 
         const [cache] = await pool.execute(
-            "SELECT header_content, html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ?",
+            "SELECT html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ?",
             [configHash, school_id]
         );
 
         if (cache.length > 0) {
             return res.json({
-                headerHtml: cache[0].header_content,
-                html: cache[0].html_content
+                html: cache[0].html_content,
+                // headerHtml intentionally omitted — frontend renders criteria statically
             });
         }
 
         const aiInstruction = `
-            Act as a Senior Tailwind Developer.
-            [THEME]: "${finalDesignGoal}"
-            [COLOR SCHEME]: 
-            - If theme is "${finalDesignGoal}", the table background, borders, and rows MUST use that color palette.
-            - DO NOT use white (bg-white) for the table or rows if the theme is a specific color (like Pink).
-            - Use shades like ${finalDesignGoal}-50 for rows and ${finalDesignGoal}-100 for borders.
+    Act as a Senior Tailwind Developer.
+    [THEME]: "${finalDesignGoal}"
 
-            [CONTEXT]:
-            - Contest: ${settings.contest_name}
-            - Data: ${JSON.stringify(contestants.map(c => ({ id: c.id, n: c.name, num: c.entry_number })))}
-            - Criteria: ${JSON.stringify(criteria.map(cr => ({ id: cr.id, name: cr.name, percentage: cr.percentage })))}
+    [COLOR SCHEME]:
+    - Derive a Tailwind color palette from the theme name.
+    - Dark themes (navy, charcoal, dark): use bg-gray-900 or bg-slate-900 for surfaces.
+    - Gold accent = use yellow-400 or amber-400 for text and borders.
+    - Light themes: use bg-gray-50 surfaces with gray-900 text.
 
-            [MANDATORY]:
-            - Render EXACTLY ${contestants.length} rows. 
-            - Columns: No., Name, ${criteria.map(c => `${c.name} (${c.percentage}%)`).join(", ")}, Total, Rank.
-            - Each criteria column header MUST show the name AND percentage like: "Performance (60%)"
-            - Dropdowns: class="score-dropdown" id="score-{cId}-{crId}"
-            - Totals: id="total-{cId}" 
-            - Ranks: id="rank-{cId}"
+    [FORM ELEMENT RULES — CRITICAL]:
+    - Every <select> must use Tailwind classes only — NO inline styles.
+    - The bg class on <select> MUST match the table/surface bg (e.g. bg-slate-900).
+    - The text class must contrast strongly (e.g. text-yellow-400 on bg-slate-900).
+    - Example for dark navy + gold:
+        <select class="score-dropdown bg-slate-900 text-yellow-400 border border-yellow-400 rounded px-2 py-1" id="score-{cId}-{crId}">
+          <option class="bg-slate-900 text-yellow-400">95</option>
+        </select>
+    - Example for light theme:
+        <select class="score-dropdown bg-gray-50 text-gray-900 border border-gray-300 rounded px-2 py-1">
+          <option class="bg-gray-50 text-gray-900">95</option>
+        </select>
+    - ALWAYS add the same bg and text classes to every <option> — browsers ignore parent styles on options.
 
-            [OUTPUT]: Return ONLY a <div> containing the Tailwind-styled <table>. No markdown.
-        `;
+    [CONTEXT]:
+    - Contest: ${settings.contest_name}
+    - Data: ${JSON.stringify(contestants.map(c => ({ id: c.id, n: c.name, num: c.entry_number })))}
+    - Criteria: ${JSON.stringify(criteria.map(cr => ({ id: cr.id, name: cr.name, percentage: cr.percentage })))}
 
-        const criteriaInstruction = `
-            Act as a Senior UI Designer.
-            [THEME]: "${finalDesignGoal}"
-            [TASK]: Create a criteria percentage summary section.
-            [DATA]: ${JSON.stringify(criteria.map(cr => ({ name: cr.name, percentage: cr.percentage })))}
-            [STYLE]: Use Tailwind. Ensure the background <div> matches the "${finalDesignGoal}" theme perfectly.
-            [OUTPUT]: Return ONLY the HTML <div>. No markdown.
-        `;
+    [MANDATORY]:
+    - Render EXACTLY ${contestants.length} rows.
+    - Columns: No., Name, ${criteria.map(c => `${c.name} (${c.percentage}%)`).join(", ")}, Total, Rank.
+    - Each criteria column header MUST show name AND percentage: "Performance (60%)"
+    - Dropdowns: class="score-dropdown ..." id="score-{cId}-{crId}"
+    - Totals: id="total-{cId}"
+    - Ranks: id="rank-{cId}"
 
-        const [tableHTML, headerHTML] = await Promise.all([
-            generateWithFallback(aiInstruction),
-            generateWithFallback(criteriaInstruction)
-        ]);
+    [OUTPUT]: Return ONLY a <div> with a Tailwind <table>. No markdown.
+`;
 
-        const cleanTable  = tableHTML.replace(/```html/g, "").replace(/```/g, "").trim();
-        const cleanHeader = headerHTML.replace(/```html/g, "").replace(/```/g, "").trim();
+        const tableHTML = await generateWithFallback(aiInstruction);
+        const cleanTable = tableHTML.replace(/```html/g, "").replace(/```/g, "").trim();
 
         await pool.execute(
-            `INSERT INTO ui_cache (prompt_hash, school_id, header_content, html_content) 
-             VALUES (?, ?, ?, ?) 
+            `INSERT INTO ui_cache (prompt_hash, school_id, html_content) 
+             VALUES (?, ?, ?) 
              ON DUPLICATE KEY UPDATE 
-               header_content = VALUES(header_content), 
-               html_content   = VALUES(html_content)`,
-            [configHash, school_id, cleanHeader, cleanTable]
+               html_content = VALUES(html_content)`,
+            [configHash, school_id, cleanTable]
         );
 
-        res.json({ headerHtml: cleanHeader, html: cleanTable });
+        res.json({
+            html: cleanTable,
+            // headerHtml intentionally omitted — frontend renders criteria statically
+        });
 
     } catch (err) {
         console.error('render-ui error:', err.message);
@@ -171,6 +178,45 @@ router.get('/my-scores-raw/:judgeId', async (req, res) => {
     } catch (err) {
         console.error('my-scores-raw error:', err.message);
         res.status(500).json({ error: "Failed to fetch raw scores" });
+    }
+});
+
+// ── 5. GET CACHED UI ONLY — no AI, safe for background refresh ──
+router.get('/render-ui-cached', async (req, res) => {
+    try {
+        const { school_id, criteria_signature } = req.query;
+        if (!school_id) return res.status(400).json({ error: 'school_id is required.' });
+
+        const [rows] = await pool.execute(
+            "SELECT ai_prompt FROM settings WHERE school_id = ? LIMIT 1",
+            [school_id]
+        );
+        const aiPrompt = rows[0]?.ai_prompt || 'Modern and Professional';
+
+        const configHash = require('crypto')
+            .createHash('md5')
+            .update(aiPrompt + criteria_signature + String(school_id))
+            .digest('hex');
+
+        const [cache] = await pool.execute(
+            "SELECT html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ?",
+            [configHash, school_id]
+        );
+
+        if (cache.length > 0) {
+            return res.json({
+                html:      cache[0].html_content,
+                fromCache: true,
+                // headerHtml intentionally omitted — frontend renders criteria statically
+            });
+        }
+
+        // Nothing in DB — tell the client to do a full POST instead
+        return res.json({ fromCache: false });
+
+    } catch (err) {
+        console.error('render-ui-cached error:', err.message);
+        res.status(500).json({ error: err.message });
     }
 });
 

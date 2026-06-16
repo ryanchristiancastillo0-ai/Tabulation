@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 
+
 export const useCriteriaGenerator = () => {
   const [criteria, setCriteria] = useState([]);
   const [newCriterion, setNewCriterion] = useState({ name: '', percentage: '' });

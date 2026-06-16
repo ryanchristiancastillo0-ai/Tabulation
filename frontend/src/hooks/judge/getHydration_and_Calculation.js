@@ -1,21 +1,35 @@
+// Module-level refs so we can clean up across calls
+let activeObserver = null;
+let activeChangeHandler = null;
+
+
+
 export const getHydra_and_Calcu = (
-  dynamicUI, 
-  config, 
-  saveToCache, 
-  recalculateRow, 
-  updateRankings, 
-  selectedJudge, 
+  dynamicUI,
+  config,
+  saveToCache,
+  recalculateRow,
+  updateRankings,
+  selectedJudge,
   dbScores = []
 ) => {
   if (!dynamicUI || !selectedJudge) return;
 
+  // ── Tear down any previous observer + listener before starting fresh ──
+  if (activeObserver) {
+    activeObserver.disconnect();
+    activeObserver = null;
+  }
+  if (activeChangeHandler) {
+    document.removeEventListener('change', activeChangeHandler);
+    activeChangeHandler = null;
+  }
+
   const applyData = () => {
     const dropdowns = document.querySelectorAll('.score-dropdown');
-    
-    // 1. Wait until the AI-generated table is actually in the DOM
-    if (dropdowns.length === 0) return false; 
+    if (dropdowns.length === 0) return false;
 
-    // Create a lookup for database scores
+    // Build db score lookup
     const dbLookup = {};
     if (Array.isArray(dbScores)) {
       dbScores.forEach(s => {
@@ -24,70 +38,65 @@ export const getHydra_and_Calcu = (
     }
 
     dropdowns.forEach(select => {
-      // Extract IDs from the AI-generated ID: score-{contestantId}-{criterionId}
-      const idParts = select.id.split('-'); 
+      const idParts     = select.id.split('-');
       const criterionId = parseInt(idParts[2]);
-      
-      // Find the real percentage/max from your local config
-      const criterion = config.criteria.find(c => c.id === criterionId);
-      const maxLimit = criterion ? Number(criterion.percentage) : 10;
 
-      // --- THE KEY FIX: FORCE OVERRIDE ---
-      // We don't check 'if (select.children.length <= 1)' anymore.
-      // We wipe the select clean to remove AI hallucinations (0, 100, etc.)
+      const criterion = config.criteria.find(c => c.id === criterionId);
+      const maxLimit  = criterion ? Number(criterion.percentage) : 10;
+
+      // Rebuild options from real config (wipes AI hallucinations)
       let options = '<option value="">-</option>';
       for (let i = 1; i <= maxLimit; i++) {
         options += `<option value="${i}">${i}</option>`;
       }
-      
-      // Overwrite AI-generated options with your real criteria data
       select.innerHTML = options;
 
-      // 2. SET THE VALUE: Priority (Database > LocalStorage)
-      const dbVal = dbLookup[select.id];
+      // Restore value: DB score takes priority over localStorage
+      const dbVal    = dbLookup[select.id];
       const localVal = localStorage.getItem(`judge_${selectedJudge}_${select.id}`);
 
       if (dbVal !== undefined && dbVal !== null) {
-        select.value = dbVal;
+        select.value = String(dbVal);
       } else if (localVal) {
         select.value = localVal;
       }
     });
 
-    // 3. Trigger Math (Total & Rank)
+    // Recalculate totals and rankings
     if (config.contestants) {
       config.contestants.forEach(c => recalculateRow(c.id));
       updateRankings();
     }
-    return true; 
+
+    return true;
   };
 
-  // The "Watchdog" that waits for the AI HTML to finish loading
-  const observer = new MutationObserver((mutations, obs) => {
-    if (applyData()) {
-      obs.disconnect(); 
-    }
-  });
+  // Only set up observer if the table isn't rendered yet
+  if (!applyData()) {
+    const observer = new MutationObserver((mutations, obs) => {
+      if (applyData()) {
+        obs.disconnect();
+        // Once resolved, clear the module ref too so it isn't disconnected again
+        if (activeObserver === observer) {
+          activeObserver = null;
+        }
+      }
+    });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true });
+    activeObserver = observer;
+  }
 
-  // Initial attempt in case the DOM is already ready
-  applyData();
-
-  // Handle manual changes for real-time LocalStorage backup
+  // Attach change listener for real-time localStorage backup
   const handleChange = (e) => {
-    if (e.target.classList.contains('score-dropdown')) {
-      const conId = e.target.id.split('-')[1];
-      
-      // Save to localStorage immediately so it survives a reload
-      localStorage.setItem(`judge_${selectedJudge}_${e.target.id}`, e.target.value);
-      
-      if (saveToCache) saveToCache(e.target.id, e.target.value);
-      recalculateRow(conId);
-      updateRankings();
-    }
+    if (!e.target.classList.contains('score-dropdown')) return;
+    const conId = e.target.id.split('-')[1];
+    localStorage.setItem(`judge_${selectedJudge}_${e.target.id}`, e.target.value);
+    if (saveToCache) saveToCache(e.target.id, e.target.value);
+    recalculateRow(conId);
+    updateRankings();
   };
 
-  document.removeEventListener('change', handleChange);
   document.addEventListener('change', handleChange);
+  activeChangeHandler = handleChange;
 };

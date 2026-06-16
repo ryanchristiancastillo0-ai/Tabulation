@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trash2, Plus, Edit3, LayoutGrid, Crown, Mic2, MessageSquare, BookOpen, Trophy, Zap, Star, Heart, Target, Award, Brain, Music, Flame, Shield } from 'lucide-react';
+import { Trash2, Plus, Edit3, LayoutGrid, Crown, Mic2, MessageSquare, BookOpen, Trophy, Zap, Star, Heart, Target, Award, Brain, Music, Flame, Shield, X, Smile, Users, Globe, Camera, Paintbrush, Lightbulb, Clock, TrendingUp, ThumbsUp, Eye, Dumbbell, Wind, Leaf, Feather, Layers, Compass, BarChart2 } from 'lucide-react';
 
 const PRESETS = [
   {
@@ -56,16 +56,34 @@ const PRESETS = [
 ];
 
 const SINGLE_SUGGESTIONS = [
-  { name: 'Performance',    icon: Flame,   weight: 20 },
-  { name: 'Creativity',     icon: Star,    weight: 15 },
-  { name: 'Confidence',     icon: Zap,     weight: 15 },
-  { name: 'Personality',    icon: Heart,   weight: 10 },
-  { name: 'Accuracy',       icon: Target,  weight: 20 },
-  { name: 'Leadership',     icon: Award,   weight: 15 },
-  { name: 'Intelligence',   icon: Brain,   weight: 20 },
-  { name: 'Musicality',     icon: Music,   weight: 20 },
-  { name: 'Discipline',     icon: Shield,  weight: 15 },
-  { name: 'Stage Presence', icon: Mic2,    weight: 15 },
+  { name: 'Performance',      icon: Flame,       weight: 20 },
+  { name: 'Creativity',       icon: Star,        weight: 15 },
+  { name: 'Confidence',       icon: Zap,         weight: 15 },
+  { name: 'Personality',      icon: Heart,       weight: 10 },
+  { name: 'Accuracy',         icon: Target,      weight: 20 },
+  { name: 'Leadership',       icon: Award,       weight: 15 },
+  { name: 'Intelligence',     icon: Brain,       weight: 20 },
+  { name: 'Musicality',       icon: Music,       weight: 20 },
+  { name: 'Discipline',       icon: Shield,      weight: 15 },
+  { name: 'Stage Presence',   icon: Mic2,        weight: 15 },
+  { name: 'Charisma',         icon: Smile,       weight: 15 },
+  { name: 'Teamwork',         icon: Users,       weight: 15 },
+  { name: 'Cultural Fit',     icon: Globe,       weight: 10 },
+  { name: 'Photogenics',      icon: Camera,      weight: 10 },
+  { name: 'Artistry',         icon: Paintbrush,  weight: 20 },
+  { name: 'Innovation',       icon: Lightbulb,   weight: 20 },
+  { name: 'Time Management',  icon: Clock,       weight: 10 },
+  { name: 'Improvement',      icon: TrendingUp,  weight: 10 },
+  { name: 'Crowd Appeal',     icon: ThumbsUp,    weight: 15 },
+  { name: 'Showmanship',      icon: Eye,         weight: 15 },
+  { name: 'Athleticism',      icon: Dumbbell,    weight: 20 },
+  { name: 'Composure',        icon: Wind,        weight: 10 },
+  { name: 'Sustainability',   icon: Leaf,        weight: 10 },
+  { name: 'Eloquence',        icon: Feather,     weight: 15 },
+  { name: 'Depth',            icon: Layers,      weight: 15 },
+  { name: 'Adaptability',     icon: Compass,     weight: 15 },
+  { name: 'Data Usage',       icon: BarChart2,   weight: 10 },
+  { name: 'Sportsmanship',    icon: Trophy,      weight: 10 },
 ];
 
 export default function CriteriaManager({
@@ -107,6 +125,12 @@ export default function CriteriaManager({
       { id: `single-${Date.now()}`, name: suggestion.name, weight },
     ]);
     setActivePreset(null);
+  };
+
+  // Remove a suggestion-added criterion by name
+  const removeSingle = (e, name) => {
+    e.stopPropagation();
+    setCriteria(prev => prev.filter(c => c.name.toLowerCase() !== name.toLowerCase()));
   };
 
   const updateField = (id, field, val) => {
@@ -224,40 +248,80 @@ export default function CriteriaManager({
             const Icon = s.icon;
             const added = alreadyAdded(s.name);
             const full = totalWeight >= 100;
-            const disabled = added || full;
+            const disabled = full && !added;
+
             return (
               <button
                 key={s.name}
-                onClick={() => !disabled && addSingle(s)}
-                title={added ? 'Already added' : full ? 'Weight is at 100%' : `Add ${s.name} (${s.weight}%)`}
+                onClick={() => {
+                  if (added) {
+                    // clicking an added chip removes it
+                    setCriteria(prev =>
+                      prev.filter(c => c.name.toLowerCase() !== s.name.toLowerCase())
+                    );
+                  } else if (!disabled) {
+                    addSingle(s);
+                  }
+                }}
+                title={
+                  added
+                    ? `Remove ${s.name}`
+                    : full
+                    ? 'Weight is at 100%'
+                    : `Add ${s.name} (${s.weight}%)`
+                }
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600,
-                  fontFamily: 'inherit', cursor: disabled ? 'not-allowed' : 'pointer',
+                  padding: added ? '5px 8px 5px 12px' : '5px 12px',
+                  borderRadius: 999, fontSize: 12, fontWeight: 600,
+                  fontFamily: 'inherit',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
                   transition: 'all .15s',
                   border: `1px solid ${added ? 'var(--accent-bd)' : 'var(--border)'}`,
                   background: added ? 'var(--accent-lt)' : 'var(--surface)',
                   color: added ? 'var(--accent)' : full ? 'var(--text3)' : 'var(--text2)',
-                  opacity: full && !added ? 0.4 : 1,
+                  opacity: disabled ? 0.4 : 1,
                 }}
                 onMouseEnter={e => {
-                  if (!disabled) {
+                  if (!disabled && !added) {
                     e.currentTarget.style.borderColor = 'var(--accent-bd)';
                     e.currentTarget.style.color = 'var(--accent)';
                     e.currentTarget.style.background = 'var(--accent-lt)';
                   }
+                  if (added) {
+                    e.currentTarget.style.background = '#fee2e2';
+                    e.currentTarget.style.borderColor = '#fca5a5';
+                    e.currentTarget.style.color = '#b91c1c';
+                  }
                 }}
                 onMouseLeave={e => {
-                  if (!disabled) {
+                  if (!disabled && !added) {
                     e.currentTarget.style.borderColor = 'var(--border)';
                     e.currentTarget.style.color = 'var(--text2)';
                     e.currentTarget.style.background = 'var(--surface)';
+                  }
+                  if (added) {
+                    e.currentTarget.style.background = 'var(--accent-lt)';
+                    e.currentTarget.style.borderColor = 'var(--accent-bd)';
+                    e.currentTarget.style.color = 'var(--accent)';
                   }
                 }}
               >
                 <Icon size={11} />
                 {s.name}
-                {added && <span style={{ fontSize: 10, opacity: 0.7 }}>✓</span>}
+                {added ? (
+                  /* X remove icon */
+                  <span
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 14, height: 14, borderRadius: '50%',
+                      background: 'rgba(0,108,73,0.15)',
+                      marginLeft: 2, flexShrink: 0,
+                    }}
+                  >
+                    <X size={9} strokeWidth={2.5} />
+                  </span>
+                ) : null}
               </button>
             );
           })}
