@@ -1,10 +1,35 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { getMedalStyleFS } from './index';
+import { FiDownload, FiX, FiSave, FiSliders } from 'react-icons/fi';
+import { GiTrophy } from 'react-icons/gi';
+import { RiMedalLine } from 'react-icons/ri';
+import { HiOutlineSparkles } from 'react-icons/hi';
+import { BsCircleFill } from 'react-icons/bs';
 
-const MEDAL_EMOJI = ['🥇', '🥈', '🥉'];
+const MEDAL_ICONS = [
+  <GiTrophy className="text-amber-400" size={22} />,
+  <RiMedalLine className="text-slate-300" size={22} />,
+  <RiMedalLine className="text-orange-400" size={22} />,
+];
 const MEDAL_LABEL = ['1st', '2nd', '3rd'];
 
+function useDebounced(fn, delay = 120) {
+  const timer = useRef(null);
+  return useCallback((...args) => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => fn(...args), delay);
+  }, [fn]);
+}
+
 function ColorField({ label, value, onChange }) {
+  const [local, setLocal] = useState(value);
+  const debounced = useDebounced(onChange);
+
+  const handleChange = (e) => {
+    setLocal(e.target.value);
+    debounced(e.target.value);
+  };
+
   return (
     <div className="flex flex-col gap-1">
       <label className="text-[10px] font-bold tracking-widest uppercase text-white/40">
@@ -13,11 +38,11 @@ function ColorField({ label, value, onChange }) {
       <div className="flex items-center gap-2">
         <input
           type="color"
-          value={value}
-          onChange={e => onChange(e.target.value)}
+          value={local}
+          onChange={handleChange}
           className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent"
         />
-        <span className="text-xs font-mono text-white/50">{value}</span>
+        <span className="text-xs font-mono text-white/50">{local}</span>
       </div>
     </div>
   );
@@ -74,7 +99,10 @@ export default function FullscreenView({
       {showPanel && (
         <div className="relative z-10 mx-4 sm:mx-10 lg:mx-16 mt-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-[11px] font-black tracking-[0.15em] uppercase" style={{ color: textColor, opacity: 0.5 }}>
+            <p
+              className="text-[11px] font-black tracking-[0.15em] uppercase"
+              style={{ color: textColor, opacity: 0.5 }}
+            >
               Customize Display
             </p>
             <button
@@ -82,9 +110,9 @@ export default function FullscreenView({
               disabled={isSaving}
               className="flex items-center gap-2 text-xs font-black tracking-widest uppercase px-4 py-2 rounded-xl border transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
-                background:   isSaved ? 'rgba(34,197,94,0.2)' : `${accentColor}30`,
-                borderColor:  isSaved ? 'rgba(34,197,94,0.4)' : `${accentColor}50`,
-                color:        isSaved ? '#22c55e' : textColor,
+                background:  isSaved ? 'rgba(34,197,94,0.2)' : `${accentColor}30`,
+                borderColor: isSaved ? 'rgba(34,197,94,0.4)' : `${accentColor}50`,
+                color:       isSaved ? '#22c55e' : textColor,
               }}
             >
               {isSaving ? (
@@ -93,16 +121,32 @@ export default function FullscreenView({
                   Saving...
                 </>
               ) : isSaved ? (
-                <>✓ Saved</>
+                <>
+                  <FiSave size={13} /> Saved
+                </>
               ) : (
-                <>💾 Save</>
+                <>
+                  <FiSave size={13} /> Save
+                </>
               )}
             </button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            <ColorField label="Background"  value={bgColor}     onChange={v => update('bgColor', v)} />
-            <ColorField label="Accent"      value={accentColor} onChange={v => update('accentColor', v)} />
-            <ColorField label="Text"        value={textColor}   onChange={v => update('textColor', v)} />
+            <ColorField
+              label="Background"
+              value={bgColor}
+              onChange={v => update('bgColor', v)}
+            />
+            <ColorField
+              label="Accent"
+              value={accentColor}
+              onChange={v => update('accentColor', v)}
+            />
+            <ColorField
+              label="Text"
+              value={textColor}
+              onChange={v => update('textColor', v)}
+            />
             <TextField
               label="Title Override"
               value={titleText}
@@ -125,9 +169,10 @@ export default function FullscreenView({
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-10">
           <div>
             <span
-              className="inline-block text-[10px] font-bold tracking-[0.15em] uppercase px-3 py-1 rounded-full mb-3"
+              className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-[0.15em] uppercase px-3 py-1 rounded-full mb-3"
               style={{ background: `${accentColor}30`, color: textColor, opacity: 0.7 }}
             >
+              <HiOutlineSparkles size={11} />
               Official Final Standings
             </span>
             <h1
@@ -145,23 +190,30 @@ export default function FullscreenView({
             <button
               onClick={() => setShowPanel(p => !p)}
               className="flex items-center gap-2 border text-xs font-bold px-4 py-2.5 rounded-xl transition-all"
-              style={{ background: `${accentColor}25`, borderColor: `${accentColor}50`, color: textColor }}
+              style={{
+                background:  `${accentColor}25`,
+                borderColor: `${accentColor}50`,
+                color:       textColor,
+              }}
             >
-              🎨 {showPanel ? 'Hide' : 'Customize'}
+              <FiSliders size={13} />
+              {showPanel ? 'Hide' : 'Customize'}
             </button>
             <button
               onClick={onExportCSV}
               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold px-4 py-2.5 rounded-xl transition-all"
               style={{ color: textColor }}
             >
-              ↓ Export CSV
+              <FiDownload size={13} />
+              Export CSV
             </button>
             <button
               onClick={onExit}
               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold px-4 py-2.5 rounded-xl transition-all"
               style={{ color: textColor }}
             >
-              ✕ Exit
+              <FiX size={13} />
+              Exit
             </button>
           </div>
         </div>
@@ -182,14 +234,21 @@ export default function FullscreenView({
                     borderColor: isFirst ? `${accentColor}50` : 'rgba(255,255,255,0.1)',
                   }}
                 >
-                  <span className="text-2xl sm:text-3xl">{MEDAL_EMOJI[podiumIdx]}</span>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ background: isFirst ? `${accentColor}30` : 'rgba(255,255,255,0.08)' }}
+                  >
+                    {MEDAL_ICONS[podiumIdx]}
+                  </div>
                   <span
                     className="text-[10px] font-black tracking-widest uppercase"
                     style={{ color: isFirst ? accentColor : textColor, opacity: isFirst ? 1 : 0.4 }}
                   >
                     {MEDAL_LABEL[podiumIdx]}
                   </span>
-                  <span className="font-bold text-center text-xs sm:text-sm leading-tight" style={{ color: textColor }}>
+                  <span
+                    className="font-bold text-center text-xs sm:text-sm leading-tight"
+                    style={{ color: textColor }}
+                  >
                     {c.name}
                   </span>
                   <span
@@ -213,14 +272,23 @@ export default function FullscreenView({
             className="px-5 sm:px-7 py-4 border-b flex items-center gap-2"
             style={{ borderColor: 'rgba(255,255,255,0.1)' }}
           >
-            <div className="w-1.5 h-1.5 rounded-full" style={{ background: accentColor, animation: 'pulse 2s infinite' }} />
-            <span className="text-[11px] font-bold tracking-[0.15em] uppercase" style={{ color: textColor, opacity: 0.4 }}>
+            <BsCircleFill
+              size={6}
+              style={{ color: accentColor, animation: 'pulse 2s infinite' }}
+            />
+            <span
+              className="text-[11px] font-bold tracking-[0.15em] uppercase"
+              style={{ color: textColor, opacity: 0.4 }}
+            >
               Full Rankings
             </span>
           </div>
 
           {standings.length === 0 ? (
-            <div className="py-16 text-center text-sm" style={{ color: textColor, opacity: 0.3 }}>
+            <div
+              className="py-16 text-center text-sm"
+              style={{ color: textColor, opacity: 0.3 }}
+            >
               No scores submitted yet.
             </div>
           ) : (
@@ -241,7 +309,10 @@ export default function FullscreenView({
                       className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-sm sm:text-base font-black"
                       style={medalStyle}
                     >
-                      {isTop ? MEDAL_EMOJI[idx] : idx + 1}
+                      {isTop
+                        ? <div style={{ filter: 'brightness(1.2)' }}>{MEDAL_ICONS[idx]}</div>
+                        : <span className="text-sm font-black">{idx + 1}</span>
+                      }
                     </div>
 
                     <div className="flex-1 min-w-0">
@@ -252,7 +323,10 @@ export default function FullscreenView({
                         {c.name}
                       </p>
                       {isTop && (
-                        <p className="text-[10px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: textColor, opacity: 0.3 }}>
+                        <p
+                          className="text-[10px] font-semibold uppercase tracking-wider mt-0.5"
+                          style={{ color: textColor, opacity: 0.3 }}
+                        >
                           {MEDAL_LABEL[idx]}
                         </p>
                       )}
@@ -265,7 +339,10 @@ export default function FullscreenView({
                       >
                         {isRankMode ? c.total_rank : parseFloat(c.final_score).toFixed(2)}
                       </span>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: textColor, opacity: 0.25 }}>
+                      <p
+                        className="text-[10px] font-semibold uppercase tracking-wider mt-0.5"
+                        style={{ color: textColor, opacity: 0.25 }}
+                      >
                         {isRankMode ? 'rank sum' : 'avg score'}
                       </p>
                     </div>
@@ -278,8 +355,11 @@ export default function FullscreenView({
 
         {/* Footer */}
         <div className="mt-auto pt-8 flex items-center gap-2 opacity-30">
-          <div className="w-1.5 h-1.5 rounded-full" style={{ background: accentColor }} />
-          <span className="text-[11px] font-bold tracking-[0.15em] uppercase" style={{ color: textColor }}>
+          <BsCircleFill size={6} style={{ color: accentColor }} />
+          <span
+            className="text-[11px] font-bold tracking-[0.15em] uppercase"
+            style={{ color: textColor }}
+          >
             Veridict · Live Results
           </span>
         </div>
