@@ -57,7 +57,7 @@ export default function CriteriaHeader({ criteria, primary, secondary }) {
             color:      totalWeight === 100 ? '#6b7280' : '#dc2626',
           }}
         >
-          {totalWeight}% total
+         {Math.round(totalWeight)}% total
         </span>
       </div>
 
@@ -72,7 +72,7 @@ export default function CriteriaHeader({ criteria, primary, secondary }) {
                   {c.name}
                 </span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: primary, fontVariantNumeric: 'tabular-nums' }}>
-                  {weight}%
+                   {Math.round(weight)}%
                 </span>
               </div>
               <div
