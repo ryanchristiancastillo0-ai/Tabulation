@@ -6,6 +6,9 @@ import {getSchoolId} from '../../utils/judge'
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 
+import { sanitizeAiHtml } from './getHydration_and_Calculation';
+
+
 /* ── Client-side HTML cache helpers ─────────────────────────────── */
 function getUiCacheKey(schoolId, criteria) {
   const criteriaSignature = criteria.map(c => `${c.id}:${c.percentage}`).join(',');
@@ -15,8 +18,7 @@ function getUiCacheKey(schoolId, criteria) {
 function saveUiToLocalStorage(schoolId, criteria, ui) {
   try {
     const key = getUiCacheKey(schoolId, criteria);
-    // Only store html — headerHtml is now rendered statically by the frontend
-    localStorage.setItem(key, JSON.stringify({ html: ui.html }));
+    localStorage.setItem(key, JSON.stringify({ html: sanitizeAiHtml(ui.html) }));
   } catch (e) {
     console.warn('[UICache] could not save HTML cache:', e.message);
   }
@@ -26,7 +28,12 @@ function loadUiFromLocalStorage(schoolId, criteria) {
   try {
     const key = getUiCacheKey(schoolId, criteria);
     const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.html) {
+      parsed.html = sanitizeAiHtml(parsed.html);
+    }
+    return parsed;
   } catch {
     return null;
   }

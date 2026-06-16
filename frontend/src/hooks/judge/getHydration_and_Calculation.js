@@ -2,7 +2,19 @@
 let activeObserver = null;
 let activeChangeHandler = null;
 
-
+// ── Sanitize AI HTML before caching ─────────────────────────────────
+function sanitizeAiHtml(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  const wrapper = div.firstElementChild;
+  if (wrapper) {
+    wrapper.style.minHeight = '';
+    wrapper.style.height    = '';
+    wrapper.style.position  = '';
+    wrapper.style.overflow  = '';
+  }
+  return div.innerHTML;
+}
 
 export const getHydra_and_Calcu = (
   dynamicUI,
@@ -25,49 +37,66 @@ export const getHydra_and_Calcu = (
     activeChangeHandler = null;
   }
 
-const applyData = () => {
-  const dropdowns = document.querySelectorAll('.score-dropdown');
-  if (dropdowns.length === 0) return false;
+  const applyData = () => {
+    const dropdowns = document.querySelectorAll('.score-dropdown');
+    if (dropdowns.length === 0) return false;
 
-  const dbLookup = {};
-  if (Array.isArray(dbScores)) {
-    dbScores.forEach(s => {
-      dbLookup[`score-${s.contestant_id}-${s.criterion_id}`] = s.score_value;
+    const dbLookup = {};
+    if (Array.isArray(dbScores)) {
+      dbScores.forEach(s => {
+        dbLookup[`score-${s.contestant_id}-${s.criterion_id}`] = s.score_value;
+      });
+    }
+
+    dropdowns.forEach(select => {
+      // Sanitize the dropdown's parent wrapper to strip rogue AI styles
+      const wrapper = select.closest('div, td, th');
+      if (wrapper) {
+        wrapper.style.minHeight = '';
+        wrapper.style.height    = '';
+        wrapper.style.position  = '';
+        wrapper.style.overflow  = '';
+      }
+
+      // Always build 0–100 options regardless of criteria percentage
+      let options = '<option value="">-</option>';
+      for (let i = 0; i <= 100; i++) {
+        options += `<option value="${i}">${i}</option>`;
+      }
+      select.innerHTML = options;
+
+      const dbVal    = dbLookup[select.id];
+      const localVal = localStorage.getItem(`judge_${selectedJudge}_${select.id}`);
+
+      if (dbVal !== undefined && dbVal !== null) {
+        select.value = String(dbVal);
+      } else if (localVal) {
+        select.value = localVal;
+      }
     });
-  }
 
-  dropdowns.forEach(select => {
-    // Always build 0–100 options regardless of criteria percentage
-    let options = '<option value="">-</option>';
-    for (let i = 0; i <= 100; i++) {
-      options += `<option value="${i}">${i}</option>`;
+    // Sanitize the top-level AI wrapper too
+    const aiRoot = document.querySelector('.ai-rendered-content > div');
+    if (aiRoot) {
+      aiRoot.style.minHeight = '';
+      aiRoot.style.height    = '';
+      aiRoot.style.position  = '';
+      aiRoot.style.overflow  = '';
     }
-    select.innerHTML = options;
 
-    const dbVal    = dbLookup[select.id];
-    const localVal = localStorage.getItem(`judge_${selectedJudge}_${select.id}`);
-
-    if (dbVal !== undefined && dbVal !== null) {
-      select.value = String(dbVal);
-    } else if (localVal) {
-      select.value = localVal;
+    if (config.contestants) {
+      config.contestants.forEach(c => recalculateRow(c.id));
+      updateRankings();
     }
-  });
 
-  if (config.contestants) {
-    config.contestants.forEach(c => recalculateRow(c.id));
-    updateRankings();
-  }
-
-  return true;
-};
+    return true;
+  };
 
   // Only set up observer if the table isn't rendered yet
   if (!applyData()) {
     const observer = new MutationObserver((mutations, obs) => {
       if (applyData()) {
         obs.disconnect();
-        // Once resolved, clear the module ref too so it isn't disconnected again
         if (activeObserver === observer) {
           activeObserver = null;
         }
@@ -91,3 +120,5 @@ const applyData = () => {
   document.addEventListener('change', handleChange);
   activeChangeHandler = handleChange;
 };
+
+export { sanitizeAiHtml };

@@ -1,12 +1,12 @@
 // pages/LeaderBoard.jsx
-import  { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../utils/apiClient';
-import {getOrdinal,ExportAllPanel,
- FullscreenView,HeroBanner,LoadingState,NavBar,RefreshBar,
-  Table1FinalStandings,Table2JudgeSummary,Table3JudgeBreakdowns,exportToCSV,
-  exportToPNG
-
-} from '../../components/leaderboard/index'
+import {
+  getOrdinal, ExportAllPanel,
+  FullscreenView, HeroBanner, LoadingState, NavBar, RefreshBar,
+  Table1FinalStandings, Table2JudgeSummary, Table3JudgeBreakdowns,
+  exportToCSV, exportToPNG
+} from '../../components/leaderboard/index';
 
 function getSchoolIdFromToken() {
   try {
@@ -20,6 +20,13 @@ function getSchoolIdFromToken() {
   }
 }
 
+const DEFAULT_FS_CONFIG = {
+  bgColor:      '#0a1628',
+  accentColor:  '#006c49',
+  textColor:    '#ffffff',
+  titleText:    '',
+  subtitleText: '',
+};
 
 const LeaderBoard = () => {
   const [loading,      setLoading]      = useState(true);
@@ -30,6 +37,52 @@ const LeaderBoard = () => {
   const [judgeIds,     setJudgeIds]     = useState([]);
   const [lastRefresh,  setLastRefresh]  = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fsConfig,     setFsConfig]     = useState(DEFAULT_FS_CONFIG);
+  const [fsSaving,     setFsSaving]     = useState(false);
+  const [fsSaved,      setFsSaved]      = useState(false);
+
+  // ── Load fullscreen config from backend ──────────────────────
+  const loadFsConfig = useCallback(async () => {
+    const schoolId = getSchoolIdFromToken();
+    if (!schoolId) return;
+    try {
+      const res = await apiClient.get(`/leaderboard/fullscreen-config?school_id=${schoolId}`);
+      if (res && !res.error) {
+        setFsConfig({
+          bgColor:      res.bg_color      || DEFAULT_FS_CONFIG.bgColor,
+          accentColor:  res.accent_color  || DEFAULT_FS_CONFIG.accentColor,
+          textColor:    res.text_color    || DEFAULT_FS_CONFIG.textColor,
+          titleText:    res.title_text    || DEFAULT_FS_CONFIG.titleText,
+          subtitleText: res.subtitle_text || DEFAULT_FS_CONFIG.subtitleText,
+        });
+      }
+    } catch {
+      // silent — just use defaults
+    }
+  }, []);
+
+  // ── Save fullscreen config to backend ────────────────────────
+  const saveFsConfig = useCallback(async () => {
+    const schoolId = getSchoolIdFromToken();
+    if (!schoolId) return;
+    setFsSaving(true);
+    try {
+      await apiClient.post('/leaderboard/fullscreen-config', {
+        school_id:    schoolId,
+        bg_color:     fsConfig.bgColor,
+        accent_color: fsConfig.accentColor,
+        text_color:   fsConfig.textColor,
+        title_text:   fsConfig.titleText,
+        subtitle_text: fsConfig.subtitleText,
+      });
+      setFsSaved(true);
+      setTimeout(() => setFsSaved(false), 2000);
+    } catch (err) {
+      console.error('[LeaderBoard] save fsConfig failed:', err.message);
+    } finally {
+      setFsSaving(false);
+    }
+  }, [fsConfig]);
 
   const fetchResults = useCallback(async () => {
     setLoading(true);
@@ -59,13 +112,11 @@ const LeaderBoard = () => {
       setStandings(lbArray.map((item, idx) => ({ ...item, rank: idx + 1 })));
 
       const idsRaw      = Array.isArray(rawJudgeIds) ? rawJudgeIds : Array.isArray(rawJudgeIds?.data) ? rawJudgeIds.data : [];
-      // FIX: use actual DB judge_ids; only fall back to sequential if nothing submitted yet
       const resolvedIds = idsRaw.length > 0
         ? idsRaw
         : Array.from({ length: judgeCount }, (_, i) => i + 1);
       setJudgeIds(resolvedIds);
 
-      // Fetch per-judge scores using actual judge_id values
       const judgeEntries = await Promise.all(
         resolvedIds.map(async (judgeId) => {
           try {
@@ -89,7 +140,10 @@ const LeaderBoard = () => {
     }
   }, []);
 
-  useEffect(() => { fetchResults(); }, [fetchResults]);
+  useEffect(() => {
+    fetchResults();
+    loadFsConfig();
+  }, [fetchResults, loadFsConfig]);
 
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') setIsFullscreen(false); };
@@ -101,7 +155,6 @@ const LeaderBoard = () => {
   const judgeCount  = judgeIds.length || Number(data.settings?.judge_count) || 0;
   const contestName = data.settings?.contest_name || 'Competition';
 
-  // Lookup helpers — keyed by actual judge_id
   const getJudgeScore = (name, judgeId) => {
     const found = (judgeScores[judgeId] || []).find(s => s.name === name);
     return found ? parseFloat(found.total) : null;
@@ -113,7 +166,6 @@ const LeaderBoard = () => {
     return idx >= 0 ? idx + 1 : null;
   };
 
-  // ── CSV export builders ─────────────────────────────────────
   const exportStandingsCSV = () => {
     const headers = ['Rank', 'Contestant', isRankMode ? 'Rank Sum' : 'Final Average'];
     const rows    = standings.map((c, idx) => [
@@ -124,7 +176,6 @@ const LeaderBoard = () => {
   };
 
   const exportSummaryCSV = () => {
-    // FIX: header labels use actual judgeId
     const judgeHeaders = judgeIds.flatMap(jId =>
       isRankMode ? [`Judge ${jId} Score`, `Judge ${jId} Rank`] : [`Judge ${jId} Score`]
     );
@@ -146,7 +197,6 @@ const LeaderBoard = () => {
     const lines = [];
     for (const judgeId of judgeIds) {
       const scores = [...(judgeScores[judgeId] || [])].sort((a, b) => b.total - a.total);
-      // FIX: CSV section header uses actual judgeId
       lines.push(`Judge ${judgeId}`);
       lines.push(['Rank', 'Contestant', 'Total'].join(','));
       scores.forEach((row, rIdx) => lines.push([rIdx + 1, row.name, parseFloat(row.total).toFixed(2)].join(',')));
@@ -176,7 +226,6 @@ const LeaderBoard = () => {
     }
   };
 
-  // ── Render guards ───────────────────────────────────────────
   if (loading) return <LoadingState />;
   if (error)   return <ErrorState message={error} onRetry={fetchResults} />;
 
@@ -188,19 +237,21 @@ const LeaderBoard = () => {
         isRankMode={isRankMode}
         onExit={() => setIsFullscreen(false)}
         onExportCSV={exportStandingsCSV}
+        fsConfig={fsConfig}
+        onFsConfigChange={setFsConfig}
+        onSave={saveFsConfig}
+        isSaving={fsSaving}
+        isSaved={fsSaved}
       />
     );
   }
 
-  // ── Main render ─────────────────────────────────────────────
   return (
     <div className="bg-[#f7f9fb] min-h-screen font-['Inter',sans-serif] text-[#191c1e]">
-
       <NavBar />
       <HeroBanner contestName={contestName} isRankMode={isRankMode} />
 
       <div className="max-w-5xl mx-auto px-3 sm:px-6 py-5 sm:py-8 space-y-5 sm:space-y-6">
-
         <ExportAllPanel onExportAll={handleExportAll} />
 
         <Table1FinalStandings
@@ -230,7 +281,6 @@ const LeaderBoard = () => {
         />
 
         <RefreshBar onRefresh={fetchResults} lastRefresh={lastRefresh} />
-
       </div>
     </div>
   );

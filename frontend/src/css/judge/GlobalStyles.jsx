@@ -10,6 +10,27 @@ export function GlobalStyles() {
         100% { transform: translateX(0); opacity: 0.7; }
       }
 
+      /* ── Force-reset ALL rogue AI wrapper styles ── */
+      .ai-rendered-content,
+      .ai-rendered-content *:not(table):not(thead):not(tbody):not(tr):not(td):not(th):not(select):not(option) {
+        min-height: unset !important;
+        height: auto !important;
+        max-height: none !important;
+        position: static !important;
+      }
+
+      .ai-rendered-content div {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: none !important;
+        min-height: unset !important;
+        height: auto !important;
+        max-height: none !important;
+        position: static !important;
+        overflow: visible !important;
+        box-sizing: border-box !important;
+      }
+
       .ai-scroll-container {
         width: 100%;
         overflow-x: auto;
@@ -42,13 +63,6 @@ export function GlobalStyles() {
       .ai-rendered-content .score-dropdown {
         min-width: 58px;
         max-width: 100px;
-      }
-      .ai-rendered-content > div {
-        width: 100% !important;
-        min-width: 100% !important;
-        max-width: none !important;
-        box-sizing: border-box !important;
-        overflow: visible !important;
       }
       .ai-rendered-content > div > table,
       .ai-rendered-content table {

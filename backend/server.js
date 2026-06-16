@@ -8,6 +8,8 @@ const authRoutes  = require('./routes/auth');
 const schoolRoutes = require('./routes/school');
 const locationRoutes = require('./routes/location')
 const feedbackRoutes = require('./routes/feedback')
+const leaderboardRoutes = require('./routes/leaderboard');
+
 
 const app = express();
 app.use(cors());
@@ -24,6 +26,8 @@ app.use('/api/schools', schoolRoutes);
 app.use('/api/judge',   judgeRoutes);
 app.use('/api',         dataRoutes);   
 
+
+app.use('/api/leaderboard', leaderboardRoutes);
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
