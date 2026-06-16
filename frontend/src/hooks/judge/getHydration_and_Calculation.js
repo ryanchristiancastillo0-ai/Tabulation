@@ -25,51 +25,42 @@ export const getHydra_and_Calcu = (
     activeChangeHandler = null;
   }
 
-  const applyData = () => {
-    const dropdowns = document.querySelectorAll('.score-dropdown');
-    if (dropdowns.length === 0) return false;
+const applyData = () => {
+  const dropdowns = document.querySelectorAll('.score-dropdown');
+  if (dropdowns.length === 0) return false;
 
-    // Build db score lookup
-    const dbLookup = {};
-    if (Array.isArray(dbScores)) {
-      dbScores.forEach(s => {
-        dbLookup[`score-${s.contestant_id}-${s.criterion_id}`] = s.score_value;
-      });
-    }
-
-    dropdowns.forEach(select => {
-      const idParts     = select.id.split('-');
-      const criterionId = parseInt(idParts[2]);
-
-      const criterion = config.criteria.find(c => c.id === criterionId);
-      const maxLimit  = criterion ? Number(criterion.percentage) : 10;
-
-      // Rebuild options from real config (wipes AI hallucinations)
-      let options = '<option value="">-</option>';
-      for (let i = 1; i <= maxLimit; i++) {
-        options += `<option value="${i}">${i}</option>`;
-      }
-      select.innerHTML = options;
-
-      // Restore value: DB score takes priority over localStorage
-      const dbVal    = dbLookup[select.id];
-      const localVal = localStorage.getItem(`judge_${selectedJudge}_${select.id}`);
-
-      if (dbVal !== undefined && dbVal !== null) {
-        select.value = String(dbVal);
-      } else if (localVal) {
-        select.value = localVal;
-      }
+  const dbLookup = {};
+  if (Array.isArray(dbScores)) {
+    dbScores.forEach(s => {
+      dbLookup[`score-${s.contestant_id}-${s.criterion_id}`] = s.score_value;
     });
+  }
 
-    // Recalculate totals and rankings
-    if (config.contestants) {
-      config.contestants.forEach(c => recalculateRow(c.id));
-      updateRankings();
+  dropdowns.forEach(select => {
+    // Always build 0–100 options regardless of criteria percentage
+    let options = '<option value="">-</option>';
+    for (let i = 0; i <= 100; i++) {
+      options += `<option value="${i}">${i}</option>`;
     }
+    select.innerHTML = options;
 
-    return true;
-  };
+    const dbVal    = dbLookup[select.id];
+    const localVal = localStorage.getItem(`judge_${selectedJudge}_${select.id}`);
+
+    if (dbVal !== undefined && dbVal !== null) {
+      select.value = String(dbVal);
+    } else if (localVal) {
+      select.value = localVal;
+    }
+  });
+
+  if (config.contestants) {
+    config.contestants.forEach(c => recalculateRow(c.id));
+    updateRankings();
+  }
+
+  return true;
+};
 
   // Only set up observer if the table isn't rendered yet
   if (!applyData()) {

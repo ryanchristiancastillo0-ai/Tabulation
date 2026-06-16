@@ -12,13 +12,12 @@ import {useContestName} from '../../hooks/judge/useContestName'
 import {useCriteriaGenerator} from '../../hooks/judge/useCreteria'
 import {useJudgeLockState} from '../../hooks/judge/useJudgeLockState'
 import {useSystemConfig} from '../../hooks/judge/useSystemConfig'
-import {useJudgePersistence} from '../../hooks/judge/useJudgePersistence'
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+
 import {GlobalStyles} from '../../css/judge/GlobalStyles.jsx'
-import {CardHeaderStrip,CriteriaHeader,CriteriaManager,DynamicHeaderContent,EncryptedBadge,
-  HeaderCompact,HeaderElevated,HeaderStructured,
-  JudgeFooter,JudgeHeader,JudgeSelector,LoadingSpinner,LockBanner,LogoMark,MobileDrawer,OfflineBanner,
-  ScoringCard,ScrollHint,StatusModal,SubmitButton
+import {CriteriaHeader,EncryptedBadge,
+  
+  JudgeFooter,JudgeHeader,
+  ScoringCard,StatusModal,SubmitButton
 } from '../../components/judge/index'
 /* ── Utility ─────────────────────────────────────────────────────── */
 

@@ -73,7 +73,7 @@ router.post('/render-ui', async (req, res) => {
     - Render EXACTLY ${contestants.length} rows.
     - Columns: No., Name, ${criteria.map(c => `${c.name} (${c.percentage}%)`).join(", ")}, Total, Rank.
     - Each criteria column header MUST show name AND percentage: "Performance (60%)"
-    - Dropdowns: class="score-dropdown ..." id="score-{cId}-{crId}"
+    - Dropdowns must have options from 0 to 100. class="score-dropdown" id="score-{cId}-{crId}"
     - Totals: id="total-{cId}"
     - Ranks: id="rank-{cId}"
 
