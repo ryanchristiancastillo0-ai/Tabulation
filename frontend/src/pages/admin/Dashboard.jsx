@@ -10,8 +10,6 @@ import {MobileTopBar} from '../../components/admin/index'
 import apiClient from "../../utils/apiClient";
 import {navItems} from '../../constant/navlist.jsx'
 
-// Shared nav list — passed to MobileNavDrawer & MobileTopBar
-
 
 function Dashboard() {
   const [dark, setDark] = useState(false);
