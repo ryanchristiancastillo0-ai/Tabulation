@@ -1,4 +1,9 @@
 const mysql = require('mysql2/promise');
+const fs = require('fs');
+
+const caCert = fs.existsSync('/etc/secrets/ca.pem')
+    ? fs.readFileSync('/etc/secrets/ca.pem', 'utf8')
+    : undefined;
 
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
@@ -8,11 +13,7 @@ const pool = mysql.createPool({
     database: process.env.DB_NAME || 'tabulation_db',
     waitForConnections: true,
     connectionLimit: 10,
-    ...(process.env.DB_CA_CERT && {
-        ssl: {
-            ca: process.env.DB_CA_CERT,
-        },
-    }),
+    ...(caCert && { ssl: { ca: caCert } }),
 });
 
 module.exports = pool;
