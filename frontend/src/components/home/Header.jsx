@@ -1,9 +1,10 @@
-import {useState} from 'react'
+import { useState } from 'react';
+
 export default function Header({ navigate }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <nav className="bg-[#f7f9fb] sticky top-0 z-50 border-b border-[#e0e3e5] w-full">
+    <nav className="bg-[#f7f9fb] fixed top-0 left-0 right-0 z-50 border-b border-[#e0e3e5] w-full">
       <div className="flex justify-between items-center max-w-[1280px] mx-auto px-4 sm:px-6 md:px-12 h-20">
         <div className="flex items-center gap-3 text-xl sm:text-2xl font-bold text-[#006c49] tracking-tight">
           <img
