@@ -18,8 +18,7 @@ export const navItems = [
   { id: "system",      label: "System",       icon: <MonitorCog  size={15}/> },
 ];
 
-// This component is ONLY rendered on desktop (controlled by isMobile in Dashboard).
-// No media queries needed here.
+
 export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
   const [sysConfig, setSysConfig] = useState({
     school_logo: "", portal_name: "", school_name: "",

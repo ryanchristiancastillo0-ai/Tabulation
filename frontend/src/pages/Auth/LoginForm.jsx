@@ -6,7 +6,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ShieldCheck,
   ArrowLeft,
   User,
   Lock,
@@ -18,6 +17,11 @@ import {
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+
+// TODO: replace with real logo path
+const LOGO_SRC = '/img/USAL_LOGO.png';
+// TODO: replace with real background image path
+const BG_IMAGE_SRC = '/img/backgroundAdmin.png';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -39,7 +43,7 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE}/auth/login`, {   // ← updated endpoint
+      const response = await fetch(`${API_BASE}/auth/login`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ email, password }),
@@ -53,16 +57,13 @@ const AdminLogin = () => {
       }
 
       if (data.token) {
-        // Store using the same keys your existing code already reads
-        if (data.token) {
-  localStorage.setItem('adminToken', data.token);           // for apiClient
-  localStorage.setItem('adminUser', JSON.stringify(data.admin)); // for anything reading adminUser
-  localStorage.setItem('auth', JSON.stringify({             // for AuthContext
-    token: data.token,
-    admin: data.admin,
-  }));
-  navigate('/admin/dashboard');
-}
+        localStorage.setItem('adminToken', data.token);
+        localStorage.setItem('adminUser', JSON.stringify(data.admin));
+        localStorage.setItem('auth', JSON.stringify({
+          token: data.token,
+          admin: data.admin,
+        }));
+        navigate('/admin/dashboard');
       } else {
         throw new Error('No token received from server.');
       }
@@ -75,23 +76,24 @@ const AdminLogin = () => {
 
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center p-4 overflow-hidden"
-      style={{ background: '#f7f9fb', fontFamily: "'Inter', sans-serif" }}
+      className="relative min-h-screen w-full flex items-center justify-center p-4 sm:p-6 overflow-hidden"
+      style={{ fontFamily: "'Inter', sans-serif" }}
     >
-      {/* Subtle dot-grid background */}
+      {/* Background image */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-40"
+        className="absolute inset-0 z-0 bg-cover bg-center"
         style={{
-          backgroundImage: 'radial-gradient(circle, #bbcabf 1px, transparent 1px)',
-          backgroundSize: '28px 28px',
+          backgroundImage: `url(${BG_IMAGE_SRC})`,
+          filter: 'blur(6px)',
+          transform: 'scale(1.08)', // avoid blurred edges showing
         }}
       />
 
       {/* Ambient green glow — top-right */}
       <div
-        className="absolute top-0 right-0 w-[520px] h-[520px] rounded-full pointer-events-none"
+        className="absolute top-0 right-0 w-[520px] h-[520px] rounded-full pointer-events-none z-0"
         style={{
-          background: 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 70%)',
           filter: 'blur(60px)',
         }}
       />
@@ -99,13 +101,13 @@ const AdminLogin = () => {
       <div className="relative z-10 w-full max-w-[420px]">
         {/* Card */}
         <div
-          className="bg-white rounded-2xl border p-8 md:p-10"
+          className="bg-white rounded-2xl border p-6 sm:p-8 md:p-10"
           style={{
             borderColor: '#e0e3e5',
-            boxShadow: '0 8px 40px rgba(30,41,59,0.07)',
+            boxShadow: '0 20px 60px rgba(30,41,59,0.12)',
           }}
         >
-          {/* Top row: back button + shield icon */}
+          {/* Top row: back button + logo */}
           <div className="flex items-center justify-between mb-8">
             <button
               onClick={() => navigate('/')}
@@ -115,14 +117,14 @@ const AdminLogin = () => {
               <ArrowLeft size={20} />
             </button>
 
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center"
-              style={{ background: '#f2f4f6', color: '#006c49' }}
-            >
-              <ShieldCheck size={22} strokeWidth={2.2} />
-            </div>
+            <img
+              src={LOGO_SRC}
+              alt="Logo"
+              className="h-17 w-17 object-contain rounded-xl"
+              style={{ background: '#f2f4f6' }}
+            />
 
-            {/* Spacer to keep icon centered */}
+            {/* Spacer to keep logo centered */}
             <div className="w-8" />
           </div>
 
@@ -138,7 +140,7 @@ const AdminLogin = () => {
               Administrator Access
             </span>
             <h2
-              className="text-2xl font-bold tracking-tight"
+              className="text-xl sm:text-2xl font-bold tracking-tight"
               style={{ color: '#191c1e' }}
             >
               Sign in to Dashboard
@@ -293,7 +295,7 @@ const AdminLogin = () => {
 
           {/* Footer note */}
           <p className="text-center text-[11px] mt-6" style={{ color: '#6c7a71' }}>
-            Secure access · Lumina Enterprise v1.0
+            Secure access
           </p>
         </div>
       </div>
