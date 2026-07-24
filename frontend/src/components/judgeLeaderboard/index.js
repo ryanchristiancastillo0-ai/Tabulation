@@ -1,0 +1,5 @@
+export {default as FooterInfo} from './FooterInfo'
+export {default as Hero} from './Hero'
+export {default as IdentityMissing} from './IndentityMissing'
+export {default as RankingsCards} from './RankingsCards'
+export {default as RankingsTable} from './RankingsTable'

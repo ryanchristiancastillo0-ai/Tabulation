@@ -1,5 +1,4 @@
-
-import {  Building2,} from 'lucide-react';
+import { Building2 } from 'lucide-react';
 
 import {
   JudgeSelector
@@ -12,54 +11,54 @@ export default function HeaderCompact({ sysConfig, contestName, selectedJudge, j
   const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
 
   return (
-    <div style={{ width: '100%' }}>
-      <div style={{
-        background: primary,
-        padding: '0 20px',
-        minHeight: 60,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-      }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          paddingRight: 16,
-          borderRight: '1px solid rgba(255,255,255,0.18)',
-          flexShrink: 0,
-        }}>
+    <div className="w-full">
+      <div
+        className="px-5 min-h-[60px] flex items-center gap-4"
+        style={{ background: primary }}
+      >
+        {/* Logo / brand block */}
+        <div className="flex items-center gap-2.5 pr-4 border-r border-white/[0.18] shrink-0">
           {sysConfig.school_logo ? (
-            <img src={sysConfig.school_logo} alt="logo" style={{ width: 32, height: 32, borderRadius: r, objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.3)' }} />
+            <img
+              src={sysConfig.school_logo}
+              alt="logo"
+              className="w-8 h-8 object-cover border-[1.5px] border-white/30"
+              style={{ borderRadius: r }}
+            />
           ) : (
-            <div style={{ width: 32, height: 32, borderRadius: r, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid rgba(255,255,255,0.2)' }}>
-              <Building2 size={13} style={{ color: '#fff' }} />
+            <div
+              className="w-8 h-8 bg-white/15 border-[1.5px] border-white/20 flex items-center justify-center"
+              style={{ borderRadius: r }}
+            >
+              <Building2 size={13} className="text-white" />
             </div>
           )}
           <div>
-            <div style={{ fontWeight: 800, fontSize: 12, color: '#fff', lineHeight: 1.1, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div className="font-extrabold text-xs text-white leading-[1.1] max-w-[100px] overflow-hidden text-ellipsis whitespace-nowrap">
               {sysConfig.portal_name || 'Veridict'}
             </div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', marginTop: 1, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div className="text-[9px] text-white/55 mt-px max-w-[100px] overflow-hidden text-ellipsis whitespace-nowrap">
               {sysConfig.school_name || 'Judge Portal'}
             </div>
           </div>
         </div>
 
-        <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.5)', marginBottom: 2 }}>
+        {/* Now judging */}
+        <div className="flex-1 text-center min-w-0">
+          <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/50 mb-0.5">
             Now Judging
           </div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div className="text-[13px] font-extrabold text-white tracking-tight overflow-hidden text-ellipsis whitespace-nowrap">
             {contestName || 'Loading…'}
           </div>
         </div>
 
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          paddingLeft: 16,
-          borderLeft: '1px solid rgba(255,255,255,0.18)',
-          flexShrink: 0,
-        }}>
-          <div style={{ width: 7, height: 7, borderRadius: '50%', background: secondary, flexShrink: 0 }} />
+        {/* Judge selector */}
+        <div className="flex items-center gap-2 pl-4 border-l border-white/[0.18] shrink-0">
+          <div
+            className="w-[7px] h-[7px] rounded-full shrink-0"
+            style={{ background: secondary }}
+          />
           <JudgeSelector
             selectedJudge={selectedJudge}
             judgeCount={judgeCount}
@@ -72,21 +71,16 @@ export default function HeaderCompact({ sysConfig, contestName, selectedJudge, j
         </div>
       </div>
 
-      <div style={{ height: 3, background: `linear-gradient(90deg, transparent, ${secondary}, transparent)` }} />
+      {/* Accent gradient divider */}
+      <div
+        className="h-[3px]"
+        style={{ background: `linear-gradient(90deg, transparent, ${secondary}, transparent)` }}
+      />
 
       {sysConfig.footer_text && (
-        <div style={{
-          background: '#f9fafb',
-          padding: '5px 20px',
-          fontSize: 10,
-          color: '#6b7280',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          borderBottom: '1px solid rgba(0,0,0,0.06)',
-        }}>
+        <div className="bg-gray-50 px-5 py-[5px] text-[10px] text-gray-500 flex justify-between items-center border-b border-black/[0.06]">
           <span>{sysConfig.footer_text}</span>
-          <span style={{ color: '#9ca3af', opacity: 0.7 }}>Encrypted · Secure Session</span>
+          <span className="text-gray-400/70">Encrypted · Secure Session</span>
         </div>
       )}
     </div>

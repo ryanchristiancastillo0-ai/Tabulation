@@ -12,7 +12,10 @@ import {navItems} from '../../constant/navlist.jsx'
 
 
 function Dashboard() {
-  const [dark, setDark] = useState(false);
+ const [dark, setDark] = useState(() => {
+  const saved = localStorage.getItem("adminDarkMode");
+  return saved !== null ? saved === "true" : false;
+});
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
@@ -56,6 +59,10 @@ function Dashboard() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  useEffect(() => {
+  localStorage.setItem("adminDarkMode", dark);
+}, [dark]);
 
   const showToast = (type, msg) => {
     setToast({ type, msg });
@@ -148,15 +155,21 @@ function Dashboard() {
 
   const totalWeight = criteria.reduce((s, c) => s + Number(c.weight || 0), 0);
 
+  const SaveButton = ({ full }) => (
+    <button
+      className={`btn-primary flex items-center justify-center gap-2 shrink-0 text-sm transition-opacity ${
+        full ? "w-full py-3 px-4" : "w-auto"
+      } ${saving ? "opacity-70" : "opacity-100"}`}
+      onClick={onSave}
+      disabled={saving}
+    >
+      {saving ? "⏳ Saving…" : <><span>✓</span> Save Config</>}
+    </button>
+  );
+
   return (
     <div className={dark ? "dark" : ""}>
-      <div
-        style={{
-          display: "flex",
-          minHeight: "100vh",
-          background: "var(--bg)",
-        }}
-      >
+      <div className="flex min-h-screen bg-[var(--bg)]">
         {/* ── Sidebar: only render on desktop ─────────────────────────── */}
         {!isMobile && (
           <Sidebar
@@ -175,20 +188,13 @@ function Dashboard() {
             activeNav={activeNav}
             setActiveNav={setActiveNav}
             navItems={navItems}
-              dark={dark}       
-  setDark={setDark} 
+            dark={dark}
+            setDark={setDark}
           />
         )}
 
         {/* ── Main content ─────────────────────────────────────────────── */}
-        <main
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
+        <main className="flex flex-1 flex-col overflow-y-auto">
           {/* Mobile top bar: hamburger + current section label */}
           {isMobile && (
             <MobileTopBar
@@ -200,78 +206,39 @@ function Dashboard() {
 
           {/* Page body */}
           <div
-            style={{
-              padding: isMobile ? "20px 16px" : "36px 40px",
-              flex: 1,
-            }}
+            className={`flex-1 ${
+              isMobile ? "px-4 py-5 pb-[88px]" : "px-10 py-9"
+            }`}
           >
             {/* Header row */}
             <div
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                marginBottom: 32,
-                gap: 16,
-                flexWrap: "wrap",
-              }}
+              className={`flex justify-between gap-3 sm:gap-4 mb-5 lg:mb-8 ${
+                isMobile ? "flex-col items-stretch" : "flex-row items-start"
+              }`}
             >
-              <div style={{ minWidth: 0 }}>
+              <div className="min-w-0">
                 <div
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-2"
-                  style={{
-                    background: "var(--accent-lt)",
-                    color: "var(--accent)",
-                    border: "1px solid var(--accent-bd)",
-                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 bg-[var(--accent-lt)] text-[var(--accent)] border border-[var(--accent-bd)]"
                 >
-                  <span
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ background: "var(--accent-mid)" }}
-                  />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-mid)]" />
                   Admin Dashboard
                 </div>
                 <h1
-                  style={{
-                    fontSize: isMobile ? 18 : 24,
-                    fontWeight: 800,
-                    color: "var(--text1)",
-                    letterSpacing: "-.02em",
-                    lineHeight: 1.2,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    maxWidth: isMobile ? "60vw" : "100%",
-                  }}
+                  className={`font-extrabold mt-3 lg:mt-0 tracking-tight text-[var(--text1)] max-w-full ${
+                    isMobile
+                      ? "text-xl leading-tight line-clamp-2 whitespace-normal"
+                      : "text-2xl leading-tight overflow-hidden text-ellipsis whitespace-nowrap"
+                  }`}
                 >
                   {contestName || "Competition Setup"}
                 </h1>
               </div>
 
-              <button
-                className="btn-primary"
-                onClick={onSave}
-                disabled={saving}
-                style={{
-                  opacity: saving ? 0.7 : 1,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  flexShrink: 0,
-                  fontSize: isMobile ? 13 : 14,
-                }}
-              >
-                {saving ? "⏳ Saving…" : <><span>✓</span> Save Config</>}
-              </button>
+              {/* Save button lives inline on desktop; on mobile it's a sticky bottom bar instead */}
+              {!isMobile && <SaveButton />}
             </div>
 
-            <div
-              className="h-px mb-8"
-              style={{
-                background:
-                  "linear-gradient(90deg, transparent, var(--border), transparent)",
-              }}
-            />
+            <div className="h-px mb-8 bg-gradient-to-r from-transparent via-[var(--border)] to-transparent" />
 
             <SectionRender
               activeNav={activeNav}
@@ -302,11 +269,19 @@ function Dashboard() {
         </main>
       </div>
 
+      {/* Sticky mobile save bar — always reachable, never overlapped */}
+      {isMobile && (
+        <div className="fixed left-0 right-0 bottom-0 z-40 px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] bg-[var(--bg)] border-t border-[var(--border)] shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+          <SaveButton full />
+        </div>
+      )}
+
       {/* Toast */}
       {toast && (
         <div
-          className="save-toast"
-          style={{ background: toast.type === "error" ? "#be123c" : undefined }}
+          className={`save-toast ${toast.type === "error" ? "bg-[#be123c]" : ""} ${
+            isMobile ? "bottom-[76px]" : ""
+          }`}
         >
           <span>{toast.type === "error" ? "✗" : "✓"}</span> {toast.msg}
         </div>
