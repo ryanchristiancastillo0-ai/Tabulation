@@ -99,19 +99,20 @@ const AdminLogin = () => {
       />
 
       <div className="relative z-10 w-full max-w-[420px]">
-        {/* Card */}
+        {/* Card — glassy so the background image shows through */}
         <div
-          className="bg-white rounded-2xl border p-6 sm:p-8 md:p-10"
+          className="backdrop-blur-2xl rounded-2xl border p-6 sm:p-8 md:p-10"
           style={{
-            borderColor: '#e0e3e5',
-            boxShadow: '0 20px 60px rgba(30,41,59,0.12)',
+            background: 'rgba(255,255,255,0.55)',
+            borderColor: 'rgba(255,255,255,0.4)',
+            boxShadow: '0 20px 60px rgba(30,41,59,0.18)',
           }}
         >
           {/* Top row: back button + logo */}
           <div className="flex items-center justify-between mb-8">
             <button
               onClick={() => navigate('/')}
-              className="p-2 -ml-2 rounded-lg transition-colors hover:bg-[#f2f4f6]"
+              className="p-2 -ml-2 rounded-lg transition-colors hover:bg-white/40"
               style={{ color: '#6c7a71' }}
             >
               <ArrowLeft size={20} />
@@ -121,7 +122,7 @@ const AdminLogin = () => {
               src={LOGO_SRC}
               alt="Logo"
               className="h-17 w-17 object-contain rounded-xl"
-              style={{ background: '#f2f4f6' }}
+              style={{ background: 'rgba(242,244,246,0.7)' }}
             />
 
             {/* Spacer to keep logo centered */}
@@ -133,7 +134,7 @@ const AdminLogin = () => {
             <span
               className="inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-3"
               style={{
-                background: 'rgba(16,185,129,0.08)',
+                background: 'rgba(16,185,129,0.12)',
                 color: '#006c49',
               }}
             >
@@ -145,20 +146,20 @@ const AdminLogin = () => {
             >
               Sign in to Dashboard
             </h2>
-            <p className="text-sm mt-1" style={{ color: '#6c7a71' }}>
+            <p className="text-sm mt-1" style={{ color: '#3c4a42' }}>
               Enter your credentials to manage the competition.
             </p>
           </div>
 
           {/* Divider */}
-          <div className="h-px mb-7" style={{ background: '#e0e3e5' }} />
+          <div className="h-px mb-7" style={{ background: 'rgba(224,227,229,0.6)' }} />
 
           {/* Error banner */}
           {error && (
             <div
               className="flex items-center gap-2 p-3 rounded-lg text-xs font-medium mb-5 border"
               style={{
-                background: '#fff1f2',
+                background: 'rgba(255,241,242,0.85)',
                 borderColor: '#fecdd3',
                 color: '#be123c',
               }}
@@ -193,18 +194,18 @@ const AdminLogin = () => {
                   disabled={loading}
                   className="w-full pl-10 pr-4 py-3 rounded-lg text-sm outline-none transition-all"
                   style={{
-                    background: '#f2f4f6',
-                    border: '1.5px solid #e0e3e5',
+                    background: 'rgba(242,244,246,0.75)',
+                    border: '1.5px solid rgba(224,227,229,0.8)',
                     color: '#191c1e',
                   }}
                   onFocus={(e) => {
                     e.target.style.borderColor = '#10b981';
-                    e.target.style.background  = '#fff';
+                    e.target.style.background  = 'rgba(255,255,255,0.9)';
                     e.target.style.boxShadow   = '0 0 0 3px rgba(16,185,129,0.1)';
                   }}
                   onBlur={(e) => {
-                    e.target.style.borderColor = '#e0e3e5';
-                    e.target.style.background  = '#f2f4f6';
+                    e.target.style.borderColor = 'rgba(224,227,229,0.8)';
+                    e.target.style.background  = 'rgba(242,244,246,0.75)';
                     e.target.style.boxShadow   = 'none';
                   }}
                 />
@@ -244,18 +245,18 @@ const AdminLogin = () => {
                   disabled={loading}
                   className="w-full pl-10 pr-11 py-3 rounded-lg text-sm outline-none transition-all"
                   style={{
-                    background: '#f2f4f6',
-                    border: '1.5px solid #e0e3e5',
+                    background: 'rgba(242,244,246,0.75)',
+                    border: '1.5px solid rgba(224,227,229,0.8)',
                     color: '#191c1e',
                   }}
                   onFocus={(e) => {
                     e.target.style.borderColor = '#10b981';
-                    e.target.style.background  = '#fff';
+                    e.target.style.background  = 'rgba(255,255,255,0.9)';
                     e.target.style.boxShadow   = '0 0 0 3px rgba(16,185,129,0.1)';
                   }}
                   onBlur={(e) => {
-                    e.target.style.borderColor = '#e0e3e5';
-                    e.target.style.background  = '#f2f4f6';
+                    e.target.style.borderColor = 'rgba(224,227,229,0.8)';
+                    e.target.style.background  = 'rgba(242,244,246,0.75)';
                     e.target.style.boxShadow   = 'none';
                   }}
                 />
@@ -292,11 +293,6 @@ const AdminLogin = () => {
               )}
             </button>
           </form>
-
-          {/* Footer note */}
-          <p className="text-center text-[11px] mt-6" style={{ color: '#6c7a71' }}>
-            Secure access
-          </p>
         </div>
       </div>
     </div>
