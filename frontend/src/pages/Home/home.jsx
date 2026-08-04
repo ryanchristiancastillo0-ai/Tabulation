@@ -84,7 +84,11 @@ function Home() {
   const [feedbackRef, feedbackVisible] = useScrollReveal();
 
   return (
-    <div className="bg-[#f7f9fb] text-[#191c1e] font-['Inter',sans-serif] min-h-screen selection:bg-[#10b981]/20 selection:text-[#00422b] overflow-x-hidden">
+    <div className="bg-[#FBFCF9] text-[#14201A] font-['Inter',sans-serif] min-h-screen selection:bg-[#1B4332]/15 selection:text-[#1B4332] overflow-x-hidden">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+      `}</style>
+
       <Header navigate={navigate} />
 
       <main>

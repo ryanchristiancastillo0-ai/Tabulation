@@ -34,39 +34,46 @@ export default function FeedbackSection() {
   }
 
   return (
-    <section className="py-16 sm:py-24 border-t border-[#e0e3e5] bg-[#f7f9fb]">
+    <section className="py-16 sm:py-24 border-t border-[#E1E8DE] bg-[#F3F6F1]">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 md:px-12">
         <div className="max-w-2xl mx-auto">
 
           {/* Heading */}
           <div className="text-center mb-10 sm:mb-14">
-            <span className="inline-block px-3 py-1 bg-[#10b981]/10 text-[#006c49] text-xs font-semibold rounded-full mb-4 uppercase tracking-widest">
-              We're Listening
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-semibold text-[#191c1e] mb-3 tracking-tight">
+            <div className="w-16 h-[2px] bg-[#1B4332] mx-auto mb-5" />
+            <h2
+              className="text-2xl sm:text-3xl font-semibold text-[#14201A] mb-3 tracking-tight"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
               Send Us Your Feedback
             </h2>
-            <p className="text-sm sm:text-base text-[#3c4a42]">
+            <p className="text-sm sm:text-base text-[#4B5A4D]">
               Spotted an issue or have a suggestion? Let us know and we'll get back to you.
             </p>
           </div>
 
           {/* Card */}
-          <div className="bg-white border border-[#e0e3e5] rounded-xl p-6 sm:p-10 shadow-sm">
+          <div className="bg-white border border-[#E1E8DE] rounded-sm p-6 sm:p-10 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#1B4332]" />
 
             {/* Success State */}
             {status === 'success' ? (
               <div className="flex flex-col items-center gap-4 py-8 text-center">
-                <div className="w-16 h-16 bg-[#10b981]/10 rounded-full flex items-center justify-center text-3xl">
+                <div className="w-16 h-16 bg-[#F3F6F1] border border-[#1B4332]/15 rounded-sm flex items-center justify-center text-3xl">
                   ✅
                 </div>
-                <h3 className="text-xl font-semibold text-[#191c1e]">Message Sent!</h3>
-                <p className="text-sm text-[#3c4a42]">
+                <h3
+                  className="text-xl font-semibold text-[#14201A]"
+                  style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                >
+                  Message Sent!
+                </h3>
+                <p className="text-sm text-[#4B5A4D]">
                   Thanks for reaching out. We'll review your feedback and respond if needed.
                 </p>
                 <button
                   onClick={() => setStatus('idle')}
-                  className="mt-2 text-sm font-semibold text-[#006c49] hover:underline"
+                  className="mt-2 text-sm font-semibold text-[#1B4332] hover:underline"
                 >
                   Send another message
                 </button>
@@ -77,7 +84,7 @@ export default function FeedbackSection() {
 
                 {/* Name */}
                 <div>
-                  <label className="block text-xs font-semibold text-[#191c1e] mb-1.5 uppercase tracking-wide">
+                  <label className="block text-xs font-semibold text-[#14201A] mb-1.5 uppercase tracking-wide">
                     Full Name
                   </label>
                   <input
@@ -86,13 +93,13 @@ export default function FeedbackSection() {
                     value={form.name}
                     onChange={handleChange}
                     placeholder="e.g. Maria Santos"
-                    className="w-full border border-[#bbcabf] rounded-lg px-4 py-3 text-sm text-[#191c1e] placeholder-[#9eaaa4] focus:outline-none focus:ring-2 focus:ring-[#10b981]/40 focus:border-[#10b981] transition-all bg-[#f7f9fb]"
+                    className="w-full border border-[#BBCABB] rounded-sm px-4 py-3 text-sm text-[#14201A] placeholder-[#8FA192] focus:outline-none focus:ring-2 focus:ring-[#1B4332]/25 focus:border-[#1B4332] transition-all bg-[#FBFCF9]"
                   />
                 </div>
 
                 {/* Email */}
                 <div>
-                  <label className="block text-xs font-semibold text-[#191c1e] mb-1.5 uppercase tracking-wide">
+                  <label className="block text-xs font-semibold text-[#14201A] mb-1.5 uppercase tracking-wide">
                     Email Address
                   </label>
                   <input
@@ -101,13 +108,13 @@ export default function FeedbackSection() {
                     value={form.email}
                     onChange={handleChange}
                     placeholder="e.g. maria@school.edu"
-                    className="w-full border border-[#bbcabf] rounded-lg px-4 py-3 text-sm text-[#191c1e] placeholder-[#9eaaa4] focus:outline-none focus:ring-2 focus:ring-[#10b981]/40 focus:border-[#10b981] transition-all bg-[#f7f9fb]"
+                    className="w-full border border-[#BBCABB] rounded-sm px-4 py-3 text-sm text-[#14201A] placeholder-[#8FA192] focus:outline-none focus:ring-2 focus:ring-[#1B4332]/25 focus:border-[#1B4332] transition-all bg-[#FBFCF9]"
                   />
                 </div>
 
                 {/* Message */}
                 <div>
-                  <label className="block text-xs font-semibold text-[#191c1e] mb-1.5 uppercase tracking-wide">
+                  <label className="block text-xs font-semibold text-[#14201A] mb-1.5 uppercase tracking-wide">
                     Message / Problem
                   </label>
                   <textarea
@@ -116,13 +123,13 @@ export default function FeedbackSection() {
                     onChange={handleChange}
                     rows={5}
                     placeholder="Describe your feedback or issue in detail..."
-                    className="w-full border border-[#bbcabf] rounded-lg px-4 py-3 text-sm text-[#191c1e] placeholder-[#9eaaa4] focus:outline-none focus:ring-2 focus:ring-[#10b981]/40 focus:border-[#10b981] transition-all bg-[#f7f9fb] resize-none"
+                    className="w-full border border-[#BBCABB] rounded-sm px-4 py-3 text-sm text-[#14201A] placeholder-[#8FA192] focus:outline-none focus:ring-2 focus:ring-[#1B4332]/25 focus:border-[#1B4332] transition-all bg-[#FBFCF9] resize-none"
                   />
                 </div>
 
                 {/* Error Message */}
                 {status === 'error' && (
-                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm rounded-lg px-4 py-3">
+                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm rounded-sm px-4 py-3">
                     <span className="text-base leading-none mt-0.5">⚠️</span>
                     <span>{errorMsg}</span>
                   </div>
@@ -132,7 +139,7 @@ export default function FeedbackSection() {
                 <button
                   type="submit"
                   disabled={status === 'loading'}
-                  className="w-full bg-[#10b981] text-white py-3.5 rounded-lg text-sm font-bold hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full bg-[#1B4332] text-white py-3.5 rounded-sm text-sm font-bold hover:bg-[#123024] transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 tracking-wide"
                 >
                   {status === 'loading' ? (
                     <>

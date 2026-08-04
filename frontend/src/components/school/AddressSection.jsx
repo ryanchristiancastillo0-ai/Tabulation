@@ -1,17 +1,15 @@
-import {
-MapPin, Check,
- 
-} from 'lucide-react';
-import {LocationSelect} from './index'
+import { MapPin, Check } from 'lucide-react';
+import { LocationSelect } from './index';
+
 export default function AddressSection({ loc, errors, setErrors }) {
   return (
     <div>
-      <div className="text-xs font-bold tracking-widest uppercase text-slate-600 flex items-center gap-1.5 mb-3">
-        <MapPin size={12} className="text-emerald-700" /> School Address *
+      <div className="text-xs font-bold tracking-widest uppercase text-[#4B5A4D] flex items-center gap-1.5 mb-3">
+        <MapPin size={12} className="text-[#1B4332]" /> School Address *
       </div>
 
       {loc.fullAddress && (
-        <div className="text-xs text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200/60 rounded-lg px-3 py-1.5 mb-3 flex items-center gap-1.5">
+        <div className="text-xs text-[#1B4332] font-semibold bg-[#F3F6F1] border border-[#1B4332]/20 rounded-sm px-3 py-1.5 mb-3 flex items-center gap-1.5">
           <Check size={12} />
           {loc.fullAddress}
         </div>

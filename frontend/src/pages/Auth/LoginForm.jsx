@@ -18,10 +18,8 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
-// TODO: replace with real logo path
 const LOGO_SRC = '/img/USAL_LOGO.png';
-// TODO: replace with real background image path
-const BG_IMAGE_SRC = '/img/backgroundAdmin.png';
+const BG_IMAGE_SRC = 'https://images.unsplash.com/photo-1741061966372-8e7e2c221de7?fm=jpg&q=80&w=1600&auto=format&fit=crop';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -76,44 +74,46 @@ const AdminLogin = () => {
 
   return (
     <div
-      className="relative min-h-screen w-full flex items-center justify-center p-4 sm:p-6 overflow-hidden"
+      className="relative min-h-screen w-full flex overflow-hidden"
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
-      {/* Background image */}
-      <div
-        className="absolute inset-0 z-0 bg-cover bg-center"
-        style={{
-          backgroundImage: `url(${BG_IMAGE_SRC})`,
-          filter: 'blur(6px)',
-          transform: 'scale(1.08)', // avoid blurred edges showing
-        }}
-      />
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+      `}</style>
 
-      {/* Ambient green glow — top-right */}
-      <div
-        className="absolute top-0 right-0 w-[520px] h-[520px] rounded-full pointer-events-none z-0"
-        style={{
-          background: 'radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 70%)',
-          filter: 'blur(60px)',
-        }}
-      />
-
-      <div className="relative z-10 w-full max-w-[420px]">
-        {/* Card — glassy so the background image shows through */}
+      {/* Left: image panel (hidden on small screens) */}
+      <div className="hidden lg:block lg:w-1/2 relative">
+        <img
+          src={BG_IMAGE_SRC}
+          alt="University campus"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
         <div
-          className="backdrop-blur-2xl rounded-2xl border p-6 sm:p-8 md:p-10"
-          style={{
-            background: 'rgba(255,255,255,0.55)',
-            borderColor: 'rgba(255,255,255,0.4)',
-            boxShadow: '0 20px 60px rgba(30,41,59,0.18)',
-          }}
-        >
+          className="absolute inset-0"
+          style={{ background: 'linear-gradient(180deg, rgba(27,67,50,0.15) 0%, rgba(18,48,36,0.65) 100%)' }}
+        />
+        <div className="relative z-10 h-full flex flex-col justify-end p-12 xl:p-16">
+          <div className="w-14 h-[3px] bg-[#C9A227] mb-6" />
+          <h2
+            className="text-white text-3xl xl:text-4xl font-bold leading-tight mb-4"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
+            Manage Every Competition<br />With Confidence
+          </h2>
+          <p className="text-white/80 text-sm max-w-md">
+            Rubrics, judges, and live scoring — all in one administrator workspace.
+          </p>
+        </div>
+      </div>
+
+      {/* Right: form panel */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center bg-[#FBFCF9] p-6 sm:p-10">
+        <div className="w-full max-w-[420px]">
           {/* Top row: back button + logo */}
           <div className="flex items-center justify-between mb-8">
             <button
               onClick={() => navigate('/')}
-              className="p-2 -ml-2 rounded-lg transition-colors hover:bg-white/40"
-              style={{ color: '#6c7a71' }}
+              className="p-2 -ml-2 rounded-sm transition-colors hover:bg-[#F3F6F1] text-[#4B5A4D]"
             >
               <ArrowLeft size={20} />
             </button>
@@ -121,49 +121,33 @@ const AdminLogin = () => {
             <img
               src={LOGO_SRC}
               alt="Logo"
-              className="h-17 w-17 object-contain rounded-xl"
-              style={{ background: 'rgba(242,244,246,0.7)' }}
+              className="h-14 w-14 object-contain"
             />
 
-            {/* Spacer to keep logo centered */}
             <div className="w-8" />
           </div>
 
           {/* Heading */}
           <div className="mb-7">
-            <span
-              className="inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-3"
-              style={{
-                background: 'rgba(16,185,129,0.12)',
-                color: '#006c49',
-              }}
-            >
+            <span className="inline-block px-3 py-1 bg-[#1B4332]/10 text-[#1B4332] text-[10px] font-bold uppercase tracking-widest mb-3 rounded-sm border border-[#1B4332]/20">
               Administrator Access
             </span>
             <h2
-              className="text-xl sm:text-2xl font-bold tracking-tight"
-              style={{ color: '#191c1e' }}
+              className="text-xl sm:text-2xl font-bold tracking-tight text-[#14201A]"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
             >
               Sign in to Dashboard
             </h2>
-            <p className="text-sm mt-1" style={{ color: '#3c4a42' }}>
+            <p className="text-sm mt-1 text-[#4B5A4D]">
               Enter your credentials to manage the competition.
             </p>
           </div>
 
-          {/* Divider */}
-          <div className="h-px mb-7" style={{ background: 'rgba(224,227,229,0.6)' }} />
+          <div className="h-px mb-7 bg-[#E1E8DE]" />
 
           {/* Error banner */}
           {error && (
-            <div
-              className="flex items-center gap-2 p-3 rounded-lg text-xs font-medium mb-5 border"
-              style={{
-                background: 'rgba(255,241,242,0.85)',
-                borderColor: '#fecdd3',
-                color: '#be123c',
-              }}
-            >
+            <div className="flex items-center gap-2 p-3 rounded-sm text-xs font-medium mb-5 border border-red-200 bg-red-50 text-red-700">
               <AlertCircle size={14} className="shrink-0" />
               <span>{error}</span>
             </div>
@@ -173,18 +157,11 @@ const AdminLogin = () => {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email */}
             <div>
-              <label
-                className="block text-[11px] font-bold uppercase tracking-wider mb-1.5"
-                style={{ color: '#3c4a42' }}
-              >
+              <label className="block text-[11px] font-bold uppercase tracking-wider mb-1.5 text-[#4B5A4D]">
                 Email Address
               </label>
-              <div className="relative group">
-                <User
-                  size={15}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors"
-                  style={{ color: '#6c7a71' }}
-                />
+              <div className="relative">
+                <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6C7A71]" />
                 <input
                   type="email"
                   required
@@ -192,22 +169,7 @@ const AdminLogin = () => {
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(''); }}
                   disabled={loading}
-                  className="w-full pl-10 pr-4 py-3 rounded-lg text-sm outline-none transition-all"
-                  style={{
-                    background: 'rgba(242,244,246,0.75)',
-                    border: '1.5px solid rgba(224,227,229,0.8)',
-                    color: '#191c1e',
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = '#10b981';
-                    e.target.style.background  = 'rgba(255,255,255,0.9)';
-                    e.target.style.boxShadow   = '0 0 0 3px rgba(16,185,129,0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'rgba(224,227,229,0.8)';
-                    e.target.style.background  = 'rgba(242,244,246,0.75)';
-                    e.target.style.boxShadow   = 'none';
-                  }}
+                  className="w-full pl-10 pr-4 py-3 rounded-sm text-sm outline-none transition-all border border-[#BBCABB] bg-[#F3F6F1] text-[#14201A] focus:border-[#1B4332] focus:bg-white focus:ring-2 focus:ring-[#1B4332]/15"
                 />
               </div>
             </div>
@@ -215,27 +177,19 @@ const AdminLogin = () => {
             {/* Password */}
             <div>
               <div className="flex justify-between items-center mb-1.5">
-                <label
-                  className="block text-[11px] font-bold uppercase tracking-wider"
-                  style={{ color: '#3c4a42' }}
-                >
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#4B5A4D]">
                   Password
                 </label>
                 <button
                   type="button"
                   onClick={() => navigate('/forgot-password')}
-                  className="text-[11px] font-bold hover:underline transition-colors"
-                  style={{ color: '#006c49' }}
+                  className="text-[11px] font-bold hover:underline text-[#1B4332]"
                 >
                   Forgot?
                 </button>
               </div>
-              <div className="relative group">
-                <Lock
-                  size={15}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors"
-                  style={{ color: '#6c7a71' }}
-                />
+              <div className="relative">
+                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6C7A71]" />
                 <input
                   type={showPw ? 'text' : 'password'}
                   required
@@ -243,28 +197,12 @@ const AdminLogin = () => {
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(''); }}
                   disabled={loading}
-                  className="w-full pl-10 pr-11 py-3 rounded-lg text-sm outline-none transition-all"
-                  style={{
-                    background: 'rgba(242,244,246,0.75)',
-                    border: '1.5px solid rgba(224,227,229,0.8)',
-                    color: '#191c1e',
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = '#10b981';
-                    e.target.style.background  = 'rgba(255,255,255,0.9)';
-                    e.target.style.boxShadow   = '0 0 0 3px rgba(16,185,129,0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'rgba(224,227,229,0.8)';
-                    e.target.style.background  = 'rgba(242,244,246,0.75)';
-                    e.target.style.boxShadow   = 'none';
-                  }}
+                  className="w-full pl-10 pr-11 py-3 rounded-sm text-sm outline-none transition-all border border-[#BBCABB] bg-[#F3F6F1] text-[#14201A] focus:border-[#1B4332] focus:bg-white focus:ring-2 focus:ring-[#1B4332]/15"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw(!showPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded transition-colors"
-                  style={{ color: '#6c7a71' }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-sm text-[#6C7A71]"
                 >
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -275,13 +213,7 @@ const AdminLogin = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 rounded-lg font-bold text-sm text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60 mt-1"
-              style={{
-                background:  loading ? '#10b981' : '#006c49',
-                boxShadow:   '0 4px 14px rgba(0,108,73,0.25)',
-              }}
-              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#10b981'; }}
-              onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#006c49'; }}
+              className="w-full py-3.5 rounded-sm font-bold text-sm text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60 mt-1 bg-[#1B4332] hover:bg-[#123024] tracking-wide"
             >
               {loading ? (
                 <Loader2 size={18} className="animate-spin" />

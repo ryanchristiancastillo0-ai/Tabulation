@@ -262,7 +262,10 @@ export default function CreateSchoolForm() {
 
   // ── Main form ─────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+    <div className="min-h-screen bg-[#FBFCF9] font-['Inter',sans-serif] text-[#14201A]">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+      `}</style>
 
       {showModal && (
         <ErrorModal
@@ -276,7 +279,8 @@ export default function CreateSchoolForm() {
       <FormHero />
 
       <div className="max-w-2xl mx-auto mt-8 mb-16 px-6">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_4px_24px_rgba(0,108,73,0.06)] overflow-hidden">
+        <div className="bg-white rounded-sm border border-[#E1E8DE] overflow-hidden relative">
+          <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#1B4332]" />
 
           <SchoolInfoSection
             form={form}

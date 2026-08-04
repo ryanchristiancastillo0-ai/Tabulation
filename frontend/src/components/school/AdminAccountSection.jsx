@@ -9,19 +9,22 @@ export default function AdminAccountSection({ form, setField, errors }) {
   const [showConfirm, setShowConfirm] = useState(false);
 
   return (
-    <div className="px-4 sm:px-9 py-6 sm:py-8 border-b border-slate-200">
+    <div className="px-4 sm:px-9 py-6 sm:py-8 border-b border-[#E1E8DE]">
 
       {/* Header */}
       <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 mb-1.5">
-        <div className="text-sm font-bold text-emerald-700 flex items-center gap-2">
+        <div
+          className="text-sm font-bold text-[#1B4332] flex items-center gap-2"
+          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+        >
           <User size={14} /> Admin Account
         </div>
-        <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full self-start xs:self-auto">
+        <span className="text-[10px] font-bold tracking-widest uppercase text-[#1B4332] bg-[#F3F6F1] border border-[#1B4332]/20 px-2.5 py-0.5 rounded-sm self-start xs:self-auto">
           Linked to this school
         </span>
       </div>
 
-      <p className="text-xs text-slate-400 mb-5 sm:mb-6 leading-relaxed">
+      <p className="text-xs text-[#8FA192] mb-5 sm:mb-6 leading-relaxed">
         This will be the primary admin login for your school's portal.
         Each school gets its own isolated admin account.
       </p>
@@ -63,7 +66,7 @@ export default function AdminAccountSection({ form, setField, errors }) {
               <button
                 type="button"
                 onClick={() => setShowPw((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer p-0 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer p-0 flex items-center text-[#6C7A71] hover:text-[#1B4332] transition-colors"
               >
                 {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
@@ -83,13 +86,13 @@ export default function AdminAccountSection({ form, setField, errors }) {
               <button
                 type="button"
                 onClick={() => setShowConfirm((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer p-0 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer p-0 flex items-center text-[#6C7A71] hover:text-[#1B4332] transition-colors"
               >
                 {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
             {form.admin_confirm && form.admin_password === form.admin_confirm && (
-              <span className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
+              <span className="text-xs text-[#1B4332] flex items-center gap-1 mt-1">
                 <Check size={11} /> Passwords match
               </span>
             )}
