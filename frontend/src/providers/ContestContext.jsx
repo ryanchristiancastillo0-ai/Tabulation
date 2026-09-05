@@ -83,12 +83,20 @@ export const ContestProvider = ({ children, pollInterval = 4000 }) => {
     } catch (err) {
       console.warn('[ContestContext] poll error:', err.message);
     } finally {
-      if (!ready) setReady(true);
+      setReady(true);
     }
-  }, [schoolId, ready]);
+  }, [schoolId]);
+
+  // Guard against StrictMode's dev-only double-invoke of effects, which
+  // would otherwise fire fetchConfig twice back-to-back on first mount.
+  const didInitialFetch = useRef(false);
+  useEffect(() => {
+    if (didInitialFetch.current) return;
+    didInitialFetch.current = true;
+    fetchConfig();
+  }, [fetchConfig]);
 
   useEffect(() => {
-    fetchConfig();
     const interval = setInterval(fetchConfig, pollInterval);
     return () => clearInterval(interval);
   }, [fetchConfig, pollInterval]);

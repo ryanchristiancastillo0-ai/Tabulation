@@ -8,10 +8,9 @@ import { useJudgeSystem } from '../../hooks/judge/useJudgeSystem';
 import {getSchoolId} from '../../utils/judge'
 import {getHydra_and_Calcu} from '../../hooks/judge/getHydration_and_Calculation'
 import {useConnectivity} from '../../hooks/judge/useConnectivity'
-import {useContestName} from '../../hooks/judge/useContestName'
 import {useCriteriaGenerator} from '../../hooks/judge/useCreteria'
-import {useJudgeLockState} from '../../hooks/judge/useJudgeLockState'
 import {useSystemConfig} from '../../hooks/judge/useSystemConfig'
+import {useContestContext} from '../../providers/ContestContext'
 
 import {GlobalStyles} from '../../css/judge/GlobalStyles.jsx'
 import {CriteriaHeader,EncryptedBadge,
@@ -103,8 +102,10 @@ function JudgeTable() {
   } = useJudgeSystem();
 
   const sysConfig     = useSystemConfig();
-  const isJudgeLocked = useJudgeLockState(4000);
-  const contestName   = useContestName(config.settings?.contest_name, 5000);
+  // Single global poller (ContestProvider → /public/get-all-data every 4s).
+  // No local polling here — the old useJudgeLockState/useContestName hooks
+  // fired overlapping duplicate requests to the same endpoint.
+  const { isJudgeLocked, contestName, judgeCount } = useContestContext();
 
   const tableHtml  = typeof dynamicUI === 'string' ? dynamicUI : dynamicUI?.html || '';
 
@@ -130,7 +131,7 @@ function JudgeTable() {
         sysConfig={sysConfig}
         contestName={contestName}
         selectedJudge={selectedJudge}
-        judgeCount={config.settings?.judge_count}
+        judgeCount={judgeCount}
         updateJudge={updateJudge}
         isOnline={isOnline}
         isJudgeLocked={isJudgeLocked}

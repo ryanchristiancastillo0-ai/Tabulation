@@ -28,7 +28,7 @@ const AdminProtectedRoute = () => {
 
 export default function App() {
   return (
- <ContestProvider pollInterval={4000}>
+ <ContestProvider pollInterval={10000}>
      <Routes>
       {/* ── PUBLIC ROUTES ── */}
       <Route path='/' element={<Home />} />

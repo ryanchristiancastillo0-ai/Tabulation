@@ -48,6 +48,14 @@ export const getHydra_and_Calcu = (
       });
     }
 
+    // Map criterion id -> max weight so each dropdown caps at its own max
+    const maxByCriterion = {};
+    if (Array.isArray(config.criteria)) {
+      config.criteria.forEach(c => {
+        if (c.id !== undefined && c.id !== null) maxByCriterion[String(c.id)] = Number(c.percentage) || 0;
+      });
+    }
+
     dropdowns.forEach(select => {
       // Sanitize the dropdown's parent wrapper to strip rogue AI styles
       const wrapper = select.closest('div, td, th');
@@ -58,9 +66,13 @@ export const getHydra_and_Calcu = (
         wrapper.style.overflow  = '';
       }
 
-      // Always build 0–100 options regardless of criteria percentage
+      // Cap options to the criterion's max weight (its percentage), e.g. 0–25 for a 25% criterion
+      const parts = select.id.split('-');
+      const max   = parts[2] !== undefined && maxByCriterion[parts[2]] !== undefined
+        ? maxByCriterion[parts[2]]
+        : 100;
       let options = '<option value="">-</option>';
-      for (let i = 0; i <= 100; i++) {
+      for (let i = 0; i <= max; i++) {
         options += `<option value="${i}">${i}</option>`;
       }
       select.innerHTML = options;

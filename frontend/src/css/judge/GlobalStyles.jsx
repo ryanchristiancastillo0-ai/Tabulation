@@ -10,6 +10,14 @@ export function GlobalStyles() {
         100% { transform: translateX(0); opacity: 0.7; }
       }
 
+      /* ── Criteria weight bar grow-in ── */
+      @keyframes ci-bar-grow {
+        from { width: 0; }
+      }
+      .ci-bar-fill {
+        animation: ci-bar-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+
       /* ── Force-reset ALL rogue AI wrapper styles ── */
       .ai-rendered-content,
       .ai-rendered-content *:not(table):not(thead):not(tbody):not(tr):not(td):not(th):not(select):not(option) {
