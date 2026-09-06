@@ -64,7 +64,7 @@ const JudgeScoreboard = () => {
 
   return (
     <div className="min-h-screen bg-[#FBFCF9] font-sans text-[#14201A]">
-      <div className="max-w-5xl xl:max-w-[1200px] 2xl:max-w-[1400px] mx-auto p-4 sm:p-6 md:p-12">
+      <div className="max-w-5xl xl:max-w-[1400px] 2xl:max-w-[1920px] 3xl:max-w-[2560px] 4xl:max-w-[3200px] mx-auto p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12">
 
         <Hero
           judgeId={judgeId}

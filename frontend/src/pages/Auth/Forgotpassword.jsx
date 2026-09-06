@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Mail, MessageSquareCode, Lock, Eye, EyeOff,
-  RefreshCw, AlertCircle, Loader2, CheckCircle2, Send, ShieldCheck
+  RefreshCw, AlertCircle, Loader2, CheckCircle2, Send, ShieldCheck,
+  UserX, X
 } from 'lucide-react';
 
 const BG_IMAGE_SRC = 'https://images.unsplash.com/photo-1741061966372-8e7e2c221de7?fm=jpg&q=80&w=1600&auto=format&fit=crop';
@@ -18,6 +19,7 @@ const ForgotPassword = () => {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showNotFoundModal, setShowNotFoundModal] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
@@ -72,7 +74,11 @@ const ForgotPassword = () => {
     }
 
     try {
-      await requestCode();
+      const res = await requestCode();
+      if (res && res.accountExists === false) {
+        setShowNotFoundModal(true);
+        return;
+      }
       setStep(2);
     } catch (err) {
       setError(err.message);
@@ -468,6 +474,8 @@ const ForgotPassword = () => {
                   from { width: 100%; }
                   to   { width: 0%; }
                 }
+                @keyframes fadeIn  { from { opacity: 0 } to { opacity: 1 } }
+                @keyframes slideUp { from { transform: translateY(16px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
               `}</style>
             </div>
           )}
@@ -483,6 +491,42 @@ const ForgotPassword = () => {
           </div>
         </div>
       </div>
+
+      {/* User-not-found modal */}
+      {showNotFoundModal && (
+        <div
+          onClick={() => setShowNotFoundModal(false)}
+          className="fixed inset-0 z-[999] p-6 bg-black/40 flex items-center justify-center animate-[fadeIn_.15s_ease]"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-sm border border-[#E1E8DE] p-8 sm:p-10 max-w-sm w-full text-center shadow-2xl animate-[slideUp_.2s_ease]"
+          >
+            <div
+              className="w-16 h-16 rounded-full bg-[#F3F6F1] border-2 border-[#C9A227]/30 flex items-center justify-center mx-auto mb-5"
+            >
+              <UserX size={28} className="text-[#1B4332]" />
+            </div>
+            <h3
+              className="text-lg font-extrabold text-[#14201A] mb-2"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
+              Account Not Found
+            </h3>
+            <p className="text-sm text-[#4B5A4D] leading-relaxed mb-6">
+              No account is registered with{' '}
+              <strong className="text-[#1B4332]">{email || 'that email address'}</strong>.
+              Please check the email and try again.
+            </p>
+            <button
+              onClick={() => setShowNotFoundModal(false)}
+              className="w-full py-3 rounded-sm border-none bg-[#1B4332] hover:bg-[#123024] text-white text-sm font-bold cursor-pointer font-[inherit] flex items-center justify-center gap-2 transition-colors duration-150"
+            >
+              <X size={15} /> Dismiss
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

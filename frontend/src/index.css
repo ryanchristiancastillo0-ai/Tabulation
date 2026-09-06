@@ -1,6 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800&family=Fira+Code:wght@400;500&display=swap');
 @import "tailwindcss";
 
+/* ── Large-display breakpoints (beyond Tailwind's 2xl = 1536px) ──
+   Used so layouts can expand for 2560×1440 and 3840×2160 (4K) instead of
+   staying pinned to 1920-era max-widths with huge centered margins. */
+@theme {
+  --breakpoint-3xl: 1920px;
+  --breakpoint-4xl: 2560px;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 
 body { font-family: 'Inter', sans-serif; }

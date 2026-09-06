@@ -137,7 +137,7 @@ function JudgeTable() {
         isJudgeLocked={isJudgeLocked}
       />
 
-      <main className="flex-1 w-full max-w-screen-xl xl:max-w-[1440px] 2xl:max-w-[1680px] mx-auto px-3 sm:px-6 lg:px-12 py-4 sm:py-8 lg:py-10">
+      <main className="flex-1 w-full max-w-screen-xl xl:max-w-[1440px] 2xl:max-w-[1920px] 3xl:max-w-[2560px] 4xl:max-w-[3200px] mx-auto px-3 sm:px-6 lg:px-8 2xl:px-10 py-4 sm:py-8 lg:py-10">
 
         {!loading && (
           <CriteriaHeader

@@ -88,7 +88,7 @@ async function requestPasswordReset({ email }) {
   const genericMessage = 'If this email is registered, a verification code has been sent to it.';
 
   if (rows.length === 0 || rows[0].school_status !== 'active') {
-    return { success: true, message: genericMessage };
+    return { success: true, message: genericMessage, accountExists: false };
   }
 
   const admin = rows[0];
@@ -112,7 +112,7 @@ async function requestPasswordReset({ email }) {
     throw new HttpError(500, 'Failed to send the verification code. Please try again.');
   }
 
-  return { success: true, message: genericMessage };
+  return { success: true, message: genericMessage, accountExists: true };
 }
 
 async function verifyResetCode({ email, code }) {

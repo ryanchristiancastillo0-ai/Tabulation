@@ -8,7 +8,7 @@ export default function JudgeFooter({ sysConfig }) {
       className="mt-10 border-t border-white/10"
       style={{ backgroundColor: primary }}
     >
-      <div className="max-w-screen-xl mx-auto px-6 lg:px-10 py-8">
+      <div className="max-w-screen-xl 2xl:max-w-[1920px] 3xl:max-w-[2560px] mx-auto px-6 lg:px-10 py-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-white">

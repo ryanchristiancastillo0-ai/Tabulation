@@ -35,7 +35,7 @@ export default function FeedbackSection() {
 
   return (
     <section className="py-16 sm:py-24 border-t border-[#E1E8DE] bg-[#F3F6F1]">
-      <div className="max-w-[1280px] xl:max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 md:px-12">
+      <div className="max-w-[1280px] xl:max-w-[1600px] 2xl:max-w-[1800px] 3xl:max-w-[2400px] 4xl:max-w-[3000px] mx-auto px-4 sm:px-6 md:px-12">
         <div className="max-w-2xl xl:max-w-3xl mx-auto">
 
           {/* Heading */}

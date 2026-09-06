@@ -11,7 +11,7 @@ export default function HeroBanner({ contestName, isRankMode }) {
       <div className="absolute inset-0 bg-gradient-to-r from-[#123024]/80 via-[#1B4332]/60 to-[#1B4332]/40" />
 
       {/* Content */}
-      <div className="relative z-10 w-full mx-auto max-w-[1280px] 2xl:max-w-[1440px]">
+      <div className="relative z-10 w-full mx-auto max-w-[1440px] 2xl:max-w-[1920px] 3xl:max-w-[2560px] 4xl:max-w-[3200px]">
         {/* Gold rule */}
         <span className="block mb-3 w-14 h-[3px] bg-[#C9A227]" />
 

@@ -15,7 +15,7 @@ export default function Footer() {
   return (
     <>
       <footer className="bg-[#F3F6F1] w-full py-12 sm:py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 max-w-[1280px] xl:max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 md:px-12 gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 max-w-[1280px] xl:max-w-[1600px] 2xl:max-w-[1800px] 3xl:max-w-[2400px] 4xl:max-w-[3000px] mx-auto px-4 sm:px-6 md:px-12 gap-12">
           <div>
             <div
               className="text-lg sm:text-xl font-bold text-[#14201A] mb-4"

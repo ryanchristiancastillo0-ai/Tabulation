@@ -19,7 +19,7 @@ export default function Header({ navigate }) {
           : 'bg-[#FBFCF9]  '
       }`}
     >
-      <div className="flex justify-between items-center max-w-[1280px] xl:max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 md:px-12 h-20">
+      <div className="flex justify-between items-center max-w-[1280px] xl:max-w-[1600px] 2xl:max-w-[1800px] 3xl:max-w-[2400px] 4xl:max-w-[3000px] mx-auto px-4 sm:px-6 md:px-12 h-20">
         <div className="flex items-center gap-3 text-xl sm:text-2xl font-bold text-[#1B4332] tracking-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
           <img
             src="/img/USAL_LOGO.png"

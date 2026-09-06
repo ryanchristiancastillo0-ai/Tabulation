@@ -206,8 +206,8 @@ function Dashboard() {
 
           {/* Page body */}
           <div
-            className={`flex-1 w-full max-w-[1920px] mx-auto ${
-              isMobile ? "px-4 py-5 pb-[88px]" : "px-10 py-9"
+            className={`flex-1 w-full min-w-0 max-w-[1920px] 3xl:max-w-[2560px] 4xl:max-w-[3200px] mx-auto ${
+              isMobile ? "px-4 py-5 pb-[88px]" : "px-6 lg:px-8 2xl:px-10 py-9"
             }`}
           >
             {/* Header row */}

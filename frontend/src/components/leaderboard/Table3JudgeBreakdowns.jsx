@@ -7,7 +7,7 @@ export default function Table3JudgeBreakdowns({ judgeIds, judgeScores, onCSV, on
         <SectionLabel number="03" label="Individual Judge Breakdowns" />
         <ExportMenu onCSV={onCSV} onPNG={onPNG} />
       </div>
-      <div id="table-judges" className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+      <div id="table-judges" className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 sm:gap-5">
         {judgeIds.map((judgeId) => {
           const scores = [...(judgeScores[judgeId] || [])].sort((a, b) => b.total - a.total);
           return (

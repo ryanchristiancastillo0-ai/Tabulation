@@ -5,7 +5,7 @@ export default function NavBar() {
 
   return (
     <nav className="bg-[#FBFCF9] sticky top-0 z-50 border-b border-[#E1E8DE] px-4 sm:px-8 lg:px-12 py-3 h-14 sm:h-16 flex items-center justify-between">
-      <div className="w-full max-w-[1280px] 2xl:max-w-[1440px] mx-auto flex items-center justify-between">
+      <div className="w-full flex items-center justify-between px-2 sm:px-0">
         <div className="flex items-center gap-2 sm:gap-3">
           <img
             src="/img/USAL_LOGO.png"

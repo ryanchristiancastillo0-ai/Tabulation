@@ -39,28 +39,32 @@ function emailShell({ eyebrow, title, body, footer }) {
 
 async function sendEmail({ to, subject, html, replyTo }) {
   const payload = {
-    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
-    to: [to],
+    sender: {
+      name: 'Tabulation',
+      email: process.env.EMAIL_FROM || 'stc.judging@gmail.com',
+    },
+    to: [{ email: to }],
     subject,
-    html,
+    htmlContent: html,
   };
 
   if (replyTo) {
-    payload.reply_to = replyTo;
+    payload.replyTo = { email: replyTo };
   }
 
-  const response = await fetch('https://api.resend.com/emails', {
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      'api-key': process.env.BREVO_API_KEY,
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
     },
     body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`Resend API error (${response.status}): ${errorBody}`);
+    throw new Error(`Brevo API error (${response.status}): ${errorBody}`);
   }
 
   return response.json();

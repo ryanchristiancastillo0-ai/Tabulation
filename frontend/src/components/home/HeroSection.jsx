@@ -30,7 +30,7 @@ export default function HeroSection({ navigate }) {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-[1280px] xl:max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 md:px-12 py-12 sm:py-20 md:py-24">
+      <div className="relative z-10 max-w-[1280px] xl:max-w-[1600px] 2xl:max-w-[1800px] 3xl:max-w-[2400px] 4xl:max-w-[3000px] mx-auto px-4 sm:px-6 md:px-12 py-12 sm:py-20 md:py-24">
         <div className="max-w-3xl xl:max-w-4xl 2xl:max-w-5xl">
           <span className="animate-fade-in-up delay-1 inline-block px-3 py-1 bg-[#1B4332]/10 text-[#1B4332] text-xs font-semibold rounded-sm mb-4 sm:mb-6 uppercase tracking-widest border border-[#1B4332]/20">
             Competition Portal

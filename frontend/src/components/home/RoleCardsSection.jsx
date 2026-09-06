@@ -3,7 +3,7 @@ import { RoleCard } from './index'
 export default function RoleCardsSection({ navigate }) {
   return (
     <section className="py-16 sm:py-24 md:py-32 bg-[#F3F6F1]">
-      <div className="max-w-[1280px] xl:max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 md:px-12">
+      <div className="max-w-[1280px] xl:max-w-[1600px] 2xl:max-w-[1800px] 3xl:max-w-[2400px] 4xl:max-w-[3000px] mx-auto px-4 sm:px-6 md:px-12">
         <div className="text-center mb-12 sm:mb-20">
           <div className="w-16 h-[2px] bg-[#1B4332] mx-auto mb-5" />
           <h2
