@@ -251,7 +251,7 @@ const LeaderBoard = () => {
       <NavBar />
       <HeroBanner contestName={contestName} isRankMode={isRankMode} />
 
-      <div className="max-w-5xl mx-auto px-3 sm:px-6 py-5 sm:py-8 space-y-5 sm:space-y-6">
+      <div className="max-w-5xl xl:max-w-[1280px] 2xl:max-w-[1440px] mx-auto px-3 sm:px-6 py-5 sm:py-8 space-y-5 sm:space-y-6">
         <ExportAllPanel onExportAll={handleExportAll} />
 
         <Table1FinalStandings

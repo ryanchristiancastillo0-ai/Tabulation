@@ -205,7 +205,7 @@ const ForgotPassword = () => {
 
       {/* Right: form panel */}
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-[#FBFCF9] p-6 sm:p-10">
-        <div className="w-full max-w-[420px]">
+        <div className="w-full max-w-[420px] xl:max-w-[480px] 2xl:max-w-[560px]">
           {/* Top row: back button + logo */}
           <div className="flex items-center justify-between mb-8">
             <button
@@ -232,7 +232,7 @@ const ForgotPassword = () => {
                   {stepData[step].badge}
                 </span>
                 <h2
-                  className="text-xl sm:text-2xl font-bold tracking-tight text-[#14201A]"
+                  className="text-xl sm:text-2xl xl:text-3xl font-bold tracking-tight text-[#14201A]"
                   style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
                 >
                   {stepData[step].title}

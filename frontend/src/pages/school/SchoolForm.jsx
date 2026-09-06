@@ -278,7 +278,7 @@ export default function CreateSchoolForm() {
 
       <FormHero />
 
-      <div className="max-w-2xl mx-auto mt-8 mb-16 px-6">
+      <div className="max-w-2xl xl:max-w-3xl 2xl:max-w-4xl mx-auto mt-8 mb-16 px-6">
         <div className="bg-white rounded-sm border border-[#E1E8DE] overflow-hidden relative">
           <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#1B4332]" />
 

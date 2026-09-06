@@ -30,35 +30,35 @@ export default function HeroSection({ navigate }) {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-[1280px] mx-auto px-4 sm:px-6 md:px-12 py-12 sm:py-20 md:py-24">
-        <div className="max-w-3xl">
+      <div className="relative z-10 max-w-[1280px] xl:max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 md:px-12 py-12 sm:py-20 md:py-24">
+        <div className="max-w-3xl xl:max-w-4xl 2xl:max-w-5xl">
           <span className="animate-fade-in-up delay-1 inline-block px-3 py-1 bg-[#1B4332]/10 text-[#1B4332] text-xs font-semibold rounded-sm mb-4 sm:mb-6 uppercase tracking-widest border border-[#1B4332]/20">
             Competition Portal
           </span>
 
           <h1
-            className="animate-fade-in-up delay-2 text-3xl sm:text-4xl md:text-6xl font-bold text-[#14201A] mb-4 sm:mb-6 leading-tight"
+            className="animate-fade-in-up delay-2 text-3xl sm:text-4xl md:text-6xl 2xl:text-7xl font-bold text-[#14201A] mb-4 sm:mb-6 leading-tight"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
             Professional Online Judging Platform{' '}
             <span className="text-[#1B4332] block sm:inline">for Schools & Competitions</span>
           </h1>
 
-          <p className="animate-fade-in-up delay-3 text-base sm:text-lg text-[#4B5A4D] mb-8 sm:mb-10 max-w-2xl leading-relaxed">
+          <p className="animate-fade-in-up delay-3 text-base sm:text-lg 2xl:text-xl text-[#4B5A4D] mb-8 sm:mb-10 max-w-2xl xl:max-w-3xl leading-relaxed">
             Create your school's judging workspace, manage judges, contestants, and scoring in real time.
           </p>
 
           <div className="animate-fade-in-up delay-4 flex flex-wrap gap-3 sm:gap-4">
             <button
               onClick={() => navigate('/school')}
-              className="bg-[#1B4332] text-white px-6 sm:px-8 py-3 sm:py-4 rounded-sm text-xs sm:text-sm font-bold flex items-center gap-2 hover:bg-[#123024] transition-all tracking-wide"
+              className="bg-[#1B4332] text-white px-6 sm:px-8 2xl:px-10 py-3 sm:py-4 2xl:py-5 rounded-sm text-xs sm:text-sm 2xl:text-base font-bold flex items-center gap-2 hover:bg-[#123024] transition-all tracking-wide"
             >
               Create School Account
               <span className="text-base sm:text-lg leading-none">→</span>
             </button>
             <button
               onClick={() => navigate('/login')}
-              className="bg-white border border-[#1B4332]/30 text-[#1B4332] px-6 sm:px-8 py-3 sm:py-4 rounded-sm text-xs sm:text-sm font-bold hover:bg-[#F3F6F1] transition-all tracking-wide"
+              className="bg-white border border-[#1B4332]/30 text-[#1B4332] px-6 sm:px-8 2xl:px-10 py-3 sm:py-4 2xl:py-5 rounded-sm text-xs sm:text-sm 2xl:text-base font-bold hover:bg-[#F3F6F1] transition-all tracking-wide"
             >
               Sign In
             </button>

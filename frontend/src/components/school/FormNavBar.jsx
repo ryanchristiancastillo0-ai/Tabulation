@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 export default function FormNavBar({ navigate }) {
   return (
     <nav className="bg-white sticky top-0 z-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-12 flex items-center justify-between" style={{ height: 60 }}>
+      <div className="max-w-6xl xl:max-w-7xl 2xl:max-w-[1400px] mx-auto px-4 sm:px-12 flex items-center justify-between" style={{ height: 60 }}>
 
         {/* Brand */}
         <div className="flex items-center gap-2">
