@@ -1,5 +1,3 @@
-const { SMTPClient, Message } = require('emailjs');
-
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -40,38 +38,32 @@ function emailShell({ eyebrow, title, body, footer }) {
 }
 
 async function sendEmail({ to, subject, html, replyTo }) {
-  const client = new SMTPClient({
-    user: process.env.EMAIL_USER,
-    password: process.env.EMAIL_PASS,
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT ? Number(process.env.EMAIL_PORT) : 465,
-    ssl: true,
-    timeout: 15000,
-  });
-
-  const options = {
-    from: process.env.EMAIL_USER,
-    to,
+  const payload = {
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: [to],
     subject,
-    attachment: [
-      {
-        data: html,
-        alternative: true,
-        type: 'text/html',
-      },
-    ],
+    html,
   };
 
   if (replyTo) {
-    options['reply-to'] = replyTo;
+    payload.reply_to = replyTo;
   }
 
-  try {
-    const message = new Message(options);
-    await client.sendAsync(message);
-  } finally {
-    client.smtp.close();
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Resend API error (${response.status}): ${errorBody}`);
   }
+
+  return response.json();
 }
 
 async function sendPasswordResetEmail(toEmail, code) {
