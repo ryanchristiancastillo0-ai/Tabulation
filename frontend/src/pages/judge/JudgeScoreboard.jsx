@@ -63,7 +63,7 @@ const JudgeScoreboard = () => {
   if (!judgeId) return <IdentityMissing />;
 
   return (
-    <div className="min-h-screen bg-[#f7f9fb] font-sans text-[#191c1e]">
+    <div className="min-h-screen bg-[#FBFCF9] font-sans text-[#14201A]">
       <div className="max-w-5xl mx-auto p-4 sm:p-6 md:p-12">
 
         <Hero
@@ -83,7 +83,7 @@ const JudgeScoreboard = () => {
           </div>
         ) : (
           <div className="space-y-4 sm:space-y-6">
-            <div className="bg-white border border-[#bbcabf] rounded-2xl overflow-hidden">
+            <div className="bg-white border border-[#BBCABB] rounded-sm overflow-hidden">
               <RankingsTable rankings={rankings} compType={compType} />
               <RankingsCards rankings={rankings} compType={compType} />
             </div>

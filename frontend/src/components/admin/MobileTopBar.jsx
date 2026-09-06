@@ -8,7 +8,7 @@ const MobileTopBar = ({ activeNav, navItems, onOpenMenu }) => {
     <div className="fixed top-0 left-0 right-0 z-40 flex items-center gap-3 px-4 py-3 bg-[var(--surface)] border-b border-[var(--border)] shadow-[0_1px_8px_rgba(0,0,0,0.06)] transition-shadow duration-200 lg:hidden">
       <button
         onClick={onOpenMenu}
-        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[9px] border border-[var(--border)] bg-[var(--surface2)] text-[var(--text2)] transition-all duration-150 hover:bg-[var(--border)] active:scale-90"
+        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[5px] border border-[var(--border)] bg-[var(--surface2)] text-[var(--text2)] transition-all duration-150 hover:bg-[var(--border)] active:scale-90"
       >
         <Menu size={18} />
       </button>

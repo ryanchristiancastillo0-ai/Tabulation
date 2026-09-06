@@ -6,12 +6,12 @@ export default function SubmitButton({ onClick, disabled, primary }) {
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-full sm:w-auto rounded-xl text-sm font-extrabold tracking-widest uppercase transition-all border-none"
+      className="w-full sm:w-auto rounded-sm text-sm font-extrabold tracking-widest uppercase transition-all border-none"
       style={{
         fontFamily:  'inherit',
         padding:     '12px 40px',
         maxWidth:    '360px',
-        background:  disabled ? '#e0e3e5' : primary,
+        background:  disabled ? '#E1E8DE' : primary,
         color:       disabled ? '#9ca3af' : '#fff',
         cursor:      disabled ? 'not-allowed' : 'pointer',
         boxShadow:   disabled ? 'none' : `0 6px 20px ${primary}40`,

@@ -10,12 +10,12 @@ export default function ExportAllPanel({ onExportAll }) {
   const countSel    = Object.values(selected).filter(Boolean).length;
 
   return (
-    <div className="bg-white border border-[#bbcabf] rounded-2xl overflow-hidden">
+    <div className="bg-white border border-[#BBCABB] rounded-sm overflow-hidden">
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#191c1e] to-[#374151] px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
+      <div className="bg-gradient-to-r from-[#14201A] to-[#374151] px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-white/10 rounded-lg flex items-center justify-center shrink-0">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-white/10 rounded-sm flex items-center justify-center shrink-0">
             <DownloadIcon size={13} />
           </div>
           <div className="min-w-0">
@@ -53,15 +53,15 @@ export default function ExportAllPanel({ onExportAll }) {
                   <button
                     key={key}
                     onClick={() => toggle(key)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold transition-all ${
+                    className={`flex items-center gap-2 px-3 py-2 rounded-sm border text-xs font-bold transition-all ${
                       selected[key]
-                        ? 'bg-[#006c49] border-[#006c49] text-white'
-                        : 'bg-white border-[#e0e3e5] text-[#6b7280] hover:border-[#006c49]'
+                        ? 'bg-[#1B4332] border-[#1B4332] text-white'
+                        : 'bg-white border-[#E1E8DE] text-[#6b7280] hover:border-[#1B4332]'
                     }`}
                   >
                     <div className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${selected[key] ? 'border-white bg-white' : 'border-current'}`}>
                       {selected[key] && (
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#006c49" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#1B4332" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="20 6 9 17 4 12"/>
                         </svg>
                       )}
@@ -77,16 +77,16 @@ export default function ExportAllPanel({ onExportAll }) {
               <div className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-widest mb-3">Format</div>
               <div className="flex flex-row sm:flex-col gap-2">
                 {[
-                  { val: 'csv', label: 'CSV Spreadsheet', badge: 'CSV', color: 'bg-[#dcfce7] text-[#006c49]' },
+                  { val: 'csv', label: 'CSV Spreadsheet', badge: 'CSV', color: 'bg-[#dcfce7] text-[#1B4332]' },
                   { val: 'png', label: 'Image (PNG)',      badge: 'PNG', color: 'bg-[#ede9fe] text-[#7c3aed]' },
                 ].map(({ val, label, badge, color }) => (
                   <button
                     key={val}
                     onClick={() => setFormat(val)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-xs font-semibold transition-all text-left ${
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-sm border text-xs font-semibold transition-all text-left ${
                       format === val
-                        ? 'border-[#006c49] bg-[#f0fdf6] text-[#006c49]'
-                        : 'border-[#e0e3e5] bg-white text-[#6b7280] hover:border-[#006c49]'
+                        ? 'border-[#1B4332] bg-[#f0fdf6] text-[#1B4332]'
+                        : 'border-[#E1E8DE] bg-white text-[#6b7280] hover:border-[#1B4332]'
                     }`}
                   >
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${color}`}>{badge}</span>
@@ -109,8 +109,8 @@ export default function ExportAllPanel({ onExportAll }) {
               onClick={() => onExportAll(selected, format)}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all w-full sm:w-auto justify-center ${
                 anySelected
-                  ? 'bg-[#006c49] text-white hover:opacity-90 shadow-sm'
-                  : 'bg-[#e0e3e5] text-[#9ca3af] cursor-not-allowed'
+                  ? 'bg-[#1B4332] text-white hover:opacity-90 shadow-sm'
+                  : 'bg-[#E1E8DE] text-[#9ca3af] cursor-not-allowed'
               }`}
             >
               <DownloadIcon size={13} />

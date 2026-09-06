@@ -6,7 +6,7 @@ export default function SingleJudgeCard({ judgeId, scores }) {
       <p className="text-[10px] sm:text-[11px] font-bold text-[#6b7280] uppercase tracking-wider mb-2">
         Judge {judgeId}
       </p>
-      <div className="bg-white border border-[#bbcabf] rounded-xl overflow-hidden">
+      <div className="bg-white border border-[#BBCABB] rounded-sm overflow-hidden">
         <table className="w-full text-xs">
           <thead className="bg-[#374151] text-white">
             <tr>
@@ -30,8 +30,8 @@ export default function SingleJudgeCard({ judgeId, scores }) {
                     {getOrdinal(rIdx + 1)}
                   </span>
                 </td>
-                <td className="px-2.5 sm:px-3 py-2 sm:py-2.5 font-bold bg-[#f9fafb] text-[#191c1e]">{row.name}</td>
-                <td className="px-2.5 sm:px-3 py-2 sm:py-2.5 text-right font-mono font-bold bg-[#f1f5f9] text-[#006c49]">
+                <td className="px-2.5 sm:px-3 py-2 sm:py-2.5 font-bold bg-[#f9fafb] text-[#14201A]">{row.name}</td>
+                <td className="px-2.5 sm:px-3 py-2 sm:py-2.5 text-right font-mono font-bold bg-[#f1f5f9] text-[#1B4332]">
                   {parseFloat(row.total).toFixed(2)}
                 </td>
               </tr>

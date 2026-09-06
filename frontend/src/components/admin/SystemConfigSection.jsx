@@ -54,8 +54,8 @@ const SystemConfigSection = ({
     if (typeof setHeaderTemplateProp === 'function') setHeaderTemplateProp(id);
   };
 
-  const primary   = primaryColor   || '#006c49';
-  const secondary = secondaryColor || '#10b981';
+  const primary   = primaryColor   || '#1B4332';
+  const secondary = secondaryColor || '#2D6A4F';
   const r         = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
 
   const radiusPresets = [
@@ -75,9 +75,9 @@ const SystemConfigSection = ({
       <div className="section-heading" style={{ margin: 0 }}>System Configuration</div>
 
       {/* Tab switcher */}
-      <div style={{ display: 'flex', gap: 3, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 12, padding: 4 }}>
+      <div style={{ display: 'flex', gap: 3, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: 4 }}>
         {tabs.map(tab => (
-          <button key={tab.id} onClick={() => setConfigTab(tab.id)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 10px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', transition: 'all .18s', background: configTab === tab.id ? 'var(--surface)' : 'transparent', color: configTab === tab.id ? 'var(--accent)' : 'var(--text3)', boxShadow: configTab === tab.id ? 'var(--shadow-sm)' : 'none' }}>
+          <button key={tab.id} onClick={() => setConfigTab(tab.id)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 10px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', transition: 'all .18s', background: configTab === tab.id ? 'var(--surface)' : 'transparent', color: configTab === tab.id ? 'var(--accent)' : 'var(--text3)', boxShadow: configTab === tab.id ? 'var(--shadow-sm)' : 'none' }}>
             {tab.icon}
             <span className="hidden sm:inline">{tab.label}</span>
             <span className="sm:hidden">{tab.id === 'branding' ? 'Branding' : 'Header'}</span>
@@ -96,7 +96,7 @@ const SystemConfigSection = ({
             <LogoUploadField label="School Logo" value={schoolLogo} onChange={setSchoolLogo} />
             <LogoUploadField label="Background Logo" value={backgroundLogo} onChange={setBackgroundLogo} />
           </div>
-          <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ border: '1px solid var(--border)', borderRadius: 6, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
               <div className="field-label" style={{ margin: 0 }}>Logo Border Radius</div>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-lt)', padding: '2px 10px', borderRadius: 6 }}>
@@ -106,7 +106,7 @@ const SystemConfigSection = ({
             <input type="range" min={0} max={999} step={1} value={logoRadius} onChange={e => setLogoRadius(Number(e.target.value))} style={{ width: '100%', accentColor: primary, cursor: 'pointer' }} />
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {radiusPresets.map(p => (
-                <button key={p.label} onClick={() => setLogoRadius(p.value)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s', border: `1.5px solid ${logoRadius === p.value ? 'var(--accent-mid)' : 'var(--border)'}`, background: logoRadius === p.value ? 'var(--accent-lt)' : 'var(--surface2)', color: logoRadius === p.value ? 'var(--accent)' : 'var(--text2)' }}>
+                <button key={p.label} onClick={() => setLogoRadius(p.value)} style={{ padding: '5px 12px', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s', border: `1.5px solid ${logoRadius === p.value ? 'var(--accent-mid)' : 'var(--border)'}`, background: logoRadius === p.value ? 'var(--accent-lt)' : 'var(--surface2)', color: logoRadius === p.value ? 'var(--accent)' : 'var(--text2)' }}>
                   {p.label}
                 </button>
               ))}
@@ -124,14 +124,14 @@ const SystemConfigSection = ({
             <div>
               <div className="field-label">Primary Color</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} style={{ width: 40, height: 40, border: '1px solid var(--border)', borderRadius: 8, background: 'transparent', cursor: 'pointer' }} />
+                <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} style={{ width: 40, height: 40, border: '1px solid var(--border)', borderRadius: 5, background: 'transparent', cursor: 'pointer' }} />
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text2)' }}>{primaryColor}</span>
               </div>
             </div>
             <div>
               <div className="field-label">Secondary Color</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input type="color" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} style={{ width: 40, height: 40, border: '1px solid var(--border)', borderRadius: 8, background: 'transparent', cursor: 'pointer' }} />
+                <input type="color" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} style={{ width: 40, height: 40, border: '1px solid var(--border)', borderRadius: 5, background: 'transparent', cursor: 'pointer' }} />
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text2)' }}>{secondaryColor}</span>
               </div>
             </div>
@@ -143,7 +143,7 @@ const SystemConfigSection = ({
       {/* ── HEADER TEMPLATE TAB ── */}
       {configTab === 'header' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ background: 'var(--accent-lt)', border: '1px solid var(--accent-bd)', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: 'var(--accent)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <div style={{ background: 'var(--accent-lt)', border: '1px solid var(--accent-bd)', borderRadius: 6, padding: '12px 14px', fontSize: 13, color: 'var(--accent)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <LayoutTemplate size={14} style={{ flexShrink: 0, marginTop: 1 }} />
             <div>Choose a <strong>header layout</strong> for the judge portal. It uses your branding colors and logo automatically.</div>
           </div>
@@ -151,9 +151,9 @@ const SystemConfigSection = ({
             {HEADER_TEMPLATES.map(tpl => {
               const isActive = headerTemplate === tpl.id;
               return (
-                <div key={tpl.id} onClick={() => setHeaderTemplate(tpl.id)} style={{ border: `2px solid ${isActive ? 'var(--accent-mid)' : 'var(--border)'}`, borderRadius: 14, padding: 12, cursor: 'pointer', transition: 'all .18s', background: isActive ? 'var(--accent-lt)' : 'var(--surface2)', boxShadow: isActive ? '0 0 0 3px var(--accent-lt)' : 'none' }}>
+                <div key={tpl.id} onClick={() => setHeaderTemplate(tpl.id)} style={{ border: `2px solid ${isActive ? 'var(--accent-mid)' : 'var(--border)'}`, borderRadius: 6, padding: 12, cursor: 'pointer', transition: 'all .18s', background: isActive ? 'var(--accent-lt)' : 'var(--surface2)', boxShadow: isActive ? '0 0 0 3px var(--accent-lt)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 9, background: isActive ? 'var(--accent)' : 'var(--surface)', border: `1px solid ${isActive ? 'var(--accent-bd)' : 'var(--border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? '#fff' : 'var(--text3)', flexShrink: 0 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 5, background: isActive ? 'var(--accent)' : 'var(--surface)', border: `1px solid ${isActive ? 'var(--accent-bd)' : 'var(--border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? '#fff' : 'var(--text3)', flexShrink: 0 }}>
                       {tpl.icon}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -167,7 +167,7 @@ const SystemConfigSection = ({
               );
             })}
           </div>
-          <div style={{ border: '1px dashed var(--border)', borderRadius: 10, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <div style={{ border: '1px dashed var(--border)', borderRadius: 6, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <SlidersHorizontal size={13} style={{ color: 'var(--text3)', marginTop: 1, flexShrink: 0 }} />
             <div style={{ fontSize: 12, color: 'var(--text3)' }}>
               Templates inherit your <strong style={{ color: 'var(--text2)' }}>primary color</strong>, <strong style={{ color: 'var(--text2)' }}>logo</strong>, and <strong style={{ color: 'var(--text2)' }}>footer text</strong> automatically. Adjust those in the <strong style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => setConfigTab('branding')}>Branding tab</strong>.
@@ -184,7 +184,7 @@ const SystemConfigSection = ({
         {activeTemplate.render({ primary, secondary, schoolLogo, portalName, schoolName, footerText, logoRadius })}
 
         {/* Footer preview */}
-        <div style={{ marginTop: 12, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
+        <div style={{ marginTop: 12, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)' }}>
           <div style={{ background: primary, padding: '16px 20px' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
               <div>
@@ -193,7 +193,7 @@ const SystemConfigSection = ({
                   Professional judging and tabulation platform for Catholic schools and academic institutions in the Philippines.
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '8px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '8px 12px' }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: secondary, flexShrink: 0 }} />
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>Secure System Active</div>

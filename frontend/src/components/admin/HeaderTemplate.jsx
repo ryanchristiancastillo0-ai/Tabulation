@@ -14,7 +14,7 @@ const HEADER_TEMPLATES = [
     render: ({ primary, secondary, schoolLogo, portalName, schoolName, footerText, logoRadius }) => {
       const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
       return (
-        <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', fontFamily: 'inherit' }}>
+        <div style={{ borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)', fontFamily: 'inherit' }}>
           <div style={{ background: primary, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
             {schoolLogo ? (
               <img src={schoolLogo} alt="logo" style={{ width: 32, height: 32, borderRadius: r, objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.35)', flexShrink: 0 }} />
@@ -40,7 +40,7 @@ const HEADER_TEMPLATES = [
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
               <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text3)' }}>Judging As</div>
-              <select style={{ appearance: 'none', padding: '5px 24px 5px 10px', background: primary, border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <select style={{ appearance: 'none', padding: '5px 24px 5px 10px', background: primary, border: 'none', borderRadius: 4, fontSize: 11, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
                 <option>Select Judge…</option><option>Judge 1</option><option>Judge 2</option>
               </select>
             </div>
@@ -58,7 +58,7 @@ const HEADER_TEMPLATES = [
     render: ({ primary, secondary, schoolLogo, portalName, schoolName, footerText, logoRadius }) => {
       const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
       return (
-        <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', fontFamily: 'inherit' }}>
+        <div style={{ borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)', fontFamily: 'inherit' }}>
           <div style={{ background: primary, padding: '0 14px', minHeight: 54, display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingRight: 12, borderRight: '1px solid rgba(255,255,255,0.18)', flexShrink: 0 }}>
               {schoolLogo ? <img src={schoolLogo} alt="logo" style={{ width: 28, height: 28, borderRadius: r, objectFit: 'cover' }} /> : <div style={{ width: 28, height: 28, borderRadius: r, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Building2 size={12} style={{ color: '#fff' }} /></div>}
@@ -73,7 +73,7 @@ const HEADER_TEMPLATES = [
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 12, borderLeft: '1px solid rgba(255,255,255,0.18)', flexShrink: 0 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: secondary }} />
-              <select style={{ appearance: 'none', padding: '6px 24px 6px 10px', background: 'rgba(255,255,255,0.14)', border: '1.5px solid rgba(255,255,255,0.25)', borderRadius: 7, fontSize: 11, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <select style={{ appearance: 'none', padding: '6px 24px 6px 10px', background: 'rgba(255,255,255,0.14)', border: '1.5px solid rgba(255,255,255,0.25)', borderRadius: 4, fontSize: 11, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
                 <option style={{ background: primary }}>Select Judge…</option><option style={{ background: primary }}>Judge 1</option>
               </select>
             </div>
@@ -93,7 +93,7 @@ const HEADER_TEMPLATES = [
       const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
       const wrapR = logoRadius >= 999 ? '50%' : `${Math.min((logoRadius || 0) + 4, 16)}px`;
       return (
-        <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', fontFamily: 'inherit' }}>
+        <div style={{ borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)', fontFamily: 'inherit' }}>
           <div style={{ height: 4, background: primary }} />
           <div style={{ background: 'var(--surface)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ flexShrink: 0, padding: 5, background: `${primary}12`, borderRadius: wrapR, border: `1.5px solid ${primary}30` }}>
@@ -109,7 +109,7 @@ const HEADER_TEMPLATES = [
             </div>
             <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
               <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text3)' }}>Judging As</div>
-              <select style={{ appearance: 'none', padding: '7px 28px 7px 12px', background: primary, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: 'inherit', boxShadow: `0 2px 8px ${primary}40` }}>
+              <select style={{ appearance: 'none', padding: '7px 28px 7px 12px', background: primary, border: 'none', borderRadius: 5, fontSize: 11, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: 'inherit', boxShadow: `0 2px 8px ${primary}40` }}>
                 <option>Select Judge…</option><option>Judge 1</option><option>Judge 2</option>
               </select>
             </div>

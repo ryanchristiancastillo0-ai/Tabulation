@@ -10,17 +10,17 @@ export default function StatusModal({ isOpen, title, message, type, onClose })  
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white w-full max-w-sm rounded-xl shadow-xl overflow-hidden border border-slate-200 transform animate-in zoom-in-95 duration-200">
+      <div className="relative bg-white w-full max-w-sm rounded-sm shadow-xl overflow-hidden border border-slate-200 transform animate-in zoom-in-95 duration-200">
         <div className="p-8 flex flex-col items-center text-center">
-          <div className={`mb-5 p-3 rounded-lg border ${current.accent}`}>{current.icon}</div>
+          <div className={`mb-5 p-3 rounded-sm border ${current.accent}`}>{current.icon}</div>
           <h3 className="text-lg font-bold text-slate-800 mb-1.5 tracking-tight">{title}</h3>
           <p className="text-sm text-slate-500 font-medium leading-relaxed mb-7">{message}</p>
           <div className="flex flex-col gap-2 w-full">
-            <a href='/judge/scoreboard' className={`w-full py-2.5 text-sm text-white font-semibold rounded-md shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 ${current.btn}`}>
+            <a href='/judge/scoreboard' className={`w-full py-2.5 text-sm text-white font-semibold rounded-sm shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 ${current.btn}`}>
              <ArrowRight size={15}/>
               View Scoreboard
             </a>
-            <button onClick={onClose} className="w-full py-2.5 text-sm text-slate-600 font-semibold rounded-md border border-slate-200 hover:bg-slate-50 transition-all active:scale-95">
+            <button onClick={onClose} className="w-full py-2.5 text-sm text-slate-600 font-semibold rounded-sm border border-slate-200 hover:bg-slate-50 transition-all active:scale-95">
               Close
             </button>
           </div>

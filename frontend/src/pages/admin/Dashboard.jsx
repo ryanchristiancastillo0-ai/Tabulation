@@ -41,7 +41,7 @@ function Dashboard() {
   const [portalName,     setPortalName]     = useState("");
   const [schoolLogo,     setSchoolLogo]     = useState("");
   const [backgroundLogo, setBackgroundLogo] = useState("");
-  const [primaryColor,   setPrimaryColor]   = useState("#22c55e");
+  const [primaryColor,   setPrimaryColor]   = useState("#40916C");
   const [secondaryColor, setSecondaryColor] = useState("#0f172a");
   const [footerText,     setFooterText]     = useState("");
   const [logoRadius,     setLogoRadius]     = useState(12);
@@ -96,7 +96,7 @@ function Dashboard() {
       if (data.portal_name     !== undefined) setPortalName(data.portal_name ?? "");
       if (data.school_logo     !== undefined) setSchoolLogo(data.school_logo ?? "");
       if (data.background_logo !== undefined) setBackgroundLogo(data.background_logo ?? "");
-      if (data.primary_color   !== undefined) setPrimaryColor(data.primary_color ?? "#22c55e");
+      if (data.primary_color   !== undefined) setPrimaryColor(data.primary_color ?? "#40916C");
       if (data.secondary_color !== undefined) setSecondaryColor(data.secondary_color ?? "#0f172a");
       if (data.footer_text     !== undefined) setFooterText(data.footer_text ?? "");
       if (data.logo_radius     !== undefined) setLogoRadius(Number(data.logo_radius ?? 12));
@@ -218,13 +218,13 @@ function Dashboard() {
             >
               <div className="min-w-0">
                 <div
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 bg-[var(--accent-lt)] text-[var(--accent)] border border-[var(--accent-bd)]"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-sm text-[10px] font-bold uppercase tracking-widest mb-2 bg-[var(--gold-lt)] text-[var(--gold)] border border-[var(--gold-bd)]"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-mid)]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)]" />
                   Admin Dashboard
                 </div>
                 <h1
-                  className={`font-extrabold mt-3 lg:mt-0 tracking-tight text-[var(--text1)] max-w-full ${
+                  className={`heading-serif mt-3 lg:mt-0 font-bold tracking-tight text-[var(--text1)] max-w-full ${
                     isMobile
                       ? "text-xl leading-tight line-clamp-2 whitespace-normal"
                       : "text-2xl leading-tight overflow-hidden text-ellipsis whitespace-nowrap"
@@ -232,6 +232,7 @@ function Dashboard() {
                 >
                   {contestName || "Competition Setup"}
                 </h1>
+                <div className="gold-rule mt-2.5" />
               </div>
 
               {/* Save button lives inline on desktop; on mobile it's a sticky bottom bar instead */}

@@ -17,7 +17,7 @@ export default function CardHeaderStrip({ primary, secondary, selectedJudge }) {
             animation:  'pulse 2s infinite',
           }}
         />
-        <span className="text-xs font-bold tracking-widest uppercase text-[#3c4a42]">
+        <span className="text-xs font-bold tracking-widest uppercase text-[#4B5A4D]">
           Scoring Terminal
         </span>
       </div>

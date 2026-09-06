@@ -10,8 +10,8 @@ export default function MobileDrawer({
   selectedJudge, judgeCount, updateJudge, isJudgeLocked,
   isOnline,
 }) {
-  const primary   = sysConfig.primary_color   || '#006c49';
-  const secondary = sysConfig.secondary_color || '#10b981';
+  const primary   = sysConfig.primary_color   || '#1B4332';
+  const secondary = sysConfig.secondary_color || '#2D6A4F';
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
@@ -59,7 +59,7 @@ export default function MobileDrawer({
           </div>
           <button
             onClick={onClose}
-            className="flex items-center justify-center rounded-lg w-8 h-8 transition-all active:scale-95"
+            className="flex items-center justify-center rounded-sm w-8 h-8 transition-all active:scale-95"
             style={{ background: 'rgba(255,255,255,0.15)' }}
             aria-label="Close menu"
           >
@@ -74,7 +74,7 @@ export default function MobileDrawer({
 
         <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-5">
           <div
-            className="rounded-xl p-4"
+            className="rounded-sm p-4"
             style={{ background: `${primary}10`, border: `1px solid ${primary}20` }}
           >
             <div className="flex items-center gap-2 mb-1.5">
@@ -83,7 +83,7 @@ export default function MobileDrawer({
                 Live Session
               </span>
             </div>
-            <div className="text-sm font-bold text-[#191c1e] leading-snug">
+            <div className="text-sm font-bold text-[#14201A] leading-snug">
               {contestName || 'Syncing contest…'}
             </div>
           </div>
@@ -112,7 +112,7 @@ export default function MobileDrawer({
           </div>
 
           <div
-            className="rounded-xl p-4"
+            className="rounded-sm p-4"
             style={{
               background: isOnline ? '#f0fdf4' : '#fef2f2',
               border:     `1px solid ${isOnline ? '#bbf7d0' : '#fecaca'}`,
@@ -122,7 +122,7 @@ export default function MobileDrawer({
               <div
                 className="w-2 h-2 rounded-full shrink-0"
                 style={{
-                  background: isOnline ? '#22c55e' : '#ef4444',
+                  background: isOnline ? '#40916C' : '#ef4444',
                   animation:  'pulse 2s infinite',
                 }}
               />
@@ -136,8 +136,8 @@ export default function MobileDrawer({
           </div>
 
           <div className="flex items-center gap-2 opacity-40 mt-auto pt-2">
-            <Shield size={11} className="text-[#3c4a42] shrink-0" />
-            <span className="text-[10px] font-bold tracking-wider uppercase text-[#3c4a42]">
+            <Shield size={11} className="text-[#4B5A4D] shrink-0" />
+            <span className="text-[10px] font-bold tracking-wider uppercase text-[#4B5A4D]">
               Encrypted · Secure Session
             </span>
           </div>

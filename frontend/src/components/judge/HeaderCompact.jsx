@@ -5,8 +5,8 @@ import {
 } from '../../components/judge/index'
 
 export default function HeaderCompact({ sysConfig, contestName, selectedJudge, judgeCount, updateJudge, isJudgeLocked }) {
-  const primary   = sysConfig.primary_color   || '#006c49';
-  const secondary = sysConfig.secondary_color || '#10b981';
+  const primary   = sysConfig.primary_color   || '#1B4332';
+  const secondary = sysConfig.secondary_color || '#2D6A4F';
   const logoRadius = sysConfig.logo_radius != null ? sysConfig.logo_radius : 12;
   const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
 

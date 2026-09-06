@@ -13,12 +13,12 @@ const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculat
     <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div className="section-heading" style={{ margin: 0 }}>Judge & Calculation Configuration</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 12, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 6, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
           <div style={{ width: 9, height: 9, borderRadius: '50%', background: isJudgeLocked ? 'var(--red)' : 'var(--accent-mid)', boxShadow: isJudgeLocked ? '0 0 0 3px rgba(190,18,60,0.15)' : '0 0 0 3px var(--accent-lt)', transition: 'all .3s' }} />
           <button
             onClick={toggleLock}
             disabled={lockLoading}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 9, border: isJudgeLocked ? 'none' : '1px solid var(--border)', background: lockLoading ? 'var(--surface2)' : isJudgeLocked ? '#be123c' : 'var(--surface)', color: lockLoading ? 'var(--text3)' : isJudgeLocked ? '#fff' : 'var(--text2)', fontWeight: 800, fontSize: 12, cursor: lockLoading ? 'not-allowed' : 'pointer', transition: 'all .2s', fontFamily: 'inherit' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 5, border: isJudgeLocked ? 'none' : '1px solid var(--border)', background: lockLoading ? 'var(--surface2)' : isJudgeLocked ? '#be123c' : 'var(--surface)', color: lockLoading ? 'var(--text3)' : isJudgeLocked ? '#fff' : 'var(--text2)', fontWeight: 800, fontSize: 12, cursor: lockLoading ? 'not-allowed' : 'pointer', transition: 'all .2s', fontFamily: 'inherit' }}
           >
             {lockLoading ? <Loader size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> : isJudgeLocked ? <Lock size={13} /> : <Unlock size={13} />}
             {lockLoading ? 'SAVING…' : isJudgeLocked ? 'JUDGES LOCKED' : 'LOCK JUDGES'}
@@ -27,12 +27,12 @@ const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculat
       </div>
 
       {lockError && (
-        <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 6, padding: '10px 14px', fontSize: 12, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8 }}>
           <AlertTriangle size={13} /> Failed to save: {lockError}
         </div>
       )}
 
-      <div style={{ background: isJudgeLocked ? '#fff1f2' : 'var(--accent-lt)', border: `1px solid ${isJudgeLocked ? '#fecdd3' : 'var(--accent-bd)'}`, borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, fontWeight: 600, color: isJudgeLocked ? '#dc2626' : 'var(--accent)', transition: 'all .3s' }}>
+      <div style={{ background: isJudgeLocked ? '#fff1f2' : 'var(--accent-lt)', border: `1px solid ${isJudgeLocked ? '#fecdd3' : 'var(--accent-bd)'}`, borderRadius: 6, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, fontWeight: 600, color: isJudgeLocked ? '#dc2626' : 'var(--accent)', transition: 'all .3s' }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: isJudgeLocked ? '#ef4444' : 'var(--accent-mid)', flexShrink: 0, animation: 'pulse 2s infinite' }} />
         {isJudgeLocked ? 'Judges are currently LOCKED — scoring is disabled on the judge portal.' : 'Judges are UNLOCKED — scoring is active on the judge portal.'}
       </div>
@@ -55,7 +55,7 @@ const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculat
           ].map(opt => {
             const active = calculationType === opt.id;
             return (
-              <div key={opt.id} onClick={() => setCalculationType(opt.id)} style={{ flex: 1, padding: 14, borderRadius: 12, cursor: 'pointer', transition: 'all .2s', border: `2px solid ${active ? 'var(--accent-mid)' : 'var(--border)'}`, background: active ? 'var(--accent-lt)' : 'var(--surface2)', boxShadow: active ? '0 0 0 3px var(--accent-lt)' : 'none' }}>
+              <div key={opt.id} onClick={() => setCalculationType(opt.id)} style={{ flex: 1, padding: 14, borderRadius: 6, cursor: 'pointer', transition: 'all .2s', border: `2px solid ${active ? 'var(--accent-mid)' : 'var(--border)'}`, background: active ? 'var(--accent-lt)' : 'var(--surface2)', boxShadow: active ? '0 0 0 3px var(--accent-lt)' : 'none' }}>
                 <div style={{ fontWeight: 800, color: active ? 'var(--accent)' : 'var(--text1)', fontSize: 14 }}>{opt.title}</div>
                 <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>{opt.desc}</div>
               </div>

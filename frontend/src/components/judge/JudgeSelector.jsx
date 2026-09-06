@@ -19,7 +19,7 @@ export default function JudgeSelector({ selectedJudge, judgeCount, updateJudge, 
         }}
         disabled={selectDisabled}
         title={selectDisabled ? 'Judge switching is locked by the administrator' : ''}
-        className="appearance-none rounded-lg font-bold outline-none transition-all"
+        className="appearance-none rounded-sm font-bold outline-none transition-all"
         style={{
           fontFamily:    'inherit',
           fontSize:      compact ? 13 : 14,
@@ -35,14 +35,14 @@ export default function JudgeSelector({ selectedJudge, judgeCount, updateJudge, 
           border:        darkBg
             ? '1.5px solid rgba(255,255,255,0.25)'
             : (selectDisabled ? '1.5px solid rgba(255,100,100,0.5)' : '1.5px solid rgba(255,255,255,0.4)'),
-          color:         darkBg ? '#fff' : (selectDisabled ? '#6b7280' : '#191c1e'),
+          color:         darkBg ? '#fff' : (selectDisabled ? '#6b7280' : '#14201A'),
           cursor:        selectDisabled ? 'not-allowed' : 'pointer',
           opacity:       selectDisabled ? 0.7 : 1,
         }}
       >
-        <option value="" style={{ color: '#191c1e' }}>Select Judge</option>
+        <option value="" style={{ color: '#14201A' }}>Select Judge</option>
         {Array.from({ length: judgeCount || 0 }, (_, i) => (
-          <option key={i + 1} value={i + 1} style={{ color: '#191c1e' }}>Judge {i + 1}</option>
+          <option key={i + 1} value={i + 1} style={{ color: '#14201A' }}>Judge {i + 1}</option>
         ))}
       </select>
       <div

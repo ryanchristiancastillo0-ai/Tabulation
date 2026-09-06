@@ -4,7 +4,7 @@ export default function RankingsTable({ rankings, compType }) {
   return (
     <table className="hidden md:table w-full text-left">
       <thead>
-        <tr className="bg-[#191c1e] text-white">
+        <tr className="bg-[#14201A] text-white">
           <th className="px-6 py-4 text-[10px] font-semibold uppercase tracking-widest w-20">Place</th>
           <th className="px-6 py-4 text-[10px] font-semibold uppercase tracking-widest">Contestant</th>
           <th className="px-6 py-4 text-center text-[10px] font-semibold uppercase tracking-widest">Score Total</th>
@@ -20,25 +20,25 @@ export default function RankingsTable({ rankings, compType }) {
             className={`transition-colors ${idx === 0 ? 'bg-amber-50 hover:bg-amber-100/60' : 'hover:bg-[#f0fdf6]'}`}
           >
             <td className="px-6 py-5">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm ${rankBadgeColor(idx)}`}>
+              <div className={`w-9 h-9 rounded-sm flex items-center justify-center font-bold text-sm ${rankBadgeColor(idx)}`}>
                 {idx + 1}
               </div>
             </td>
             <td className="px-6 py-5">
-              <div className="font-bold text-[#191c1e] text-base">{con.name}</div>
+              <div className="font-bold text-[#14201A] text-base">{con.name}</div>
               <div className="text-[10px] font-semibold text-[#9ca3af] uppercase tracking-widest mt-0.5">
                 Entry #{con.id}
               </div>
             </td>
             <td className="px-6 py-5 text-center">
-              <span className="font-mono font-bold text-[#191c1e]">
+              <span className="font-mono font-bold text-[#14201A]">
                 {con.total.toFixed(2)} pts
               </span>
             </td>
             <td className="px-6 py-5 text-right bg-[#f9fafb]">
               {compType === 'rank' ? (
                 <div className="flex flex-col items-end">
-                  <span className={`text-xl font-extrabold ${idx === 0 ? 'text-[#006c49]' : 'text-[#191c1e]'}`}>
+                  <span className={`text-xl font-extrabold ${idx === 0 ? 'text-[#1B4332]' : 'text-[#14201A]'}`}>
                     {getOrdinal(con.rankPosition)}
                   </span>
                   <span className="text-[9px] font-bold text-[#9ca3af] uppercase tracking-wider">
@@ -47,7 +47,7 @@ export default function RankingsTable({ rankings, compType }) {
                 </div>
               ) : (
                 <div className="flex flex-col items-end">
-                  <span className={`text-xl font-extrabold ${idx === 0 ? 'text-[#006c49]' : 'text-[#191c1e]'}`}>
+                  <span className={`text-xl font-extrabold ${idx === 0 ? 'text-[#1B4332]' : 'text-[#14201A]'}`}>
                     {con.total.toFixed(2)}%
                   </span>
                   <span className="text-[9px] font-bold text-[#9ca3af] uppercase tracking-wider">

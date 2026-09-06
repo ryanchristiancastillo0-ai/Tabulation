@@ -3,8 +3,8 @@ import { JudgeSelector } from '../../components/judge/index'
 
 
 export default function HeaderElevated({ sysConfig, contestName, selectedJudge, judgeCount, updateJudge, isJudgeLocked }) {
-  const primary   = sysConfig.primary_color   || '#006c49';
-  const secondary = sysConfig.secondary_color || '#10b981';
+  const primary   = sysConfig.primary_color   || '#1B4332';
+  const secondary = sysConfig.secondary_color || '#2D6A4F';
   const logoRadius = sysConfig.logo_radius != null ? sysConfig.logo_radius : 12;
   const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
   const wrapR = logoRadius >= 999 ? '50%' : `${Math.min((logoRadius || 0) + 4, 16)}px`;
@@ -42,7 +42,7 @@ export default function HeaderElevated({ sysConfig, contestName, selectedJudge, 
 
         {/* Portal / school name */}
         <div className="border-r border-gray-200 pr-4 shrink-0">
-          <div className="font-extrabold text-[13px] text-[#191c1e] leading-tight max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap">
+          <div className="font-extrabold text-[13px] text-[#14201A] leading-tight max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap">
             {sysConfig.portal_name || 'Veridict'}
           </div>
           <div className="text-[10px] text-gray-500 mt-0.5 max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap">
@@ -55,7 +55,7 @@ export default function HeaderElevated({ sysConfig, contestName, selectedJudge, 
           <div className="text-[9px] font-bold uppercase tracking-[0.1em] text-gray-500 mb-[3px]">
             Active Contest
           </div>
-          <div className="text-[13px] font-bold text-[#191c1e] overflow-hidden text-ellipsis whitespace-nowrap">
+          <div className="text-[13px] font-bold text-[#14201A] overflow-hidden text-ellipsis whitespace-nowrap">
             {contestName || 'Loading…'}
           </div>
         </div>

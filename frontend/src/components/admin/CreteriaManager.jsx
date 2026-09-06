@@ -158,7 +158,7 @@ export default function CriteriaManager({
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--border)',
-        borderRadius: 14,
+        borderRadius: 6,
         boxShadow: 'var(--shadow-sm)',
       }}
     >
@@ -192,7 +192,7 @@ export default function CriteriaManager({
                   border: `1.5px solid ${isActive ? 'var(--accent-mid)' : 'var(--accent-bd)'}`,
                   background: isActive ? 'var(--accent)' : 'var(--surface)',
                   color: isActive ? '#fff' : 'var(--accent)',
-                  boxShadow: isActive ? '0 2px 8px rgba(0,108,73,0.2)' : 'none',
+                  boxShadow: isActive ? '0 2px 8px rgba(27,67,50,0.2)' : 'none',
                 }}
                 onMouseEnter={e => {
                   if (!isActive) { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#fff'; }
@@ -211,7 +211,7 @@ export default function CriteriaManager({
         {/* Preview pills */}
         {activePreset && (
           <div style={{
-            padding: '8px 12px', borderRadius: 8,
+            padding: '8px 12px', borderRadius: 5,
             background: 'var(--surface)', border: '1px solid var(--accent-bd)',
             display: 'flex', flexWrap: 'wrap', gap: 6,
           }}>
@@ -315,7 +315,7 @@ export default function CriteriaManager({
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       width: 14, height: 14, borderRadius: '50%',
-                      background: 'rgba(0,108,73,0.15)',
+                      background: 'rgba(27,67,50,0.15)',
                       marginLeft: 2, flexShrink: 0,
                     }}
                   >
@@ -336,7 +336,7 @@ export default function CriteriaManager({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center"
+              className="w-9 h-9 rounded-sm flex items-center justify-center"
               style={{ background: 'var(--accent-lt)', color: 'var(--accent)', border: '1px solid var(--accent-bd)' }}
             >
               <LayoutGrid size={16} />
@@ -371,7 +371,7 @@ export default function CriteriaManager({
         {!isAdding ? (
           <button
             onClick={() => setIsAdding(true)}
-            className="w-full py-2.5 flex items-center justify-center gap-2 rounded-xl text-xs font-bold transition-all"
+            className="w-full py-2.5 flex items-center justify-center gap-2 rounded-sm text-xs font-bold transition-all"
             style={{ border: '1.5px dashed var(--accent-bd)', color: 'var(--accent)', background: 'transparent' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-lt)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
@@ -387,15 +387,15 @@ export default function CriteriaManager({
               value={newCrit}
               onChange={e => setNewCrit(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleInternalAdd()}
-              className="flex-1 px-3 py-2 rounded-lg text-sm outline-none transition-all"
+              className="flex-1 px-3 py-2 rounded-sm text-sm outline-none transition-all"
               style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', color: 'var(--text1)' }}
               onFocus={e => { e.target.style.borderColor = 'var(--accent-mid)'; e.target.style.boxShadow = '0 0 0 3px var(--accent-lt)'; }}
               onBlur={e => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
             />
             <button
               onClick={handleInternalAdd}
-              className="px-4 py-2 rounded-lg font-bold text-xs text-white transition-all"
-              style={{ background: 'var(--accent)', boxShadow: '0 2px 8px rgba(0,108,73,0.2)' }}
+              className="px-4 py-2 rounded-sm font-bold text-xs text-white transition-all"
+              style={{ background: 'var(--accent)', boxShadow: '0 2px 8px rgba(27,67,50,0.2)' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-mid)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent)'; }}
             >
@@ -403,7 +403,7 @@ export default function CriteriaManager({
             </button>
             <button
               onClick={() => setIsAdding(false)}
-              className="px-3 py-2 rounded-lg text-xs font-bold transition-all"
+              className="px-3 py-2 rounded-sm text-xs font-bold transition-all"
               style={{ color: 'var(--text3)', background: 'transparent' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
@@ -425,7 +425,7 @@ export default function CriteriaManager({
         {criteria.map((c) => (
           <div
             key={c.id}
-            className="flex items-center gap-4 p-3 rounded-xl transition-all"
+            className="flex items-center gap-4 p-3 rounded-sm transition-all"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-bd)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
@@ -446,7 +446,7 @@ export default function CriteriaManager({
                 type="number"
                 value={c.weight || ''}
                 onChange={e => updateField(c.id, 'weight', e.target.value)}
-                className="w-14 py-1 px-2 rounded-lg border text-right text-sm font-bold outline-none transition-all"
+                className="w-14 py-1 px-2 rounded-sm border text-right text-sm font-bold outline-none transition-all"
                 style={{ border: '1.5px solid var(--border)', background: 'var(--surface2)', color: 'var(--accent)' }}
                 onFocus={e => { e.target.style.borderColor = 'var(--accent-mid)'; e.target.style.boxShadow = '0 0 0 2px var(--accent-lt)'; }}
                 onBlur={e => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
@@ -454,7 +454,7 @@ export default function CriteriaManager({
               <span className="text-xs font-bold" style={{ color: 'var(--text3)' }}>%</span>
               <button
                 onClick={() => removeCriteria(c.id)}
-                className="ml-1 p-1.5 rounded-lg transition-all"
+                className="ml-1 p-1.5 rounded-sm transition-all"
                 style={{ color: 'var(--text3)' }}
                 onMouseEnter={e => { e.currentTarget.style.background = '#fff1f2'; e.currentTarget.style.color = '#be123c'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text3)'; }}

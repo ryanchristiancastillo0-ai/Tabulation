@@ -6,7 +6,7 @@
  const ScoringCard = memo(function ScoringCard({ tableHtml, loading, selectedJudge, primary, secondary }) {
   return (
     <div
-      className="bg-white rounded-xl sm:rounded-2xl overflow-hidden w-full"
+      className="bg-white rounded-sm sm:rounded-sm overflow-hidden w-full"
       style={{
         border:    `1px solid ${primary}20`,
         boxShadow: `0 4px 24px ${primary}15`,

@@ -13,7 +13,7 @@ export default function LoadingSpinner({ secondary }) {
           animation: 'spin 0.8s linear infinite',
         }}
       />
-      <p className="font-mono text-xs tracking-[0.18em] uppercase text-[#3c4a42]">
+      <p className="font-mono text-xs tracking-[0.18em] uppercase text-[#4B5A4D]">
         Building Interface…
       </p>
     </div>

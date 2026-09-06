@@ -109,12 +109,12 @@ function JudgeTable() {
 
   const tableHtml  = typeof dynamicUI === 'string' ? dynamicUI : dynamicUI?.html || '';
 
-  const primary   = sysConfig.primary_color   || '#006c49';
-  const secondary = sysConfig.secondary_color || '#10b981';
+  const primary   = sysConfig.primary_color   || '#1B4332';
+  const secondary = sysConfig.secondary_color || '#2D6A4F';
 
   return (
     <div
-      className="min-h-screen flex flex-col bg-[#f7f9fb] text-[#191c1e]"
+      className="min-h-screen flex flex-col bg-[#FBFCF9] text-[#14201A]"
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
       <GlobalStyles />

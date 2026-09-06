@@ -10,51 +10,44 @@ import ForgotPassword from './pages/Auth/Forgotpassword'
 import CreateSchoolForm from './pages/school/SchoolForm';
 import { ContestProvider } from './providers/ContestContext';
 
-/**
- * ── ADMIN PROTECTION GUARD ──
- * This acts as the "Bouncer." If no token is found, 
- * it kicks the user back to the login page.
- */
 const AdminProtectedRoute = () => {
   const token = localStorage.getItem('adminToken');
-  
-  // Strict check: if token is null, undefined, or empty string
   if (!token || token === "undefined") {
     return <Navigate to="/login" replace />;
   }
-
   return <Outlet />;
 };
 
+// Wraps only the routes that need live contest/judge-lock state
+const ContestScope = () => (
+  <ContestProvider pollInterval={10000}>
+    <Outlet />
+  </ContestProvider>
+);
+
 export default function App() {
   return (
- <ContestProvider pollInterval={10000}>
-     <Routes>
-      {/* ── PUBLIC ROUTES ── */}
+    <Routes>
+      {/* ── PUBLIC ROUTES (no polling) ── */}
       <Route path='/' element={<Home />} />
       <Route path='/login' element={<AdminLogin />} />
       <Route path='/forgot-password' element={<ForgotPassword />} />
-      
-      {/* ── PROTECTED ADMIN ROUTES ── */}
-      {/* Everything inside this group requires 'adminToken' */}
-      <Route element={<AdminProtectedRoute />}>
-        {/* We use /admin as the main entry point */}
-        <Route path='/admin' element={<Dashboard />} />
-        {/* Added /admin/dashboard to match your LoginForm's navigate() */}
-        <Route path='/admin/dashboard' element={<Dashboard />} />
-        <Route path='/admin/leaderboard' element={<LeaderBoard />} />
-      </Route>
+      <Route path='/school' element={<CreateSchoolForm/>} />
 
-      {/* ── JUDGE ROUTES ── */}
-      <Route path='/judge' element={<JudgeTable />} />
-      <Route path='/judge/scoreboard' element={<JudgeScoreboard />} />
-      
-      {/* School  */}
-       <Route path='/school' element={<CreateSchoolForm/>} />
+      {/* ── EVERYTHING THAT NEEDS CONTEST STATE ── */}
+      <Route element={<ContestScope />}>
+        <Route element={<AdminProtectedRoute />}>
+          <Route path='/admin' element={<Dashboard />} />
+          <Route path='/admin/dashboard' element={<Dashboard />} />
+          <Route path='/admin/leaderboard' element={<LeaderBoard />} />
+        </Route>
+
+        <Route path='/judge' element={<JudgeTable />} />
+        <Route path='/judge/scoreboard' element={<JudgeScoreboard />} />
+      </Route>
 
       {/* ── 404 CATCH-ALL ── */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
- </ContestProvider>
   );
 }

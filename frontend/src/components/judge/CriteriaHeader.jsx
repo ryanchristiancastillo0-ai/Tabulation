@@ -9,7 +9,7 @@ export default function CriteriaHeader({ criteria, primary, secondary }) {
 
   return (
     <div
-      className="w-full rounded-xl sm:rounded-2xl mb-4 sm:mb-7 overflow-hidden"
+      className="w-full rounded-sm sm:rounded-sm mb-4 sm:mb-7 overflow-hidden"
       style={{
         background: '#fff',
         border:     `1px solid ${primary}25`,
@@ -45,7 +45,7 @@ export default function CriteriaHeader({ criteria, primary, secondary }) {
             fontWeight:    800,
             letterSpacing: '0.14em',
             textTransform: 'uppercase',
-            color:         '#3c4a42',
+            color:         '#4B5A4D',
           }}
         >
           Scoring Criteria
@@ -76,7 +76,7 @@ export default function CriteriaHeader({ criteria, primary, secondary }) {
               style={{
                 background:   `linear-gradient(180deg, #fff, ${primary}04)`,
                 border:       `1px solid ${primary}10`,
-                borderRadius: 12,
+                borderRadius: 6,
                 padding:      '11px 14px',
               }}
             >
@@ -87,7 +87,7 @@ export default function CriteriaHeader({ criteria, primary, secondary }) {
                     flexShrink:   0,
                     width:        30,
                     height:       30,
-                    borderRadius: 9,
+                    borderRadius: 5,
                     display:      'flex',
                     alignItems:   'center',
                     justifyContent: 'center',
@@ -107,7 +107,7 @@ export default function CriteriaHeader({ criteria, primary, secondary }) {
                   style={{
                     fontSize:   13,
                     fontWeight: 600,
-                    color:      '#191c1e',
+                    color:      '#14201A',
                     minWidth:   0,
                     overflow:   'hidden',
                     textOverflow: 'ellipsis',
@@ -215,7 +215,7 @@ export default function CriteriaHeader({ criteria, primary, secondary }) {
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9ca3af' }}>
             Total Weight
           </div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: '#191c1e', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: '#14201A', fontVariantNumeric: 'tabular-nums' }}>
             {roundedTotal}%
           </div>
         </div>

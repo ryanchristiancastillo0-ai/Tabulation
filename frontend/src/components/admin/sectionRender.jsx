@@ -46,7 +46,7 @@ export const MobileNavDrawer = ({ isOpen, onClose, activeNav, setActiveNav, navI
           <span className="font-extrabold text-[15px] text-[var(--accent)]">Navigation</span>
           <button
             onClick={onClose}
-            className="w-[30px] h-[30px] rounded-lg border-none bg-[var(--surface)] cursor-pointer flex items-center justify-center text-[var(--text2)]"
+            className="w-[30px] h-[30px] rounded-sm border-none bg-[var(--surface)] cursor-pointer flex items-center justify-center text-[var(--text2)]"
           >
             <X size={16} />
           </button>
@@ -60,13 +60,13 @@ export const MobileNavDrawer = ({ isOpen, onClose, activeNav, setActiveNav, navI
               <button
                 key={item.id}
                 onClick={() => { setActiveNav(item.id); onClose(); }}
-                className={`w-full flex items-center gap-3 px-3.5 py-[11px] rounded-xl border-none mb-0.5
+                className={`w-full flex items-center gap-3 px-3.5 py-[11px] rounded-sm border-none mb-0.5
                   cursor-pointer font-[inherit] text-sm transition-all duration-150
                   ${isActive
                     ? 'bg-[var(--accent-lt)] text-[var(--accent)] font-bold'
                     : 'bg-transparent text-[var(--text2)] font-medium'}`}
               >
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0
+                <div className={`w-7 h-7 rounded-sm flex items-center justify-center shrink-0
                   ${isActive
                     ? 'bg-[var(--accent-bd)] text-[var(--accent)]'
                     : 'bg-[var(--surface2)] text-[var(--text3)]'}`}
@@ -88,11 +88,11 @@ export const MobileNavDrawer = ({ isOpen, onClose, activeNav, setActiveNav, navI
           {/* Leaderboard */}
           <button
             onClick={() => { navigate('/admin/leaderboard'); onClose(); }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm border border-transparent
               bg-transparent text-[var(--text2)] text-sm font-semibold cursor-pointer font-[inherit]
               transition-all duration-150 hover:bg-[#fff1f2] hover:text-[#be123c] hover:border-[#fecdd3]"
           >
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[var(--surface2)]">
+            <div className="w-7 h-7 rounded-sm flex items-center justify-center shrink-0 bg-[var(--surface2)]">
               <TrophyIcon size={15} />
             </div>
             Leaderboard
@@ -101,11 +101,11 @@ export const MobileNavDrawer = ({ isOpen, onClose, activeNav, setActiveNav, navI
           {/* Sign Out */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm border border-transparent
               bg-transparent text-[var(--text2)] text-sm font-semibold cursor-pointer font-[inherit]
               transition-all duration-150 hover:bg-[#fff1f2] hover:text-[#be123c] hover:border-[#fecdd3]"
           >
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[var(--surface2)]">
+            <div className="w-7 h-7 rounded-sm flex items-center justify-center shrink-0 bg-[var(--surface2)]">
               <LogOut size={15} />
             </div>
             Sign Out
@@ -114,7 +114,7 @@ export const MobileNavDrawer = ({ isOpen, onClose, activeNav, setActiveNav, navI
           {/* Dark / Light toggle */}
           <button
             onClick={() => setDark(!dark)}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-sm
               border border-[var(--border)] bg-[var(--surface2)] text-[var(--text2)]
               text-sm font-medium cursor-pointer font-[inherit]"
           >

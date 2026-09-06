@@ -67,19 +67,19 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
           onError={(e) => { e.currentTarget.style.display = "none"; }}
         />
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text1)", letterSpacing: "-0.01em" }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text1)", letterSpacing: "-0.01em", fontFamily: "var(--font-serif)" }}>
             {portalName}
           </div>
-          <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text3)", fontFamily: "var(--font-mono)" }}>
-            Admin v1.2
+          <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "#C9A227" }}>
+            Administrator
           </div>
         </div>
       </div>
 
       {/* ── Badge pill ── */}
       <div style={{ padding: "12px 20px" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 999, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", background: "var(--accent-lt)", color: "var(--accent)", border: "1px solid var(--accent-bd)" }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent-mid)", animation: "pulse 2s infinite" }} />
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 999, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", background: "var(--gold-lt)", color: "var(--gold)", border: "1px solid var(--gold-bd)" }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--gold)", animation: "pulse 2s infinite" }} />
           Administrator
         </div>
       </div>
@@ -94,7 +94,7 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
               onClick={() => setActiveNav(item.id)}
               style={{
                 width: "100%", display: "flex", alignItems: "center", gap: 12,
-                padding: "10px 12px", borderRadius: 12, border: active ? "1px solid var(--accent-bd)" : "1px solid transparent",
+                padding: "10px 12px", borderRadius: 6, border: active ? "1px solid var(--accent-bd)" : "1px solid transparent",
                 background: active ? "var(--accent-lt)" : "transparent",
                 color: active ? "var(--accent)" : "var(--text2)",
                 fontSize: 14, fontWeight: 600, cursor: "pointer",
@@ -103,7 +103,7 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
               onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = "var(--surface2)"; e.currentTarget.style.color = "var(--text1)"; } }}
               onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text2)"; } }}
             >
-              <div style={{ width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: active ? "var(--accent-bd)" : "var(--surface2)", color: active ? "var(--accent)" : "var(--text3)" }}>
+              <div style={{ width: 28, height: 28, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: active ? "var(--accent-bd)" : "var(--surface2)", color: active ? "var(--accent)" : "var(--text3)" }}>
                 {item.icon}
               </div>
               {item.label}
@@ -116,11 +116,11 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
       <div style={{ borderTop: "1px solid var(--border)", padding: "12px 12px 8px" }}>
         <button
           onClick={handleLogout}
-          style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 12, border: "1px solid transparent", background: "transparent", color: "var(--text2)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 6, border: "1px solid transparent", background: "transparent", color: "var(--text2)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "#fff1f2"; e.currentTarget.style.color = "#be123c"; e.currentTarget.style.borderColor = "#fecdd3"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text2)"; e.currentTarget.style.borderColor = "transparent"; }}
         >
-          <div style={{ width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "var(--surface2)" }}>
+          <div style={{ width: 28, height: 28, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "var(--surface2)" }}>
             <LogOut size={15} />
           </div>
           Sign Out
@@ -131,11 +131,11 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
       <div style={{ padding: "0 12px 8px" }}>
         <button
           onClick={() => navigate("/admin/leaderboard")}
-          style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 12, border: "1px solid transparent", background: "transparent", color: "var(--text2)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 6, border: "1px solid transparent", background: "transparent", color: "var(--text2)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "#fff1f2"; e.currentTarget.style.color = "#be123c"; e.currentTarget.style.borderColor = "#fecdd3"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text2)"; e.currentTarget.style.borderColor = "transparent"; }}
         >
-          <div style={{ width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "var(--surface2)" }}>
+          <div style={{ width: 28, height: 28, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "var(--surface2)" }}>
             <TrophyIcon size={15} />
           </div>
           Leaderboard
@@ -146,7 +146,7 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
       <div style={{ padding: "0 12px 16px" }}>
         <button
           onClick={() => setDark(!dark)}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 12, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", fontSize: 14, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", fontSize: 14, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
         >
           <span>{dark ? "Dark Mode" : "Light Mode"}</span>
           {dark ? <Moon size={15} style={{ color: "var(--accent)" }} /> : <Sun size={15} style={{ color: "var(--accent)" }} />}

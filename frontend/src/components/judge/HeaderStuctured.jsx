@@ -10,8 +10,8 @@ import {
 } from '../../components/judge/index'
 
 export default function HeaderStructured({ sysConfig, contestName, selectedJudge, judgeCount, updateJudge, isJudgeLocked }) {
-  const primary   = sysConfig.primary_color   || '#006c49';
-  const secondary = sysConfig.secondary_color || '#10b981';
+  const primary   = sysConfig.primary_color   || '#1B4332';
+  const secondary = sysConfig.secondary_color || '#2D6A4F';
   const logoRadius = sysConfig.logo_radius != null ? sysConfig.logo_radius : 12;
   const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
 
@@ -82,7 +82,7 @@ export default function HeaderStructured({ sysConfig, contestName, selectedJudge
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7280', marginBottom: 2 }}>
             Active Contest
           </div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#191c1e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#14201A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {contestName || 'Loading…'}
           </div>
         </div>

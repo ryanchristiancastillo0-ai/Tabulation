@@ -39,7 +39,7 @@ const OverviewSection = ({
           }} />
         ) : (
           <div style={{
-            width: 46, height: 46, borderRadius: 12, flexShrink: 0,
+            width: 46, height: 46, borderRadius: 6, flexShrink: 0,
             background: 'var(--accent-lt)', border: '1.5px solid var(--accent-bd)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
@@ -73,8 +73,8 @@ const OverviewSection = ({
           icon: <PieChart size={16} />,
         },
       ].map(s => (
-        <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 14, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: '#fff', border: `1px solid ${s.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color }}>
+        <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 6, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 5, background: '#fff', border: `1px solid ${s.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color }}>
             {s.icon}
           </div>
           <div>
@@ -88,7 +88,7 @@ const OverviewSection = ({
     {/* Quick Summary */}
     <div style={card}>
       <div className="flex items-center gap-2 mb-4">
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--accent-lt)', border: '1px solid var(--accent-bd)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 28, height: 28, borderRadius: 5, background: 'var(--accent-lt)', border: '1px solid var(--accent-bd)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <LayoutDashboard size={14} style={{ color: 'var(--accent)' }} />
         </div>
         <span className="section-heading" style={{ margin: 0 }}>Quick Summary</span>
@@ -102,7 +102,7 @@ const OverviewSection = ({
           { label: 'AI Prompt', icon: <Sparkles size={12} />, value: <span style={{ color: aiPrompt ? 'var(--accent-mid)' : 'var(--red)', fontWeight: 600, fontSize: 12 }}>{aiPrompt ? '✓ Configured' : '✗ Not set'}</span> },
           { label: 'Judge Access', icon: <ShieldCheck size={12} />, value: <span className={`badge ${isJudgeLocked ? 'badge-red' : 'badge-green'}`}>{isJudgeLocked ? 'Locked' : 'Open'}</span> },
         ].map(({ label, icon, value }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: 'var(--surface2)', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 6, background: 'var(--surface2)', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--text3)', fontWeight: 600, minWidth: 100, fontSize: 12 }}>
               <span style={{ opacity: 0.7 }}>{icon}</span>
               {label}
@@ -116,7 +116,7 @@ const OverviewSection = ({
     {/* Danger Zone */}
     <div style={{ ...card, border: '1px solid #fecdd3', background: '#fff1f2', padding: '16px 20px' }}>
       <div className="flex items-center gap-2 mb-3">
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: '#ffe4e6', border: '1px solid #fecdd3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 28, height: 28, borderRadius: 5, background: '#ffe4e6', border: '1px solid #fecdd3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <AlertTriangle size={14} style={{ color: '#be123c' }} />
         </div>
         <span className="section-heading" style={{ margin: 0, color: '#9f1239' }}>Danger Zone</span>
@@ -128,7 +128,7 @@ const OverviewSection = ({
         </div>
         <button
           onClick={() => setShowDeleteModal(true)}
-          style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: '#be123c', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0 }}
+          style={{ padding: '9px 16px', borderRadius: 6, border: 'none', background: '#be123c', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0 }}
           onMouseEnter={e => { e.currentTarget.style.background = '#9f1239'; }}
           onMouseLeave={e => { e.currentTarget.style.background = '#be123c'; }}
         >
@@ -140,7 +140,7 @@ const OverviewSection = ({
     {/* Scoring Criteria list */}
     <div style={card}>
       <div className="flex items-center gap-2 mb-4">
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--accent-lt)', border: '1px solid var(--accent-bd)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 28, height: 28, borderRadius: 5, background: 'var(--accent-lt)', border: '1px solid var(--accent-bd)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <ListChecks size={14} style={{ color: 'var(--accent)' }} />
         </div>
         <span className="section-heading" style={{ margin: 0 }}>Scoring Criteria</span>
@@ -148,8 +148,8 @@ const OverviewSection = ({
       </div>
       <div className="flex flex-col gap-2">
         {criteria.map(c => (
-          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: 'var(--surface2)', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
-            <div style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--accent-lt)', border: '1px solid var(--accent-bd)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 6, background: 'var(--surface2)', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
+            <div style={{ width: 26, height: 26, borderRadius: 4, background: 'var(--accent-lt)', border: '1px solid var(--accent-bd)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Star size={12} style={{ color: 'var(--accent)' }} />
             </div>
             <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text1)', minWidth: 80 }}>{c.name}</div>

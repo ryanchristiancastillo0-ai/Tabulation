@@ -1,53 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800&family=Fira+Code:wght@400;500&display=swap');
 @import "tailwindcss";
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; }
 
 body { font-family: 'Inter', sans-serif; }
 
-/* ── Lumina Light Tokens ── */
+/* ── Editorial headings (Playfair serif) ── */
+.heading-serif {
+  font-family: var(--font-serif);
+}
+
+/* Gold editorial rule — used under page titles like Home/Login */
+.gold-rule {
+  width: 44px; height: 3px;
+  background: var(--gold);
+  border-radius: 2px;
+}
+
+/* ── Editorial Green & Gold Light Tokens ── */
 :root {
-  --bg:        #f7f9fb;
+  --bg:        #FBFCF9;
   --surface:   #ffffff;
-  --surface2:  #f2f4f6;
-  --border:    #e0e3e5;
-  --text1:     #191c1e;
-  --text2:     #3c4a42;
-  --text3:     #6c7a71;
-  --accent:    #006c49;
-  --accent-lt: rgba(16,185,129,0.08);
-  --accent-bd: rgba(16,185,129,0.25);
-  --accent-mid: #10b981;
+  --surface2:  #F3F6F1;
+  --border:    #E1E8DE;
+  --text1:     #14201A;
+  --text2:     #4B5A4D;
+  --text3:     #6C7A71;
+  --accent:    #1B4332;
+  --accent-lt: rgba(27,67,50,0.10);
+  --accent-bd: rgba(27,67,50,0.22);
+  --accent-mid: #2D6A4F;
+  --gold:      #C9A227;
+  --gold-lt:   rgba(201,162,39,0.14);
+  --gold-bd:   rgba(201,162,39,0.35);
   --red:       #be123c;
   --red-lt:    #fff1f2;
-  --green:     #006c49;
-  --green-lt:  rgba(16,185,129,0.08);
+  --green:     #1B4332;
+  --green-lt:  rgba(27,67,50,0.10);
   --amber:     #b45309;
   --amber-lt:  #fffbeb;
-  --shadow-sm: 0 1px 3px rgba(30,41,59,0.05), 0 1px 2px rgba(30,41,59,0.03);
-  --shadow-md: 0 8px 40px rgba(30,41,59,0.07);
-  --radius:    12px;
+  --shadow-sm: 0 1px 3px rgba(20,32,26,0.06), 0 1px 2px rgba(20,32,26,0.04);
+  --shadow-md: 0 10px 40px rgba(20,32,26,0.10);
+  --radius:    6px;
+  --font-serif: 'Playfair Display', Georgia, serif;
   --font-mono: 'Fira Code', monospace;
 }
 
-/* ── Lumina Dark Tokens — neutral black, green kept only as accent ── */
+/* ── Deep Forest Dark Tokens — dark green-black, gold accents ── */
 .dark {
-  --bg:        #0a0a0a;
-  --surface:   #141414;
-  --surface2:  #1c1c1c;
-  --border:    #2a2a2a;
-  --text1:     #f5f5f5;
-  --text2:     #a3a3a3;
-  --text3:     #6b6b6b;
-  --accent:    #22c55e;
-  --accent-lt: rgba(34,197,94,0.1);
-  --accent-bd: rgba(34,197,94,0.28);
-  --accent-mid: #16a34a;
+  --bg:        #0B0F0C;
+  --surface:   #131A15;
+  --surface2:  #1B241D;
+  --border:    #26312B;
+  --text1:     #F4F6F4;
+  --text2:     #A4B1A8;
+  --text3:     #6B7A71;
+  --accent:    #40916C;
+  --accent-lt: rgba(64,145,108,0.16);
+  --accent-bd: rgba(64,145,108,0.35);
+  --accent-mid: #52B788;
+  --gold:      #D4AF37;
+  --gold-lt:   rgba(212,175,55,0.16);
+  --gold-bd:   rgba(212,175,55,0.4);
   --red:       #f87171;
   --red-lt:    #2a1414;
-  --green:     #4ade80;
-  --green-lt:  rgba(34,197,94,0.1);
+  --green:     #52B788;
+  --green-lt:  rgba(64,145,108,0.16);
   --amber:     #fbbf24;
   --amber-lt:  #221c0a;
   --shadow-sm: 0 1px 3px rgba(0,0,0,.4);
@@ -78,7 +96,7 @@ body { font-family: 'Inter', sans-serif; }
 .sidebar-logo-icon {
   width: 32px; height: 32px;
   background: var(--accent);
-  border-radius: 8px;
+  border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-weight: 800; font-size: 14px;
 }
@@ -87,7 +105,7 @@ body { font-family: 'Inter', sans-serif; }
 .nav-link {
   display: flex; align-items: center; gap: 10px;
   padding: 9px 12px;
-  border-radius: 10px;
+  border-radius: 6px;
   font-size: 13px; font-weight: 500;
   color: var(--text2);
   cursor: pointer;
@@ -124,7 +142,7 @@ body { font-family: 'Inter', sans-serif; }
   width: 100%;
   background: var(--surface2);
   border: 1.5px solid var(--border);
-  border-radius: 10px;
+  border-radius: 6px;
   padding: 10px 13px;
   font-family: 'Inter', sans-serif;
   font-size: 13.5px;
@@ -143,7 +161,7 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
 /* ── Badges ── */
 .badge {
   display: inline-flex; align-items: center;
-  padding: 2px 9px; border-radius: 100px;
+  padding: 2px 9px; border-radius: 6px;
   font-size: 11px; font-weight: 600;
   font-family: var(--font-mono);
 }
@@ -157,13 +175,13 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
   background: var(--accent);
   color: #fff;
   border: none; cursor: pointer;
-  border-radius: 10px;
+  border-radius: 6px;
   padding: 10px 18px;
   font-family: 'Inter', sans-serif;
   font-size: 13px; font-weight: 600;
   transition: background .15s, transform .1s;
   display: inline-flex; align-items: center; gap: 6px;
-  box-shadow: 0 4px 14px rgba(0,108,73,0.2);
+  box-shadow: 0 4px 14px rgba(27,67,50,0.25);
 }
 .btn-primary:hover { background: var(--accent-mid); }
 .btn-primary:active { transform: scale(.97); }
@@ -173,7 +191,7 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
   color: var(--text2);
   border: 1.5px solid var(--border);
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: 6px;
   padding: 8px 14px;
   font-family: 'Inter', sans-serif;
   font-size: 13px; font-weight: 500;
@@ -186,7 +204,7 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
   background: var(--red-lt);
   color: var(--red);
   border: 1.5px solid #fecdd3;
-  cursor: pointer; border-radius: 8px;
+  cursor: pointer; border-radius: 6px;
   padding: 6px 10px; font-size: 12px; font-weight: 600;
   transition: background .15s;
   font-family: 'Inter', sans-serif;
@@ -198,7 +216,7 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
   width: 34px; height: 34px;
   background: var(--surface2);
   border: 1.5px solid var(--border);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--text1);
   font-size: 18px;
   cursor: pointer;
@@ -254,9 +272,9 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
   background: var(--accent);
   color: #fff;
   padding: 12px 20px;
-  border-radius: 10px;
+  border-radius: 6px;
   font-size: 13px; font-weight: 600;
-  box-shadow: 0 8px 24px rgba(0,108,73,.35);
+  box-shadow: 0 8px 24px rgba(27,67,50,.35);
   display: flex; align-items: center; gap: 8px;
   z-index: 1000;
 }
@@ -312,7 +330,7 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
 .terminal-header {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 6px;
   box-shadow: var(--shadow-sm);
   transition: box-shadow 0.2s ease;
 }
@@ -345,7 +363,7 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
   appearance: none;
   background: var(--surface2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236c7a71' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 14px center;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 6px;
   padding: 10px 40px 10px 16px;
   font-size: 14px; font-weight: 600;
   color: var(--text1);
@@ -364,7 +382,7 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
 .terminal-panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 6px;
   box-shadow: var(--shadow-sm);
 }
 .terminal-panel-bar {
@@ -393,13 +411,13 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
   position: relative;
   background: var(--accent);
   color: white;
-  border: none; border-radius: 12px;
+  border: none; border-radius: 6px;
   padding: 14px 64px;
   font-size: 14px; font-weight: 700;
   letter-spacing: 0.06em; text-transform: uppercase;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
-  box-shadow: 0 4px 16px rgba(0,108,73,0.25);
+  box-shadow: 0 4px 16px rgba(27,67,50,0.25);
   overflow: hidden;
 }
 .submit-btn::after {

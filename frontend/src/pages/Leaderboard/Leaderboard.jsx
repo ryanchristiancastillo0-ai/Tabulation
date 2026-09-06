@@ -21,8 +21,8 @@ function getSchoolIdFromToken() {
 }
 
 const DEFAULT_FS_CONFIG = {
-  bgColor:      '#0a1628',
-  accentColor:  '#006c49',
+  bgColor:      '#1B4332',
+  accentColor:  '#1B4332',
   textColor:    '#ffffff',
   titleText:    '',
   subtitleText: '',
@@ -247,7 +247,7 @@ const LeaderBoard = () => {
   }
 
   return (
-    <div className="bg-[#f7f9fb] min-h-screen font-['Inter',sans-serif] text-[#191c1e]">
+    <div className="bg-[#FBFCF9] min-h-screen font-['Inter',sans-serif] text-[#14201A]">
       <NavBar />
       <HeroBanner contestName={contestName} isRankMode={isRankMode} />
 

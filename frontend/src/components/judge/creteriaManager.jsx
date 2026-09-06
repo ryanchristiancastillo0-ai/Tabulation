@@ -21,7 +21,7 @@ const CriteriaManager = () => {
 
         <div className="p-8">
           {/* Input Row */}
-          <div className="flex gap-4 mb-8 bg-slate-50 p-6 rounded-2xl border border-dashed border-slate-200">
+          <div className="flex gap-4 mb-8 bg-slate-50 p-6 rounded-sm border border-dashed border-slate-200">
             <div className="flex-1">
               <label className="block text-[10px] font-bold uppercase text-slate-400 mb-2">Criterion Name</label>
               <input 
@@ -29,7 +29,7 @@ const CriteriaManager = () => {
                 placeholder="e.g. Stage Presence"
                 value={newCriterion.name}
                 onChange={(e) => setNewCriterion({...newCriterion, name: e.target.value})}
-                className="w-full p-3 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                className="w-full p-3 rounded-sm border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
               />
             </div>
             <div className="w-32">
@@ -39,19 +39,19 @@ const CriteriaManager = () => {
                 placeholder="0"
                 value={newCriterion.percentage}
                 onChange={(e) => setNewCriterion({...newCriterion, percentage: e.target.value})}
-                className="w-full p-3 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                className="w-full p-3 rounded-sm border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
               />
             </div>
             <button 
               onClick={addCriterion}
-              className="mt-6 p-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-100 transition-all active:scale-95"
+              className="mt-6 p-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-sm shadow-lg shadow-indigo-100 transition-all active:scale-95"
             >
               <Plus size={20} />
             </button>
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-rose-50 text-rose-600 rounded-xl flex items-center gap-2 text-sm font-bold">
+            <div className="mb-6 p-4 bg-rose-50 text-rose-600 rounded-sm flex items-center gap-2 text-sm font-bold">
               <AlertCircle size={18} /> {error}
             </div>
           )}
@@ -59,7 +59,7 @@ const CriteriaManager = () => {
           {/* Criteria Table */}
           <div className="space-y-3">
             {criteria.map((c) => (
-              <div key={c.id} className="flex items-center justify-between p-5 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-indigo-200 transition-colors">
+              <div key={c.id} className="flex items-center justify-between p-5 bg-white border border-slate-100 rounded-sm shadow-sm hover:border-indigo-200 transition-colors">
                 <div>
                   <h3 className="font-bold text-slate-800">{c.name}</h3>
                   <p className="text-xs text-slate-400 font-medium uppercase tracking-widest">Maximum Score: {c.percentage} pts</p>

@@ -128,7 +128,7 @@ function resolveColor(el, prop) {
 
     // If still unsupported, fall back to white/black
     if (!resolved || /oklab|oklch|color-mix/.test(resolved)) {
-      return prop === 'color' ? '#191c1e' : '#ffffff';
+      return prop === 'color' ? '#14201A' : '#ffffff';
     }
     return resolved;
   } catch {

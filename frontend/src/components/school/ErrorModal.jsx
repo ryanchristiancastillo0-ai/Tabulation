@@ -10,7 +10,7 @@ export default function ErrorModal({ message, onClose }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl border border-rose-200 p-10 max-w-sm w-full text-center shadow-2xl animate-[slideUp_.2s_ease]"
+        className="bg-white rounded-sm border border-rose-200 p-10 max-w-sm w-full text-center shadow-2xl animate-[slideUp_.2s_ease]"
       >
         <div className="w-15 h-15 rounded-full bg-rose-50 border-2 border-rose-200 flex items-center justify-center mx-auto mb-5">
           <AlertCircle size={26} className="text-red-600" />
@@ -19,7 +19,7 @@ export default function ErrorModal({ message, onClose }) {
         <p className="text-sm text-slate-600 leading-relaxed mb-6">{message}</p>
         <button
           onClick={onClose}
-          className="w-full py-2.5 rounded-xl border-none bg-red-600 hover:bg-red-700 text-white text-sm font-bold cursor-pointer font-[inherit] flex items-center justify-center gap-2 transition-colors duration-150"
+          className="w-full py-2.5 rounded-sm border-none bg-red-600 hover:bg-red-700 text-white text-sm font-bold cursor-pointer font-[inherit] flex items-center justify-center gap-2 transition-colors duration-150"
         >
           <X size={15} /> Dismiss
         </button>

@@ -40,7 +40,7 @@ function ColorField({ label, value, onChange }) {
           type="color"
           value={local}
           onChange={handleChange}
-          className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent"
+          className="w-8 h-8 rounded-sm cursor-pointer border-0 bg-transparent"
         />
         <span className="text-xs font-mono text-white/50">{local}</span>
       </div>
@@ -59,7 +59,7 @@ function TextField({ label, value, onChange, placeholder }) {
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="bg-white/10 border border-white/15 text-white text-xs font-medium px-3 py-2 rounded-lg placeholder:text-white/25 focus:outline-none focus:border-white/30 w-full"
+        className="bg-white/10 border border-white/15 text-white text-xs font-medium px-3 py-2 rounded-sm placeholder:text-white/25 focus:outline-none focus:border-white/30 w-full"
       />
     </div>
   );
@@ -97,7 +97,7 @@ export default function FullscreenView({
 
       {/* Customize Panel */}
       {showPanel && (
-        <div className="relative z-10 mx-4 sm:mx-10 lg:mx-16 mt-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+        <div className="relative z-10 mx-4 sm:mx-10 lg:mx-16 mt-4 rounded-sm border border-white/10 bg-white/5 backdrop-blur-sm p-5">
           <div className="flex items-center justify-between mb-4">
             <p
               className="text-[11px] font-black tracking-[0.15em] uppercase"
@@ -108,11 +108,11 @@ export default function FullscreenView({
             <button
               onClick={onSave}
               disabled={isSaving}
-              className="flex items-center gap-2 text-xs font-black tracking-widest uppercase px-4 py-2 rounded-xl border transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 text-xs font-black tracking-widest uppercase px-4 py-2 rounded-sm border transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 background:  isSaved ? 'rgba(34,197,94,0.2)' : `${accentColor}30`,
                 borderColor: isSaved ? 'rgba(34,197,94,0.4)' : `${accentColor}50`,
-                color:       isSaved ? '#22c55e' : textColor,
+                color:       isSaved ? '#40916C' : textColor,
               }}
             >
               {isSaving ? (
@@ -189,7 +189,7 @@ export default function FullscreenView({
           <div className="flex gap-2 shrink-0 flex-wrap">
             <button
               onClick={() => setShowPanel(p => !p)}
-              className="flex items-center gap-2 border text-xs font-bold px-4 py-2.5 rounded-xl transition-all"
+              className="flex items-center gap-2 border text-xs font-bold px-4 py-2.5 rounded-sm transition-all"
               style={{
                 background:  `${accentColor}25`,
                 borderColor: `${accentColor}50`,
@@ -201,7 +201,7 @@ export default function FullscreenView({
             </button>
             <button
               onClick={onExportCSV}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold px-4 py-2.5 rounded-xl transition-all"
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold px-4 py-2.5 rounded-sm transition-all"
               style={{ color: textColor }}
             >
               <FiDownload size={13} />
@@ -209,7 +209,7 @@ export default function FullscreenView({
             </button>
             <button
               onClick={onExit}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold px-4 py-2.5 rounded-xl transition-all"
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold px-4 py-2.5 rounded-sm transition-all"
               style={{ color: textColor }}
             >
               <FiX size={13} />
@@ -228,13 +228,13 @@ export default function FullscreenView({
               return (
                 <div
                   key={c.name}
-                  className={`flex flex-col items-center gap-2 rounded-2xl p-4 sm:p-5 border transition-all ${isFirst ? 'scale-105' : ''}`}
+                  className={`flex flex-col items-center gap-2 rounded-sm p-4 sm:p-5 border transition-all ${isFirst ? 'scale-105' : ''}`}
                   style={{
                     background:  isFirst ? `${accentColor}25` : 'rgba(255,255,255,0.05)',
                     borderColor: isFirst ? `${accentColor}50` : 'rgba(255,255,255,0.1)',
                   }}
                 >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  <div className="w-10 h-10 rounded-sm flex items-center justify-center"
                     style={{ background: isFirst ? `${accentColor}30` : 'rgba(255,255,255,0.08)' }}
                   >
                     {MEDAL_ICONS[podiumIdx]}
@@ -265,7 +265,7 @@ export default function FullscreenView({
 
         {/* Full Rankings Table */}
         <div
-          className="rounded-2xl border overflow-hidden backdrop-blur-sm"
+          className="rounded-sm border overflow-hidden backdrop-blur-sm"
           style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}
         >
           <div
@@ -306,7 +306,7 @@ export default function FullscreenView({
                     }}
                   >
                     <div
-                      className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-sm sm:text-base font-black"
+                      className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-sm flex items-center justify-center text-sm sm:text-base font-black"
                       style={medalStyle}
                     >
                       {isTop

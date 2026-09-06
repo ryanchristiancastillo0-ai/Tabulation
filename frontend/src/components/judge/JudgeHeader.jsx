@@ -11,7 +11,7 @@ export default function JudgeHeader({
   judgeCount, updateJudge, isOnline, isJudgeLocked,
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const primary = sysConfig.primary_color || '#006c49';
+  const primary = sysConfig.primary_color || '#1B4332';
 
   return (
     <>
@@ -51,7 +51,7 @@ export default function JudgeHeader({
           <div className="flex items-center gap-2 shrink-0">
             {selectedJudge && (
               <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-xs font-bold"
                 style={{ background: 'rgba(255,255,255,0.2)', color: '#fff' }}
               >
                 <User size={11} />
@@ -60,7 +60,7 @@ export default function JudgeHeader({
             )}
             <button
               onClick={() => setDrawerOpen(true)}
-              className="flex items-center justify-center w-9 h-9 rounded-lg transition-all active:scale-95"
+              className="flex items-center justify-center w-9 h-9 rounded-sm transition-all active:scale-95"
               style={{ background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.25)' }}
               aria-label="Open menu"
             >
