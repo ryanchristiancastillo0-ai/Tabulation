@@ -1,6 +1,6 @@
 export {default as CheckIcon} from './CheckIcon'
 export {default as DownloadIcon} from './DownloadIcon'
-export {default as ErroState} from './ErrorState'
+export {default as ErrorState} from './ErrorState'
 export {default as ExportAllPanel} from './ExportAllPanel'
 export {default as ExportMenu} from './ExportMenu'
 export {default as FullscreenIcon} from './FullscreenIcon'

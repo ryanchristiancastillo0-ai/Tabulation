@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { getMedalStyleFS } from './index';
 import { FiDownload, FiX, FiSave, FiSliders } from 'react-icons/fi';
 import { GiTrophy } from 'react-icons/gi';
@@ -12,6 +12,12 @@ const MEDAL_ICONS = [
   <RiMedalLine className="text-orange-400" size={22} />,
 ];
 const MEDAL_LABEL = ['1st', '2nd', '3rd'];
+
+// Podium display order (left → right) and relative stage height per rank
+const PODIUM_ORDER = [1, 0, 2]; // 2nd, 1st, 3rd
+const PODIUM_HEIGHT = { 0: 132, 1: 92, 2: 68 };
+
+const CONFETTI_COLORS = ['#F59E0B', '#EF4444', '#22C55E', '#3B82F6', '#EC4899', '#A855F7'];
 
 function useDebounced(fn, delay = 120) {
   const timer = useRef(null);
@@ -65,11 +71,143 @@ function TextField({ label, value, onChange, placeholder }) {
   );
 }
 
+/**
+ * Pure CSS confetti burst — a handful of small rectangles that fall + spin
+ * from the top of the podium area. No external library required.
+ */
+function Confetti({ active }) {
+  const pieces = useMemo(() => {
+    return Array.from({ length: 45 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 1.2,
+      duration: 2.6 + Math.random() * 1.6,
+      size: 6 + Math.random() * 6,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      rotate: Math.random() * 360,
+      drift: (Math.random() - 0.5) * 120,
+    }));
+  }, []);
+
+  if (!active) return null;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden z-20">
+      <style>{`
+        @keyframes confetti-fall {
+          0%   { transform: translate(0, -20px) rotate(0deg); opacity: 0; }
+          8%   { opacity: 1; }
+          100% { transform: translate(var(--drift), 340px) rotate(720deg); opacity: 0; }
+        }
+      `}</style>
+      {pieces.map(p => (
+        <span
+          key={p.id}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: `${p.left}%`,
+            width: p.size,
+            height: p.size * 0.4,
+            background: p.color,
+            borderRadius: 1,
+            '--drift': `${p.drift}px`,
+            animation: `confetti-fall ${p.duration}s ease-in ${p.delay}s infinite`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Podium "stage" — three raised blocks (2nd / 1st / 3rd) with an avatar
+ * initial, name, and score floating above each block, and a large rank
+ * number carved into the block itself.
+ */
+function Podium({ standings, isRankMode, accentColor, textColor, confettiOn }) {
+  return (
+    <div className="relative max-w-2xl mx-auto w-full mb-10">
+      <Confetti active={confettiOn} />
+      <div className="flex items-end justify-center gap-3 sm:gap-5 w-full">
+        {PODIUM_ORDER.map((podiumIdx) => {
+          const c = standings[podiumIdx];
+          if (!c) return null;
+          const isFirst = podiumIdx === 0;
+          const initial = c.name?.trim()?.[0]?.toUpperCase() || '?';
+          const value = isRankMode ? c.total_rank : parseFloat(c.final_score).toFixed(2);
+
+          return (
+            <div key={c.name} className="flex flex-col items-center flex-1 max-w-[150px]">
+              {/* Avatar */}
+              <div
+                className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center font-black text-base sm:text-lg mb-2 border-2 shrink-0"
+                style={{
+                  background: isFirst ? accentColor : 'rgba(255,255,255,0.1)',
+                  borderColor: isFirst ? accentColor : 'rgba(255,255,255,0.2)',
+                  color: isFirst ? '#0a0a0a' : textColor,
+                }}
+              >
+                {isFirst && (
+                  <span className="absolute -top-6 text-lg">👑</span>
+                )}
+                {initial}
+              </div>
+
+              {/* Name */}
+              <span
+                className="text-xs sm:text-sm font-bold text-center truncate w-full mb-1.5"
+                style={{ color: textColor }}
+              >
+                {c.name}
+              </span>
+
+              {/* Score pill */}
+              <span
+                className="text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-full mb-3"
+                style={{
+                  background: isFirst ? `${accentColor}30` : 'rgba(255,255,255,0.08)',
+                  color: isFirst ? accentColor : textColor,
+                  opacity: isFirst ? 1 : 0.75,
+                }}
+              >
+                {isRankMode ? `Rank ${value}` : `${value}`}
+              </span>
+
+              {/* Stage block */}
+              <div
+                className="w-full rounded-t-sm flex items-start justify-center pt-3 transition-all duration-500"
+                style={{
+                  height: PODIUM_HEIGHT[podiumIdx],
+                  background: isFirst
+                    ? `linear-gradient(180deg, ${accentColor}45, ${accentColor}15)`
+                    : 'linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03))',
+                  borderTop: `2px solid ${isFirst ? accentColor : 'rgba(255,255,255,0.18)'}`,
+                  borderLeft: '1px solid rgba(255,255,255,0.08)',
+                  borderRight: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <span
+                  className="text-3xl sm:text-4xl font-black"
+                  style={{ color: isFirst ? accentColor : textColor, opacity: isFirst ? 1 : 0.5 }}
+                >
+                  {podiumIdx + 1}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function FullscreenView({
   data, standings, isRankMode, onExit, onExportCSV,
   fsConfig, onFsConfigChange, onSave, isSaving, isSaved,
 }) {
   const [showPanel, setShowPanel] = useState(false);
+  const [confettiOn, setConfettiOn] = useState(true);
 
   const { bgColor, accentColor, textColor, titleText, subtitleText } = fsConfig;
 
@@ -188,8 +326,20 @@ export default function FullscreenView({
 
           <div className="flex gap-2 shrink-0 flex-wrap">
             <button
+              onClick={() => setConfettiOn(v => !v)}
+              className="flex items-center gap-2 border text-xs font-bold px-4 py-2.5 rounded-sm transition-all hover:brightness-110"
+              style={{
+                background:  confettiOn ? `${accentColor}25` : 'rgba(255,255,255,0.06)',
+                borderColor: confettiOn ? `${accentColor}50` : 'rgba(255,255,255,0.15)',
+                color:       textColor,
+              }}
+              title={confettiOn ? 'Turn confetti off' : 'Turn confetti on'}
+            >
+              🎉 Confetti {confettiOn ? 'On' : 'Off'}
+            </button>
+            <button
               onClick={() => setShowPanel(p => !p)}
-              className="flex items-center gap-2 border text-xs font-bold px-4 py-2.5 rounded-sm transition-all"
+              className="flex items-center gap-2 border text-xs font-bold px-4 py-2.5 rounded-sm transition-all hover:brightness-110"
               style={{
                 background:  `${accentColor}25`,
                 borderColor: `${accentColor}50`,
@@ -218,49 +368,15 @@ export default function FullscreenView({
           </div>
         </div>
 
-        {/* Top 3 Podium */}
+        {/* Top 3 Podium / Stage */}
         {standings.length >= 3 && (
-          <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-8 max-w-2xl mx-auto w-full">
-            {[1, 0, 2].map((podiumIdx) => {
-              const c = standings[podiumIdx];
-              if (!c) return null;
-              const isFirst = podiumIdx === 0;
-              return (
-                <div
-                  key={c.name}
-                  className={`flex flex-col items-center gap-2 rounded-sm p-4 sm:p-5 border transition-all ${isFirst ? 'scale-105' : ''}`}
-                  style={{
-                    background:  isFirst ? `${accentColor}25` : 'rgba(255,255,255,0.05)',
-                    borderColor: isFirst ? `${accentColor}50` : 'rgba(255,255,255,0.1)',
-                  }}
-                >
-                  <div className="w-10 h-10 rounded-sm flex items-center justify-center"
-                    style={{ background: isFirst ? `${accentColor}30` : 'rgba(255,255,255,0.08)' }}
-                  >
-                    {MEDAL_ICONS[podiumIdx]}
-                  </div>
-                  <span
-                    className="text-[10px] font-black tracking-widest uppercase"
-                    style={{ color: isFirst ? accentColor : textColor, opacity: isFirst ? 1 : 0.4 }}
-                  >
-                    {MEDAL_LABEL[podiumIdx]}
-                  </span>
-                  <span
-                    className="font-bold text-center text-xs sm:text-sm leading-tight"
-                    style={{ color: textColor }}
-                  >
-                    {c.name}
-                  </span>
-                  <span
-                    className="text-lg sm:text-xl font-black font-mono"
-                    style={{ color: isFirst ? accentColor : textColor }}
-                  >
-                    {isRankMode ? c.total_rank : parseFloat(c.final_score).toFixed(2)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          <Podium
+            standings={standings}
+            isRankMode={isRankMode}
+            accentColor={accentColor}
+            textColor={textColor}
+            confettiOn={confettiOn}
+          />
         )}
 
         {/* Full Rankings Table */}

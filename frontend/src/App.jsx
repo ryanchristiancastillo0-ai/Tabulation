@@ -9,6 +9,7 @@ import AdminLogin from './pages/Auth/LoginForm'
 import ForgotPassword from './pages/Auth/Forgotpassword'
 import CreateSchoolForm from './pages/school/SchoolForm';
 import { ContestProvider } from './providers/ContestContext';
+import { ThemeProvider } from './providers/ThemeProvider';
 
 const AdminProtectedRoute = () => {
   const token = localStorage.getItem('adminToken');
@@ -25,6 +26,13 @@ const ContestScope = () => (
   </ContestProvider>
 );
 
+// Applies the shared admin dark/light theme (Dashboard, Leaderboard, etc.)
+const ThemeScope = () => (
+  <ThemeProvider>
+    <Outlet />
+  </ThemeProvider>
+);
+
 export default function App() {
   return (
     <Routes>
@@ -37,9 +45,11 @@ export default function App() {
       {/* ── EVERYTHING THAT NEEDS CONTEST STATE ── */}
       <Route element={<ContestScope />}>
         <Route element={<AdminProtectedRoute />}>
-          <Route path='/admin' element={<Dashboard />} />
-          <Route path='/admin/dashboard' element={<Dashboard />} />
-          <Route path='/admin/leaderboard' element={<LeaderBoard />} />
+          <Route element={<ThemeScope />}>
+            <Route path='/admin' element={<Dashboard />} />
+            <Route path='/admin/dashboard' element={<Dashboard />} />
+            <Route path='/admin/leaderboard' element={<LeaderBoard />} />
+          </Route>
         </Route>
 
         <Route path='/judge' element={<JudgeTable />} />

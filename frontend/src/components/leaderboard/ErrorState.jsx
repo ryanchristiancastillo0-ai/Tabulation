@@ -1,13 +1,13 @@
 import {NavBar} from './index'
 export default function ErrorState({ message, onRetry }) {
   return (
-    <div className="bg-[#FBFCF9] min-h-screen font-['Inter',sans-serif]">
+    <div className="bg-[var(--bg)] min-h-screen font-['Inter',sans-serif]">
       <NavBar />
       <div className="flex flex-col items-center justify-center h-64 gap-3 px-4 text-center">
-        <p className="text-red-500 font-semibold text-sm">{message}</p>
+        <p className="text-[var(--red)] font-semibold text-sm">{message}</p>
         <button
           onClick={onRetry}
-          className="bg-[#1B4332] text-white px-6 py-2 rounded-full font-bold text-sm hover:opacity-90"
+          className="bg-[var(--accent)] text-white px-6 py-2 rounded-full font-bold text-sm hover:opacity-90"
         >
           Try Again
         </button>

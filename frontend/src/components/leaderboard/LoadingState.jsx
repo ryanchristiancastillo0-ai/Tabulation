@@ -2,9 +2,9 @@
 import {NavBar} from './index'
 export default function LoadingState() {
   return (
-    <div className="bg-[#FBFCF9] min-h-screen font-['Inter',sans-serif]">
+    <div className="bg-[var(--bg)] min-h-screen font-['Inter',sans-serif]">
       <NavBar />
-      <div className="flex items-center justify-center h-64 text-[#6b7280] text-sm">
+      <div className="flex items-center justify-center h-64 text-[var(--text3)] text-sm">
         Fetching results…
       </div>
     </div>

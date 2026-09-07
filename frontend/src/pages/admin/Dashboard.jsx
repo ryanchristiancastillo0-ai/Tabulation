@@ -9,13 +9,11 @@ import SectionRender, {
 import {MobileTopBar} from '../../components/admin/index'
 import apiClient from "../../utils/apiClient";
 import {navItems} from '../../constant/navlist.jsx'
+import { useTheme } from '../../providers/ThemeProvider';
 
 
 function Dashboard() {
- const [dark, setDark] = useState(() => {
-  const saved = localStorage.getItem("adminDarkMode");
-  return saved !== null ? saved === "true" : false;
-});
+ const { dark, setDark } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
@@ -59,10 +57,6 @@ function Dashboard() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-
-  useEffect(() => {
-  localStorage.setItem("adminDarkMode", dark);
-}, [dark]);
 
   const showToast = (type, msg) => {
     setToast({ type, msg });
@@ -168,7 +162,7 @@ function Dashboard() {
   );
 
   return (
-    <div className={dark ? "dark" : ""}>
+    <>
       <div className="flex min-h-screen bg-[var(--bg)]">
         {/* ── Sidebar: only render on desktop ─────────────────────────── */}
         {!isMobile && (
@@ -296,7 +290,7 @@ function Dashboard() {
         onCancel={() => setShowDeleteModal(false)}
         type="danger"
       />
-    </div>
+    </>
   );
 }
 

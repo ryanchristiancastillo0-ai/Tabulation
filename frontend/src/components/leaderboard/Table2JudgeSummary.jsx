@@ -7,16 +7,16 @@ export default function Table2JudgeSummary({ standings, judgeIds, isRankMode, ju
         <SectionLabel number="02" label="Judge Summary Table" />
         <ExportMenu onCSV={onCSV} onPNG={onPNG} />
       </div>
-      <p className="text-[10px] sm:text-xs text-[#9ca3af] mb-3 -mt-1">
+      <p className="text-[10px] sm:text-xs text-[var(--text3)] mb-3 -mt-1">
         {isRankMode
           ? "Shows each judge's raw score total and the rank they give each contestant."
           : "Shows each judge's score total. Final column is the average across all judges."}
       </p>
 
-      <div id="table-summary" className="overflow-x-auto bg-white border border-[#BBCABB] rounded-sm">
+      <div id="table-summary" className="overflow-x-auto bg-[var(--surface)] border border-[var(--border)] rounded-sm">
         {/* FIX: min-width scales with number of judges so it never squishes */}
         <table className="w-full text-xs sm:text-sm" style={{ minWidth: Math.max(380, 180 + judgeIds.length * 120) }}>
-          <thead className="bg-[#14201A] text-white">
+          <thead className="bg-[var(--accent)] text-white">
             <tr>
               <th className="px-3 sm:px-4 py-2.5 sm:py-3 text-center w-12 sm:w-16 text-[10px] uppercase tracking-wider font-semibold">Place</th>
               <th className="px-3 sm:px-4 py-2.5 sm:py-3 text-left text-[10px] uppercase tracking-wider font-semibold">Contestant</th>
@@ -25,15 +25,15 @@ export default function Table2JudgeSummary({ standings, judgeIds, isRankMode, ju
               {judgeIds.map((judgeId) => (
                 <th key={judgeId} className="px-3 sm:px-4 py-2.5 sm:py-3 text-center text-[10px] uppercase tracking-wider font-semibold min-w-[90px] sm:min-w-[110px]">
                   <div>Judge {judgeId}</div>
-                  <div className="text-[9px] font-normal text-[#9ca3af] normal-case tracking-normal">
+                  <div className="text-[9px] font-normal text-[var(--text3)] normal-case tracking-normal">
                     {isRankMode ? 'Score / Rank' : 'Score'}
                   </div>
                 </th>
               ))}
 
-              <th className="px-3 sm:px-4 py-2.5 sm:py-3 text-right text-[10px] uppercase tracking-wider font-semibold bg-[#111827] min-w-[90px] sm:min-w-[110px]">
+              <th className="px-3 sm:px-4 py-2.5 sm:py-3 text-right text-[10px] uppercase tracking-wider font-semibold bg-[var(--surface2)] min-w-[90px] sm:min-w-[110px]">
                 <div>{isRankMode ? 'Rank Sum' : 'Final Avg'}</div>
-                <div className="text-[9px] font-normal text-[#9ca3af] normal-case tracking-normal">
+                <div className="text-[9px] font-normal text-[var(--text3)] normal-case tracking-normal">
                   {isRankMode ? 'lower = better' : 'higher = better'}
                 </div>
               </th>
@@ -42,21 +42,21 @@ export default function Table2JudgeSummary({ standings, judgeIds, isRankMode, ju
           <tbody>
             {standings.length === 0 ? (
               <tr>
-                <td colSpan={3 + judgeIds.length} className="px-4 py-8 text-center text-[#9ca3af] italic text-sm">
+                <td colSpan={3 + judgeIds.length} className="px-4 py-8 text-center text-[var(--text3)] italic text-sm">
                   No scores submitted yet.
                 </td>
               </tr>
             ) : standings.map((c, idx) => (
               <tr
                 key={c.name}
-                className={`border-b border-[#f0f4f2] transition-colors ${idx === 0 ? 'bg-amber-50 hover:bg-amber-100/60' : 'hover:bg-[#f0fdf6]'}`}
+                className={`border-b border-[var(--border)] transition-colors ${idx === 0 ? 'bg-[var(--amber-lt)] hover:bg-[var(--amber-lt)]' : 'hover:bg-[var(--accent-lt)]'}`}
               >
                 <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-center">
                   <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-sm sm:rounded-sm flex items-center justify-center font-bold text-[10px] sm:text-xs mx-auto ${getMedalClass(idx)}`}>
                     {idx + 1}
                   </div>
                 </td>
-                <td className="px-3 sm:px-4 py-2.5 sm:py-3 font-bold text-[#14201A] text-xs sm:text-sm">{c.name}</td>
+                <td className="px-3 sm:px-4 py-2.5 sm:py-3 font-bold text-[var(--text1)] text-xs sm:text-sm">{c.name}</td>
 
                 {/* FIX: use judgeId (actual DB value) */}
                 {judgeIds.map((judgeId) => {
@@ -66,21 +66,21 @@ export default function Table2JudgeSummary({ standings, judgeIds, isRankMode, ju
                     <td key={judgeId} className="px-3 sm:px-4 py-2.5 sm:py-3 text-center">
                       {score !== null ? (
                         <div className="flex flex-col items-center gap-0.5">
-                          <span className="font-mono font-bold text-[#14201A] text-xs sm:text-sm">{score.toFixed(2)}</span>
+                          <span className="font-mono font-bold text-[var(--text1)] text-xs sm:text-sm">{score.toFixed(2)}</span>
                           {isRankMode && (
-                            <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${rankPos === 1 ? 'bg-amber-100 text-amber-600' : 'bg-[#eef2ff] text-[#4f46e5]'}`}>
+                            <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${rankPos === 1 ? 'bg-[var(--amber-lt)] text-[var(--amber)]' : 'bg-[var(--accent-lt)] text-[var(--accent)]'}`}>
                               {getOrdinal(rankPos)}
                             </span>
                           )}
                         </div>
                       ) : (
-                        <span className="text-[#d1d5db] font-mono text-xs">—</span>
+                        <span className="text-[var(--text3)] font-mono text-xs">—</span>
                       )}
                     </td>
                   );
                 })}
 
-                <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-right font-mono font-bold text-[#1B4332] bg-[#f9fafb] text-xs sm:text-sm">
+                <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-right font-mono font-bold text-[var(--accent-mid)] bg-[var(--surface2)] text-xs sm:text-sm">
                   {isRankMode ? c.total_rank : parseFloat(c.final_score).toFixed(2)}
                 </td>
               </tr>

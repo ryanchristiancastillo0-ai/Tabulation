@@ -1,20 +1,50 @@
-import {useEffect, useState} from 'react'
-import {DownloadIcon} from './index'
+import { useEffect, useRef, useState } from 'react'
+import { DownloadIcon } from './index'
+
 export default function ExportMenu({ onCSV, onPNG }) {
   const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const btnRef = useRef(null);
+  const MENU_WIDTH = 150;
+  const MARGIN = 8;
+
+  const updatePosition = () => {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    // Prefer aligning menu's right edge with button's right edge,
+    // but clamp so it never runs off either side of the viewport.
+    let left = rect.right - MENU_WIDTH;
+    left = Math.max(MARGIN, Math.min(left, window.innerWidth - MENU_WIDTH - MARGIN));
+    setCoords({
+      top: rect.bottom + 6,
+      left,
+    });
+  };
+
+  const toggleOpen = () => {
+    updatePosition();
+    setOpen(o => !o);
+  };
 
   useEffect(() => {
     if (!open) return;
     const close = () => setOpen(false);
     window.addEventListener('click', close);
-    return () => window.removeEventListener('click', close);
+    window.addEventListener('resize', close);
+    window.addEventListener('scroll', close, true);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', close, true);
+    };
   }, [open]);
 
   return (
-    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+    <div className="shrink-0" onClick={e => e.stopPropagation()}>
       <button
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 border border-[#BBCABB] bg-white hover:bg-[#f0fdf6] text-[#1B4332] font-bold rounded-sm transition-all text-[10px] sm:text-xs px-2.5 py-1.5 sm:px-3 sm:py-2"
+        ref={btnRef}
+        onClick={toggleOpen}
+        className="flex items-center gap-1.5 border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--accent-lt)] text-[var(--accent)] font-bold rounded-sm transition-all text-[10px] sm:text-xs px-2.5 py-1.5 sm:px-3 sm:py-2"
       >
         <DownloadIcon size={10} />
         Export
@@ -24,22 +54,31 @@ export default function ExportMenu({ onCSV, onPNG }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 bg-white border border-[#E1E8DE] rounded-sm shadow-xl z-50 overflow-hidden min-w-[150px]">
-          <div className="px-3 py-2 text-[9px] font-bold text-[#9ca3af] uppercase tracking-widest border-b border-[#f0f4f2]">
+        <div
+          style={{
+            position: 'fixed',
+            top: coords.top,
+            left: coords.left,
+            width: MENU_WIDTH,
+            maxWidth: `calc(100vw - ${MARGIN * 2}px)`,
+          }}
+          className="bg-[var(--surface)] border border-[var(--border)] rounded-sm shadow-xl z-50 overflow-hidden"
+        >
+          <div className="px-3 py-2 text-[9px] font-bold text-[var(--text3)] uppercase tracking-widest border-b border-[var(--border)]">
             Export As
           </div>
           <button
             onClick={() => { onCSV(); setOpen(false); }}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-[#14201A] hover:bg-[#f0fdf6] transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-[var(--text1)] hover:bg-[var(--accent-lt)] transition-colors text-left"
           >
-            <span className="w-5 h-5 bg-[#dcfce7] text-[#1B4332] rounded flex items-center justify-center font-bold text-[9px] shrink-0">CSV</span>
+            <span className="w-5 h-5 bg-[var(--accent-lt)] text-[var(--accent)] rounded flex items-center justify-center font-bold text-[9px] shrink-0">CSV</span>
             Export as CSV
           </button>
           <button
             onClick={() => { onPNG(); setOpen(false); }}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-[#14201A] hover:bg-[#f0fdf6] transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-[var(--text1)] hover:bg-[var(--accent-lt)] transition-colors text-left"
           >
-            <span className="w-5 h-5 bg-[#ede9fe] text-[#7c3aed] rounded flex items-center justify-center font-bold text-[9px] shrink-0">PNG</span>
+            <span className="w-5 h-5 bg-[var(--accent-lt)] text-[var(--accent)] rounded flex items-center justify-center font-bold text-[9px] shrink-0">PNG</span>
             Export as Image
           </button>
         </div>

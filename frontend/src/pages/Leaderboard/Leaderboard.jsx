@@ -247,7 +247,7 @@ const LeaderBoard = () => {
   }
 
   return (
-    <div className="bg-[#FBFCF9] min-h-screen font-['Inter',sans-serif] text-[#14201A]">
+    <div className="bg-[var(--bg)] min-h-screen font-['Inter',sans-serif] text-[var(--text1)]">
       <NavBar />
       <HeroBanner contestName={contestName} isRankMode={isRankMode} />
 
