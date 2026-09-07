@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import apiClient from '../../utils/apiClient';
 import {getSchoolId} from '../../utils/getSchoolId'
 import {FooterInfo,Hero,RankingsCards,RankingsTable,IdentityMissing} from '../../components/judgeLeaderboard/index'
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
@@ -50,8 +49,11 @@ const JudgeScoreboard = () => {
     const storedId = localStorage.getItem('judge_id');
     if (storedId) setJudgeId(storedId);
 
-    // Protected route — use apiClient (sends JWT automatically)
-    apiClient.get('/get-all-data')
+    // Public route — judges have no admin JWT, so call the public
+    // getAllData endpoint using school_id in the query string.
+    const school_id = getSchoolId();
+    fetch(`${API_BASE}/public/get-all-data?school_id=${school_id}`)
+      .then(res => res.json())
       .then(data => {
         setContestName(data.settings?.contest_name || 'Tournament');
         setCompType(data.settings?.computation_type || 'average');

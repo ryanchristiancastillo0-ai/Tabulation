@@ -11,7 +11,7 @@ export default function StrengthBar({ pw }) {
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className={['flex-1 h-0.5 rounded-full transition-all duration-200', i <= score ? colorMap[score] : 'bg-slate-200'].join(' ')}
+            className={['flex-1 h-0.5 rounded-full transition-all duration-200', i <= score ? colorMap[score] : 'bg-[var(--border)]'].join(' ')}
           />
         ))}
       </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  X, ChevronRight, LogOut, TrophyIcon, Moon, Sun
+  X, ChevronRight, LogOut, TrophyIcon, Moon, Sun, Settings
 } from 'lucide-react';
 import CriteriaManager from './CreteriaManager';
 import { useContestContext } from '../../providers/ContestContext';
@@ -96,6 +96,19 @@ export const MobileNavDrawer = ({ isOpen, onClose, activeNav, setActiveNav, navI
               <TrophyIcon size={15} />
             </div>
             Leaderboard
+          </button>
+
+          {/* Settings */}
+          <button
+            onClick={() => { navigate('/admin/settings'); onClose(); }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm border border-transparent
+              bg-transparent text-[var(--text2)] text-sm font-semibold cursor-pointer font-[inherit]
+              transition-all duration-150 hover:bg-[var(--accent-lt)] hover:text-[var(--accent)] hover:border-[var(--accent-bd)]"
+          >
+            <div className="w-7 h-7 rounded-sm flex items-center justify-center shrink-0 bg-[var(--surface2)]">
+              <Settings size={15} />
+            </div>
+            Settings
           </button>
 
           {/* Sign Out */}

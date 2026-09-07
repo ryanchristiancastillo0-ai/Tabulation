@@ -3,6 +3,7 @@ import './index.css'
 import Home from './pages/Home/home'
 import JudgeTable from './pages/judge/JudgeTable'
 import Dashboard from './pages/admin/Dashboard'
+import SettingsPage from './pages/admin/SettingsPage'
 import JudgeScoreboard from './pages/judge/JudgeScoreboard'
 import LeaderBoard from './pages/Leaderboard/Leaderboard'
 import AdminLogin from './pages/Auth/LoginForm'
@@ -58,6 +59,7 @@ export default function App() {
           <Route element={<ThemeScope />}>
             <Route path='/admin' element={<Dashboard />} />
             <Route path='/admin/dashboard' element={<Dashboard />} />
+            <Route path='/admin/settings' element={<SettingsPage />} />
             <Route path='/admin/leaderboard' element={<LeaderBoard />} />
           </Route>
         </Route>

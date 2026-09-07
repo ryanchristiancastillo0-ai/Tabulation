@@ -1,6 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/school.controller');
+const { requireAuth } = require('../middleware/auth');
+
+// ── AUTHENTICATED SCHOOL PROFILE ROUTES ──
+// Placed before /:id so Express does not match them as an id parameter.
+router.get('/profile',   requireAuth, ctrl.getProfile);
+router.put('/profile',   requireAuth, ctrl.updateProfile);
+router.post('/profile/change-password', requireAuth, ctrl.updateAdminPassword);
+router.post('/profile/judge-password',  requireAuth, ctrl.updateProfileJudgePassword);
 
 // ── CREATE SCHOOL + ADMIN (atomic) ──
 router.post('/create', ctrl.create);

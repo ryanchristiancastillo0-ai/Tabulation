@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   LayoutGrid, Trophy, Sparkles, Scale,
-  Users, UserPlus, Moon, Sun, TrophyIcon, LogOut, MonitorCog,
+  Users, UserPlus, Moon, Sun, TrophyIcon, LogOut, MonitorCog, Settings,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -139,6 +139,21 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
             <TrophyIcon size={15} />
           </div>
           Leaderboard
+        </button>
+      </div>
+
+      {/* ── Settings / Profile ── */}
+      <div style={{ padding: "0 12px 8px" }}>
+        <button
+          onClick={() => navigate("/admin/settings")}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 6, border: "1px solid transparent", background: "transparent", color: "var(--text2)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface2)"; e.currentTarget.style.color = "var(--accent)"; e.currentTarget.style.borderColor = "var(--accent-bd)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text2)"; e.currentTarget.style.borderColor = "transparent"; }}
+        >
+          <div style={{ width: 28, height: 28, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "var(--surface2)" }}>
+            <Settings size={15} />
+          </div>
+          Settings
         </button>
       </div>
 

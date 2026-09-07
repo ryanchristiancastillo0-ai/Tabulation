@@ -240,6 +240,152 @@ async function updateJudgePassword(id, password) {
   return { success: true, message: 'Judge password updated.' };
 }
 
+// ── GET SCHOOL PROFILE (for logged-in admin) ──
+async function getSchoolProfile(school_id) {
+  const [schoolRows] = await pool.execute(
+    `SELECT id, school_name, school_logo, school_email, school_phone,
+            school_address, subscription_plan, status,
+            (judge_password IS NOT NULL AND judge_password != '') AS has_judge_password
+     FROM   schools
+     WHERE  id = ?`,
+    [school_id]
+  );
+
+  if (schoolRows.length === 0) {
+    throw new HttpError(404, 'School not found.');
+  }
+
+  const school = schoolRows[0];
+
+  const [adminRows] = await pool.execute(
+    'SELECT id, name, email FROM admins WHERE school_id = ? ORDER BY id LIMIT 1',
+    [school_id]
+  );
+
+  return {
+    school: {
+      id:                 school.id,
+      school_name:        school.school_name,
+      school_logo:        school.school_logo,
+      school_email:       school.school_email,
+      school_phone:       school.school_phone,
+      school_address:     school.school_address,
+      subscription_plan:  school.subscription_plan,
+      status:             school.status,
+    },
+    admin: adminRows[0] || null,
+  };
+}
+
+// ── UPDATE SCHOOL PROFILE (for logged-in admin) ──
+// Only the fields an admin is allowed to edit.
+async function updateSchoolProfile(school_id, body) {
+  const {
+    school_name, school_logo, school_email,
+    school_phone, subscription_plan,
+  } = body;
+
+  const [existing] = await pool.execute('SELECT id FROM schools WHERE id = ?', [school_id]);
+  if (existing.length === 0) {
+    throw new HttpError(404, 'School not found.');
+  }
+
+  const fields = [];
+  const values = [];
+
+  if (school_name !== undefined) {
+    fields.push('school_name = ?');
+    values.push(school_name);
+  }
+  if (school_logo !== undefined) {
+    fields.push('school_logo = ?');
+    values.push(school_logo || null);
+  }
+  if (school_email !== undefined) {
+    fields.push('school_email = ?');
+    values.push(school_email ? String(school_email).trim() : null);
+  }
+  if (school_phone !== undefined) {
+    fields.push('school_phone = ?');
+    values.push(school_phone || null);
+  }
+  if (subscription_plan !== undefined) {
+    fields.push('subscription_plan = ?');
+    values.push(subscription_plan || 'free');
+  }
+
+  try {
+    if (fields.length) {
+      values.push(school_id);
+      await pool.execute(
+        `UPDATE schools SET ${fields.join(', ')} WHERE id = ?`,
+        values
+      );
+      // Keep system_config school_name + logo in sync (used by header/sidebar).
+      // Only write the fields actually supplied so we never blank out existing values.
+      const sysFields = [];
+      const sysValues = [];
+      if (school_name !== undefined) {
+        sysFields.push('school_name = VALUES(school_name)');
+        sysValues.push(school_name);
+      } else {
+        sysFields.push('school_name = COALESCE(school_name, "")');
+        sysValues.push('');
+      }
+      if (school_logo !== undefined) {
+        sysFields.push('school_logo = VALUES(school_logo)');
+        sysValues.push(school_logo || null);
+      } else {
+        sysFields.push('school_logo = school_logo');
+        sysValues.push(null);
+      }
+
+      await pool.execute(
+        `INSERT INTO system_config (school_id, school_name, school_logo)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE ${sysFields.join(', ')}`,
+        [school_id, sysValues[0], sysValues[1]]
+      );
+    }
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      throw new HttpError(409, 'A school with this email already exists.');
+    }
+    console.error('Update school profile error:', err.message);
+    throw err;
+  }
+
+  return { success: true, message: 'Profile updated successfully.' };
+}
+
+// ── UPDATE ADMIN PASSWORD (for logged-in admin) ──
+async function updateAdminPassword(admin_id, currentPassword, newPassword) {
+  if (!currentPassword) {
+    throw new HttpError(400, 'Current password is required.');
+  }
+  if (!newPassword || String(newPassword).length < 8) {
+    throw new HttpError(400, 'New password must be at least 8 characters.');
+  }
+
+  const [adminRows] = await pool.execute(
+    'SELECT id, password FROM admins WHERE id = ? LIMIT 1',
+    [admin_id]
+  );
+  if (adminRows.length === 0) {
+    throw new HttpError(404, 'Admin account not found.');
+  }
+
+  const passwordMatch = await bcrypt.compare(currentPassword, adminRows[0].password);
+  if (!passwordMatch) {
+    throw new HttpError(401, 'Current password is incorrect.');
+  }
+
+  const hashed = await bcrypt.hash(String(newPassword), 12);
+  await pool.execute('UPDATE admins SET password = ? WHERE id = ?', [hashed, admin_id]);
+
+  return { success: true, message: 'Password updated successfully.' };
+}
+
 // ── DELETE SCHOOL ──
 async function deleteSchool(id) {
   const [result] = await pool.execute('DELETE FROM schools WHERE id = ?', [id]);
@@ -249,4 +395,14 @@ async function deleteSchool(id) {
   return { success: true, message: 'School deleted.' };
 }
 
-module.exports = { createSchool, listSchools, getSchoolById, updateSchool, updateJudgePassword, deleteSchool };
+module.exports = {
+  createSchool,
+  listSchools,
+  getSchoolById,
+  updateSchool,
+  updateJudgePassword,
+  deleteSchool,
+  getSchoolProfile,
+  updateSchoolProfile,
+  updateAdminPassword,
+};
