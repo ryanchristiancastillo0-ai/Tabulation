@@ -133,6 +133,8 @@ export default function SchoolInfoSection({ form, setField, errors, setErrors, l
           <div className="relative">
             <input
               type={showJudgePw ? 'text' : 'password'}
+              required
+              minLength="8"
               className={`${inputCls(errors.judge_password)} pr-10`}
               placeholder="Min. 8 characters"
               value={form.judge_password}

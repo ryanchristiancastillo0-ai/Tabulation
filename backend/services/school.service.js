@@ -34,6 +34,51 @@ async function createSchool(body) {
   try {
     await conn.beginTransaction();
 
+    // ── Pre-check duplicates, but treat an exact re-submission as success ──
+    // If the very same school (same school email + admin email + name) already
+    // exists, the first request likely succeeded but the client didn't get the
+    // response. Return success instead of confusing the user with a 409.
+    const normSchoolEmail = school_email ? String(school_email).trim() : null;
+    const normAdminEmail  = String(admin_email).trim();
+
+    if (normSchoolEmail) {
+      const [existing] = await conn.execute(
+        `SELECT s.id
+           FROM schools s
+           JOIN admins a ON a.school_id = s.id
+          WHERE s.school_email = ? AND a.email = ? AND s.school_name = ?
+          LIMIT 1`,
+        [normSchoolEmail, normAdminEmail, school_name]
+      );
+      if (existing.length) {
+        await conn.rollback();
+        return {
+          success:         true,
+          message:         'This school was already created.',
+          school_id:       existing[0].id,
+          alreadyExists:   true,
+        };
+      }
+    }
+
+    // Any other conflict → specific, useful error
+    if (normSchoolEmail) {
+      const [schoolDup] = await conn.execute(
+        'SELECT id FROM schools WHERE school_email = ? LIMIT 1',
+        [normSchoolEmail]
+      );
+      if (schoolDup.length) {
+        throw new HttpError(409, 'That school email is already registered. Please use a different one.');
+      }
+    }
+    const [adminDup] = await conn.execute(
+      'SELECT id FROM admins WHERE email = ? LIMIT 1',
+      [normAdminEmail]
+    );
+    if (adminDup.length) {
+      throw new HttpError(409, 'That admin email is already registered. Please use a different one.');
+    }
+
     // ── Step 1: insert school ──────────────────────────────────────
     const hashedJudgePw = await bcrypt.hash(judge_password, 10);
 
@@ -43,12 +88,12 @@ async function createSchool(body) {
        VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
       [
         school_name,
-        school_logo       || null,
-        school_email      || null,
-        school_phone      || null,
-        school_address    || null,
+        school_logo        || null,
+        school_email       ? String(school_email).trim() : null,
+        school_phone       || null,
+        school_address     || null,
         hashedJudgePw,
-        subscription_plan || 'free',
+        subscription_plan  || 'free',
       ]
     );
 
@@ -60,7 +105,7 @@ async function createSchool(body) {
     const [adminResult] = await conn.execute(
       `INSERT INTO admins (name, email, password, school_id)
        VALUES (?, ?, ?, ?)`,
-      [admin_name, admin_email, hashedPassword, school_id]
+      [admin_name, String(admin_email).trim(), hashedPassword, school_id]
     );
 
     // ── Step 3: seed system_config with school logo so sidebar shows it ──
@@ -98,8 +143,19 @@ async function createSchool(body) {
   } catch (err) {
     await conn.rollback();
 
+    if (err instanceof HttpError) {
+      throw err;
+    }
+
     if (err.code === 'ER_DUP_ENTRY') {
-      throw new HttpError(409, 'A school or admin with this email already exists.');
+      const msg = String(err.message || '');
+      if (msg.includes('school_email')) {
+        throw new HttpError(409, 'That school email is already registered. Please use a different one.');
+      }
+      if (msg.includes('admins.email') || msg.includes('admin.email')) {
+        throw new HttpError(409, 'That admin email is already registered. Please use a different one.');
+      }
+      throw new HttpError(409, 'That school or admin email is already registered.');
     }
     console.error('Create school error:', err.message);
     throw err;
@@ -163,6 +219,27 @@ async function updateSchool(id, body) {
   return { success: true, message: 'School updated successfully.' };
 }
 
+// ── UPDATE JUDGE PASSWORD ──
+async function updateJudgePassword(id, password) {
+  if (!password) {
+    throw new HttpError(400, 'Judge password is required.');
+  }
+  if (String(password).length < 8) {
+    throw new HttpError(400, 'Judge password must be at least 8 characters.');
+  }
+
+  const hashed = await bcrypt.hash(String(password), 10);
+  const [result] = await pool.execute(
+    'UPDATE schools SET judge_password = ? WHERE id = ?',
+    [hashed, id]
+  );
+
+  if (result.affectedRows === 0) {
+    throw new HttpError(404, 'School not found.');
+  }
+  return { success: true, message: 'Judge password updated.' };
+}
+
 // ── DELETE SCHOOL ──
 async function deleteSchool(id) {
   const [result] = await pool.execute('DELETE FROM schools WHERE id = ?', [id]);
@@ -172,4 +249,4 @@ async function deleteSchool(id) {
   return { success: true, message: 'School deleted.' };
 }
 
-module.exports = { createSchool, listSchools, getSchoolById, updateSchool, deleteSchool };
+module.exports = { createSchool, listSchools, getSchoolById, updateSchool, updateJudgePassword, deleteSchool };

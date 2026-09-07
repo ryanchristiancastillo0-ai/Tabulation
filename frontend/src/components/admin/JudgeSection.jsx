@@ -1,11 +1,106 @@
+import { useState } from 'react';
 import {useContestContext} from '../../providers/ContestContext'
 import {
- Lock, Unlock,  Loader,
- 
- AlertTriangle,
- 
+ Lock, Unlock,  Loader, KeyRound, Eye, EyeOff, Check, AlertTriangle,
 } from 'lucide-react';
 import { card } from './card.js'
+import apiClient from '../../utils/apiClient';
+import { getSchoolId } from '../../utils/getSchoolId';
+
+const JudgePasswordManager = () => {
+  const [pw, setPw] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+
+  const handleSave = async () => {
+    if (!pw || pw.length < 8) {
+      setFeedback({ type: 'error', msg: 'Password must be at least 8 characters.' });
+      return;
+    }
+    setLoading(true);
+    setFeedback(null);
+    try {
+      const schoolId = getSchoolId();
+      await apiClient.patch(`/schools/${schoolId}/judge-password`, { judge_password: pw });
+      setPw('');
+      setFeedback({ type: 'success', msg: 'Judge password updated.' });
+    } catch (err) {
+      setFeedback({ type: 'error', msg: `Failed to save: ${err.message}` });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 6,
+        padding: 16,
+      }}
+    >
+      <div className="field-label" style={{ marginBottom: 6 }}>Judge Login Password</div>
+      <p style={{ fontSize: 11, color: 'var(--text3)', margin: '0 0 12px', lineHeight: 1.5 }}>
+        Judges log into the scoring portal using the school email + this shared password.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ position: 'relative' }}>
+          <input
+            type={showPw ? 'text' : 'password'}
+            placeholder="Min. 8 characters"
+            value={pw}
+            onChange={(e) => { setPw(e.target.value); setFeedback(null); }}
+            style={{
+              width: '100%', padding: '10px 36px 10px 10px', borderRadius: 5,
+              border: '1px solid var(--border)', background: 'var(--surface2)',
+              fontSize: 13, color: 'var(--text1)', outline: 'none', fontFamily: 'inherit',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPw((v) => !v)}
+            style={{
+              position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+              background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text3)',
+              display: 'flex', alignItems: 'center', padding: 4,
+            }}
+            aria-label="Toggle password visibility"
+          >
+            {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={loading}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px', borderRadius: 5,
+            border: 'none', background: loading ? 'var(--surface2)' : 'var(--accent-mid)',
+            color: loading ? 'var(--text3)' : '#fff', fontWeight: 800, fontSize: 12,
+            cursor: loading ? 'not-allowed' : 'pointer', transition: 'all .2s', fontFamily: 'inherit',
+            alignSelf: 'flex-start',
+          }}
+        >
+          {loading ? <Loader size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> : <KeyRound size={13} />}
+          {loading ? 'SAVING…' : 'Set Judge Password'}
+        </button>
+        {feedback && (
+          <div
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
+              color: feedback.type === 'success' ? '#15803d' : '#dc2626',
+            }}
+          >
+            {feedback.type === 'success' ? <Check size={13} /> : <AlertTriangle size={13} />}
+            {feedback.msg}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculationType }) => {
   const { isJudgeLocked, toggleLock, lockLoading, lockError } = useContestContext();
 
@@ -36,6 +131,8 @@ const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculat
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: isJudgeLocked ? '#ef4444' : 'var(--accent-mid)', flexShrink: 0, animation: 'pulse 2s infinite' }} />
         {isJudgeLocked ? 'Judges are currently LOCKED — scoring is disabled on the judge portal.' : 'Judges are UNLOCKED — scoring is active on the judge portal.'}
       </div>
+
+      <JudgePasswordManager />
 
       <div>
         <div className="field-label" style={{ marginBottom: 12 }}>Number of Judges</div>

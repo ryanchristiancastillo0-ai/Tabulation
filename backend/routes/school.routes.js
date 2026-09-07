@@ -14,6 +14,9 @@ router.get('/:id', ctrl.getById);
 // ── UPDATE SCHOOL ──
 router.put('/:id', ctrl.update);
 
+// ── UPDATE JUDGE PASSWORD ──
+router.patch('/:id/judge-password', ctrl.updateJudgePassword);
+
 // ── DELETE SCHOOL ──
 router.delete('/:id', ctrl.remove);
 
