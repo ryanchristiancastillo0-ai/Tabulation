@@ -11,6 +11,7 @@ async function createSchool(body) {
     school_phone,
     school_address,
     subscription_plan,
+    judge_password,
     // admin fields
     admin_name,
     admin_email,
@@ -25,21 +26,28 @@ async function createSchool(body) {
     throw new HttpError(400, 'Admin name, email, and password are required.');
   }
 
+  if (!judge_password || judge_password.length < 8) {
+    throw new HttpError(400, 'Judge password is required (minimum 8 characters).');
+  }
+
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
 
     // ── Step 1: insert school ──────────────────────────────────────
+    const hashedJudgePw = await bcrypt.hash(judge_password, 10);
+
     const [schoolResult] = await conn.execute(
       `INSERT INTO schools
-          (school_name, school_logo, school_email, school_phone, school_address, subscription_plan, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+          (school_name, school_logo, school_email, school_phone, school_address, judge_password, subscription_plan, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
       [
         school_name,
         school_logo       || null,
         school_email      || null,
         school_phone      || null,
         school_address    || null,
+        hashedJudgePw,
         subscription_plan || 'free',
       ]
     );

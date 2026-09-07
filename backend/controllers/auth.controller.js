@@ -4,6 +4,10 @@ exports.login = async (req, res) => {
   res.json(await authService.login(req.body));
 };
 
+exports.judgeLogin = async (req, res) => {
+  res.json(await authService.judgeLogin(req.body));
+};
+
 exports.requestPasswordReset = async (req, res) => {
   res.json(await authService.requestPasswordReset(req.body));
 };

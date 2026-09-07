@@ -70,6 +70,60 @@ async function login({ email, password }) {
   };
 }
 
+async function judgeLogin({ email, password }) {
+  if (!email || !password) {
+    throw new HttpError(400, 'Email and password are required.');
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT id, school_name, school_logo, school_email, judge_password, subscription_plan, status
+     FROM   schools
+     WHERE  school_email = ?
+     LIMIT  1`,
+    [email]
+  );
+
+  if (rows.length === 0) {
+    throw new HttpError(401, 'Invalid email or password.');
+  }
+
+  const school = rows[0];
+
+  if (school.status !== 'active') {
+    throw new HttpError(403, 'This school account is inactive. Contact support.');
+  }
+
+  if (!school.judge_password) {
+    throw new HttpError(403, 'No judge password has been set for this school. Contact the admin.');
+  }
+
+  const passwordMatch = await bcrypt.compare(password, school.judge_password);
+  if (!passwordMatch) {
+    throw new HttpError(401, 'Invalid email or password.');
+  }
+
+  const token = jwt.sign(
+    {
+      school_id: school.id,
+      role: 'judge',
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES }
+  );
+
+  return {
+    success: true,
+    token,
+    school: {
+      id:          school.id,
+      school_name: school.school_name,
+      school_logo: school.school_logo,
+      school_email: school.school_email,
+      plan:        school.subscription_plan,
+    },
+  };
+}
+
 async function requestPasswordReset({ email }) {
   if (!email) {
     throw new HttpError(400, 'Email is required.');
@@ -232,4 +286,4 @@ async function resetPassword({ resetToken, newPassword }) {
   return { success: true, message: 'Password updated successfully.' };
 }
 
-module.exports = { login, requestPasswordReset, verifyResetCode, resetPassword };
+module.exports = { login, judgeLogin, requestPasswordReset, verifyResetCode, resetPassword };

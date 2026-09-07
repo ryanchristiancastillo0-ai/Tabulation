@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS `schools` (
   `school_email` VARCHAR(255),
   `school_phone` VARCHAR(20),
   `school_address` TEXT,
+  `judge_password` VARCHAR(255) DEFAULT NULL COMMENT 'bcrypt hash for judge login',
   `subscription_plan` VARCHAR(50) DEFAULT 'free' COMMENT 'free, premium, etc.',
   `status` VARCHAR(50) DEFAULT 'active' COMMENT 'active, inactive, suspended',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

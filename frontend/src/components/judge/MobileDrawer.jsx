@@ -1,5 +1,6 @@
 import {useEffect } from 'react';
-import {Lock,X, User, Trophy, Shield,} from 'lucide-react';
+import {useNavigate} from 'react-router-dom';
+import {Lock,X, User, Trophy, Shield, LogOut} from 'lucide-react';
 
 
 import {JudgeSelector,LogoMark} from '../../components/judge/index'
@@ -12,6 +13,16 @@ export default function MobileDrawer({
 }) {
   const primary   = sysConfig.primary_color   || '#1B4332';
   const secondary = sysConfig.secondary_color || '#2D6A4F';
+  const navigate  = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('judgeToken');
+    localStorage.removeItem('judgeSchool');
+    localStorage.removeItem('judge_id');
+    localStorage.removeItem('auth');
+    onClose();
+    navigate('/judge/login');
+  };
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
@@ -134,6 +145,14 @@ export default function MobileDrawer({
               </span>
             </div>
           </div>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center justify-center gap-2 w-full rounded-sm p-3 text-xs font-bold uppercase tracking-wider transition-all active:scale-[0.98]"
+            style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}
+          >
+            <LogOut size={14} /> Log Out
+          </button>
 
           <div className="flex items-center gap-2 opacity-40 mt-auto pt-2">
             <Shield size={11} className="text-[#4B5A4D] shrink-0" />

@@ -4,6 +4,7 @@ const ctrl = require('../controllers/auth.controller');
 
 // ── LOGIN ──
 router.post('/login', ctrl.login);
+router.post('/judge-login', ctrl.judgeLogin);
 
 // ── FORGOT PASSWORD ──
 router.post('/request-password-reset', ctrl.requestPasswordReset);

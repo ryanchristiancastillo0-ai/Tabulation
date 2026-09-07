@@ -8,6 +8,7 @@ import LeaderBoard from './pages/Leaderboard/Leaderboard'
 import AdminLogin from './pages/Auth/LoginForm'
 import ForgotPassword from './pages/Auth/Forgotpassword'
 import CreateSchoolForm from './pages/school/SchoolForm';
+import JudgeLoginPage from './pages/judge/JudgeLoginPage';
 import { ContestProvider } from './providers/ContestContext';
 import { ThemeProvider } from './providers/ThemeProvider';
 
@@ -15,6 +16,14 @@ const AdminProtectedRoute = () => {
   const token = localStorage.getItem('adminToken');
   if (!token || token === "undefined") {
     return <Navigate to="/login" replace />;
+  }
+  return <Outlet />;
+};
+
+const JudgeProtectedRoute = () => {
+  const token = localStorage.getItem('judgeToken');
+  if (!token || token === "undefined") {
+    return <Navigate to="/judge/login" replace />;
   }
   return <Outlet />;
 };
@@ -39,6 +48,7 @@ export default function App() {
       {/* ── PUBLIC ROUTES (no polling) ── */}
       <Route path='/' element={<Home />} />
       <Route path='/login' element={<AdminLogin />} />
+      <Route path='/judge/login' element={<JudgeLoginPage />} />
       <Route path='/forgot-password' element={<ForgotPassword />} />
       <Route path='/school' element={<CreateSchoolForm/>} />
 
@@ -52,8 +62,10 @@ export default function App() {
           </Route>
         </Route>
 
-        <Route path='/judge' element={<JudgeTable />} />
-        <Route path='/judge/scoreboard' element={<JudgeScoreboard />} />
+        <Route element={<JudgeProtectedRoute />}>
+          <Route path='/judge' element={<JudgeTable />} />
+          <Route path='/judge/scoreboard' element={<JudgeScoreboard />} />
+        </Route>
       </Route>
 
       {/* ── 404 CATCH-ALL ── */}

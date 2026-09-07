@@ -7,6 +7,7 @@ import {AdminAccountSection,
   SchoolInfoSection,
   SuccessScreen,SubscriptionSection
 } from '../../components/school/index'
+import { CALABARZON_REGION_CODE, BATANGAS_PROVINCE_CODE } from '../../constant/schoolPresets'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -52,6 +53,10 @@ function useLocationData() {
   const [selectedProvince, setSelectedProvince] = useState('');
   const [selectedCity,     setSelectedCity]     = useState('');
   const [selectedBarangay, setSelectedBarangay] = useState('');
+
+  // Holds the preset province + city codes until their lists finish loading
+  const pendingPreset = useRef(null);
+  const [presetTick, setPresetTick] = useState(0);
 
   const regionName   = regions.find((r) => r.code === selectedRegion)?.name   || '';
   const provinceName = provinces.find((p) => p.code === selectedProvince)?.name || '';
@@ -139,6 +144,42 @@ function useLocationData() {
     fetchBarangays();
   }, [selectedCity]);
 
+  // Auto-fill the address to a preset school's city (Batangas)
+  function applyPresetLocality(cityCode) {
+    pendingPreset.current = { provinceCode: BATANGAS_PROVINCE_CODE, cityCode };
+    setPresetTick((t) => t + 1);
+    setSelectedRegion(CALABARZON_REGION_CODE);
+    setSelectedProvince('');
+    setSelectedCity('');
+    setSelectedBarangay('');
+  }
+
+  // If the user navigates away from CALABARZON, drop any pending preset
+  useEffect(() => {
+    if (selectedRegion && selectedRegion !== CALABARZON_REGION_CODE) {
+      pendingPreset.current = null;
+    }
+  }, [selectedRegion]);
+
+  // Once the province list loads, apply the pending preset province
+  useEffect(() => {
+    const pending = pendingPreset.current;
+    if (!pending || !provinces.length) return;
+    if (provinces.some((p) => p.code === pending.provinceCode)) {
+      setSelectedProvince(pending.provinceCode);
+    }
+  }, [provinces, presetTick]);
+
+  // Once the city list loads, apply the pending preset city and finish
+  useEffect(() => {
+    const pending = pendingPreset.current;
+    if (!pending || !cities.length) return;
+    if (cities.some((c) => c.code === pending.cityCode)) {
+      setSelectedCity(pending.cityCode);
+      pendingPreset.current = null;
+    }
+  }, [cities, presetTick]);
+
   return {
     regions, provinces, cities, barangays,
     loadingR, loadingP, loadingC, loadingB,
@@ -148,6 +189,7 @@ function useLocationData() {
     selectedBarangay, setSelectedBarangay,
     fullAddress,
     regionName, provinceName, cityName, barangayName,
+    applyPresetLocality,
   };
 }
 
@@ -163,6 +205,7 @@ export default function CreateSchoolForm() {
     school_phone:      '',
     subscription_plan: 'free',
     school_logo:       '',
+    judge_password:    '',
     admin_name:        '',
     admin_email:       '',
     admin_password:    '',
@@ -196,6 +239,8 @@ export default function CreateSchoolForm() {
     if (!loc.selectedProvince) e.province = 'Please select a province.';
     if (!loc.selectedCity)     e.city     = 'Please select a city / municipality.';
     if (!loc.selectedBarangay) e.barangay = 'Please select a barangay.';
+    if (!form.judge_password)          e.judge_password = 'Judge password is required.';
+    else if (form.judge_password.length < 8) e.judge_password = 'Minimum 8 characters.';
     if (!form.admin_name.trim())  e.admin_name  = 'Admin name is required.';
     if (!form.admin_email.trim()) e.admin_email = 'Admin email is required.';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.admin_email))
@@ -228,6 +273,7 @@ export default function CreateSchoolForm() {
           school_address:    loc.fullAddress,
           subscription_plan: form.subscription_plan,
           school_logo:       form.school_logo,
+          judge_password:    form.judge_password,
           admin_name:        form.admin_name,
           admin_email:       form.admin_email,
           admin_password:    form.admin_password,

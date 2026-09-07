@@ -1,8 +1,9 @@
 
 import {
-
   Building2,
+  LogOut,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 
 import {
@@ -14,6 +15,15 @@ export default function HeaderStructured({ sysConfig, contestName, selectedJudge
   const secondary = sysConfig.secondary_color || '#2D6A4F';
   const logoRadius = sysConfig.logo_radius != null ? sysConfig.logo_radius : 12;
   const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('judgeToken');
+    localStorage.removeItem('judgeSchool');
+    localStorage.removeItem('judge_id');
+    localStorage.removeItem('auth');
+    navigate('/judge/login');
+  };
 
   return (
     <div style={{ width: '100%' }}>
@@ -99,6 +109,18 @@ export default function HeaderStructured({ sysConfig, contestName, selectedJudge
             compact={true}
             darkBg={false}
           />
+          <button
+            onClick={handleLogout}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '3px 10px', borderRadius: 6,
+              background: '#fef2f2', border: '1px solid #fecaca',
+              color: '#dc2626', fontSize: 10, fontWeight: 700,
+              cursor: 'pointer', marginTop: 6,
+            }}
+          >
+            <LogOut size={10} /> Log Out
+          </button>
         </div>
       </div>
 

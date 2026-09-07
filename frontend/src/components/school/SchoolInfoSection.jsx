@@ -1,7 +1,32 @@
-import { Building2, Mail, Phone, Upload } from 'lucide-react';
-import { Field, AddressSection, inputCls } from './index';
+import { useState } from 'react';
+import { Building2, Mail, Phone, Upload, Lock, Eye, EyeOff, ChevronDown } from 'lucide-react';
+import { Field, AddressSection, inputCls, StrengthBar } from './index';
+import { SCHOOL_PRESETS } from '../../constant/schoolPresets';
 
 export default function SchoolInfoSection({ form, setField, errors, setErrors, logoRef, handleLogo, loc }) {
+  const [showJudgePw, setShowJudgePw] = useState(false);
+
+  const [schoolChoice, setSchoolChoice] = useState(() => {
+    if (!form.school_name) return '';
+    const match = SCHOOL_PRESETS.find((s) => s.name === form.school_name);
+    return match ? match.cityCode : 'other';
+  });
+
+  function handleSchoolChoice(e) {
+    const val = e.target.value;
+    setSchoolChoice(val);
+    setErrors((prev) => ({ ...prev, school_name: '' }));
+    if (val === '' || val === 'other') {
+      setField('school_name', '');
+    } else {
+      const preset = SCHOOL_PRESETS.find((s) => s.cityCode === val);
+      if (preset) {
+        setField('school_name', preset.name);
+        loc.applyPresetLocality(preset.cityCode);
+      }
+    }
+  }
+
   return (
     <div className="px-4 sm:px-9 py-6 sm:py-8 border-b border-[#E1E8DE]">
       <div
@@ -49,12 +74,34 @@ export default function SchoolInfoSection({ form, setField, errors, setErrors, l
 
         {/* School Name */}
         <Field label="School Name *" icon={Building2} error={errors.school_name}>
-          <input
-            className={inputCls(errors.school_name)}
-            placeholder="e.g. University of Santo Tomas"
-            value={form.school_name}
-            onChange={(e) => setField('school_name', e.target.value)}
-          />
+          <div className="relative">
+            <select
+              value={schoolChoice}
+              onChange={handleSchoolChoice}
+              className={[
+                inputCls(errors.school_name),
+                'appearance-none pr-9 cursor-pointer',
+                !schoolChoice ? 'text-slate-400' : 'text-slate-900',
+              ].join(' ')}
+            >
+              <option value="">Select a school or type your own…</option>
+              {SCHOOL_PRESETS.map((s) => (
+                <option key={s.cityCode} value={s.cityCode}>{s.name}</option>
+              ))}
+              <option value="other">Other — Type your school name</option>
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 flex items-center">
+              <ChevronDown size={14} />
+            </div>
+          </div>
+          {schoolChoice === 'other' && (
+            <input
+              className={`${inputCls(errors.school_name)} mt-2`}
+              placeholder="Type your school name"
+              value={form.school_name}
+              onChange={(e) => setField('school_name', e.target.value)}
+            />
+          )}
         </Field>
 
         {/* Email + Phone — stacks on mobile */}
@@ -77,6 +124,30 @@ export default function SchoolInfoSection({ form, setField, errors, setErrors, l
             />
           </Field>
         </div>
+
+        {/* Judge Password */}
+        <Field label="Judge Password *" icon={Lock} error={errors.judge_password}>
+          <p className="text-[10px] text-[#8FA192] mb-1.5 -mt-1">
+            Judges will use the school email + this password to log in.
+          </p>
+          <div className="relative">
+            <input
+              type={showJudgePw ? 'text' : 'password'}
+              className={`${inputCls(errors.judge_password)} pr-10`}
+              placeholder="Min. 8 characters"
+              value={form.judge_password}
+              onChange={(e) => setField('judge_password', e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowJudgePw((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer p-0 flex items-center text-[#6C7A71] hover:text-[#1B4332] transition-colors"
+            >
+              {showJudgePw ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+          </div>
+          <StrengthBar pw={form.judge_password} />
+        </Field>
 
         {/* Address */}
         <AddressSection loc={loc} errors={errors} setErrors={setErrors} />

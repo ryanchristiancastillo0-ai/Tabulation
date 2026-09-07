@@ -1,4 +1,5 @@
-import { Building2 } from 'lucide-react';
+import { Building2, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   JudgeSelector
@@ -9,6 +10,15 @@ export default function HeaderCompact({ sysConfig, contestName, selectedJudge, j
   const secondary = sysConfig.secondary_color || '#2D6A4F';
   const logoRadius = sysConfig.logo_radius != null ? sysConfig.logo_radius : 12;
   const r = logoRadius >= 999 ? '50%' : `${logoRadius}px`;
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('judgeToken');
+    localStorage.removeItem('judgeSchool');
+    localStorage.removeItem('judge_id');
+    localStorage.removeItem('auth');
+    navigate('/judge/login');
+  };
 
   return (
     <div className="w-full">
@@ -68,6 +78,15 @@ export default function HeaderCompact({ sysConfig, contestName, selectedJudge, j
             compact={true}
             darkBg={true}
           />
+          <button
+            onClick={handleLogout}
+            title="Log out"
+            aria-label="Log out"
+            className="flex items-center justify-center w-8 h-8 rounded-sm transition-all active:scale-95"
+            style={{ background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.25)', cursor: 'pointer' }}
+          >
+            <LogOut size={14} className="text-white" />
+          </button>
         </div>
       </div>
 

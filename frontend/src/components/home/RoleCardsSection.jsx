@@ -36,7 +36,7 @@ export default function RoleCardsSection({ navigate }) {
             features={['Real-time scoring', 'Criterion evaluation', 'Live score submission']}
             ctaLabel="Start Judging"
             ctaVariant="outline"
-            onClick={() => navigate('/judge')}
+            onClick={() => navigate('/judge/login')}
           />
         </div>
       </div>
