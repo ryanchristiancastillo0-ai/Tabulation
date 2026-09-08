@@ -6,6 +6,8 @@ import {
   UserX, X
 } from 'lucide-react';
 
+import { USALoader } from '../../components/index';
+
 const BG_IMAGE_SRC = '/img/right-panel.png';
 
 const ForgotPassword = () => {
@@ -178,6 +180,12 @@ const ForgotPassword = () => {
       className="relative min-h-screen w-full flex overflow-hidden"
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
+      {loading && (
+        <div className="fixed inset-0 z-[999]">
+          <USALoader fullScreen prompt="Please wait…" />
+        </div>
+      )}
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
       `}</style>

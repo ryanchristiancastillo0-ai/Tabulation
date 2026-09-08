@@ -1,19 +1,9 @@
-import { useState, useEffect, useRef, memo } from 'react';
-import {
-  WifiOff, ShieldCheck, Activity, Lock,
-  ChevronRight, Menu, X, User, Trophy, Shield,
-  Building2,
-} from 'lucide-react';
 import { useJudgeSystem } from '../../hooks/judge/useJudgeSystem';
-import {getSchoolId} from '../../utils/judge'
-import {getHydra_and_Calcu} from '../../hooks/judge/getHydration_and_Calculation'
-import {useConnectivity} from '../../hooks/judge/useConnectivity'
-import {useCriteriaGenerator} from '../../hooks/judge/useCreteria'
 import {useSystemConfig} from '../../hooks/judge/useSystemConfig'
 import {useContestContext} from '../../providers/ContestContext'
 
 import {GlobalStyles} from '../../css/judge/GlobalStyles.jsx'
-import {CriteriaHeader,EncryptedBadge,
+import {CriteriaHeader,EncryptedBadge,CardHeaderStrip,
   
   JudgeFooter,JudgeHeader,
   ScoringCard,StatusModal,SubmitButton
@@ -94,6 +84,7 @@ function JudgeTable() {
     dynamicUI,
     config,
     loading,
+    isComplete,
     modal,
     isOnline,
     closeModal,
@@ -148,18 +139,26 @@ function JudgeTable() {
           />
         )}
 
-        <ScoringCard
-          tableHtml={tableHtml}
-          loading={loading}
-          selectedJudge={selectedJudge}
-          primary={primary}
-          secondary={secondary}
-        />
+        <div
+          className="bg-white rounded-sm sm:rounded-sm overflow-hidden w-full"
+          style={{
+            border:    `1px solid ${primary}20`,
+            boxShadow: `0 4px 24px ${primary}15`,
+          }}
+        >
+          <CardHeaderStrip primary={primary} secondary={secondary} selectedJudge={selectedJudge} />
+
+          <ScoringCard
+            tableHtml={tableHtml}
+            loading={loading}
+          />
+        </div>
 
         <div className="mt-6 sm:mt-10 flex flex-col items-center gap-3 sm:gap-4 pb-4">
           <SubmitButton
             onClick={submitToDB}
             disabled={!selectedJudge || loading}
+            complete={isComplete}
             primary={primary}
           />
           <EncryptedBadge secondary={secondary} />

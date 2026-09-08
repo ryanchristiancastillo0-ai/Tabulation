@@ -39,6 +39,46 @@ function loadUiFromLocalStorage(schoolId, criteria) {
   }
 }
 
+/* ── Client-side config cache helpers ────────────────────────────── */
+function configsMatch(a, b) {
+  if (!a || !b) return false;
+  const sig = (c) =>
+    JSON.stringify({
+      contestants: c.contestants || [],
+      criteria:    c.criteria    || [],
+      settings:    c.settings    || {},
+    });
+  return sig(a) === sig(b);
+}
+
+function getConfigCacheKey(schoolId) {
+  return `judge_config_cache_${schoolId}`;
+}
+
+function saveConfigToLocalStorage(schoolId, config) {
+  try {
+    localStorage.setItem(getConfigCacheKey(schoolId), JSON.stringify(config));
+  } catch (e) {
+    console.warn('[ConfigCache] could not save config cache:', e.message);
+  }
+}
+
+function loadConfigFromLocalStorage(schoolId) {
+  try {
+    const raw = localStorage.getItem(getConfigCacheKey(schoolId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.criteria)) return null;
+    return {
+      contestants: Array.isArray(parsed.contestants) ? parsed.contestants : [],
+      criteria:    parsed.criteria,
+      settings:    parsed.settings || {},
+    };
+  } catch {
+    return null;
+  }
+}
+
 /* ── Plain fetch helpers (no JWT needed for judge routes) ────────── */
 async function judgePost(path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -87,9 +127,8 @@ export const useJudgeSystem = () => {
   const [dynamicUI,     setDynamicUI]     = useState('');
   const [config,        setConfig]        = useState({ contestants: [], criteria: [], settings: {} });
   const [loading,       setLoading]       = useState(false);
+  const [isComplete,    setIsComplete]    = useState(false);
   const [modal,         setModal]         = useState({ show: false, title: '', message: '', type: 'success' });
-
-  const uiRendered = useRef(false);
 
   const isOnline = useConnectivity();
   const { saveToCache, loadCache } = useJudgePersistence(selectedJudge, config.contestants);
@@ -98,11 +137,15 @@ export const useJudgeSystem = () => {
     setModal(onConfirm ? { show: true, title, message, type, onConfirm } : { show: true, title, message, type });
   const closeModal = () => setModal(prev => ({ ...prev, show: false }));
 
-  const allScoresFilled = () => {
+  const allScoresFilled = useCallback(() => {
     const dropdowns = document.querySelectorAll('.score-dropdown');
     return dropdowns.length > 0 &&
       Array.from(dropdowns).every(el => el.value !== '' && el.value !== null);
-  };
+  }, []);
+
+  const evaluateCompleteness = useCallback(() => {
+    setIsComplete(allScoresFilled());
+  }, [allScoresFilled]);
 
   const recalculateRow = (contestantId) => {
     const scores = document.querySelectorAll(`[id^="score-${contestantId}-"]`);
@@ -132,12 +175,22 @@ export const useJudgeSystem = () => {
     });
   };
 
-  // ── STEP 1: Fetch config ─────────────────────────────────────────
+  // ── STEP 1: Load config — cache first (instant), then background sync ─
   useEffect(() => {
     const school_id = getSchoolId();
 
+    // 1. If we have a cached config, use it immediately so the page renders
+    //    without a loader (no network round-trip on reload). The UI cache in
+    //    STEP 2 keys on the criteria signature, so this stays in sync.
+    const cached = loadConfigFromLocalStorage(school_id);
+    if (cached) {
+      setConfig(cached);
+      setLoading(false);
+    }
+
     const fetchConfig = async () => {
-      setLoading(true);
+      // Show the loader ONLY when we have nothing cached to render.
+      if (!cached) setLoading(true);
       try {
         const data = await judgeGet(`/public/get-all-data?school_id=${school_id}`);
 
@@ -146,7 +199,15 @@ export const useJudgeSystem = () => {
           const criteria    = data.criteria    || [];
           const settings    = data.settings    || {};
 
-          setConfig({ contestants, criteria, settings });
+          const fresh = { contestants, criteria, settings };
+          saveConfigToLocalStorage(school_id, fresh);
+
+          // Only update state if the config actually changed (avoids needless
+          // re-renders / AI re-hydration on every poll or reload).
+          setConfig(prev => {
+            if (configsMatch(prev, fresh)) return prev;
+            return fresh;
+          });
 
           // Guard: if settings came back empty, retry once after 1.2 s.
           // Handles the race where a recent save-config hasn't committed yet.
@@ -155,20 +216,22 @@ export const useJudgeSystem = () => {
               try {
                 const d2 = await judgeGet(`/public/get-all-data?school_id=${school_id}`);
                 if (d2 && !d2.error) {
-                  setConfig({
-                    contestants: d2.contestants || [],
-                    criteria:    d2.criteria    || [],
-                    settings:    d2.settings    || {},
-                  });
+                  const contestants2 = d2.contestants || [];
+                  const criteria2    = d2.criteria    || [];
+                  const settings2    = d2.settings    || {};
+                  const fresh2 = { contestants: contestants2, criteria: criteria2, settings: settings2 };
+                  saveConfigToLocalStorage(school_id, fresh2);
+                  setConfig(prev => (configsMatch(prev, fresh2) ? prev : fresh2));
                 }
               } catch { /* silent */ }
             }, 1200);
           }
         } else {
-          throw new Error(data.error || 'Failed to load contest config.');
+          if (!cached) throw new Error(data.error || 'Failed to load contest config.');
         }
       } catch (err) {
-        showStatus('Error', err.message || 'Failed to load contest config.', 'error');
+        // If we already have a cached config, stay silent (offline / transient).
+        if (!cached) showStatus('Error', err.message || 'Failed to load contest config.', 'error');
       } finally {
         setLoading(false);
       }
@@ -178,35 +241,52 @@ export const useJudgeSystem = () => {
   }, []);
 
   // ── STEP 2: Render AI UI — localStorage first, cache-only bg sync ─
+  const uiRendered = useRef('');
+
   useEffect(() => {
     const { contestants, criteria, settings } = config;
 
     if (!contestants?.length || !criteria?.length) return;
-    if (uiRendered.current) return;
-    uiRendered.current = true;
 
     const school_id = getSchoolId();
     const criteriaSignature = criteria
       .map(c => `${c.id}:${c.percentage}`)
       .join(',');
 
+    // Re-run only when the actual config signature changes (admin edits, etc.),
+    // so unchanged configs don't cause redundant regenerations.
+    if (uiRendered.current === criteriaSignature) return;
+    uiRendered.current = criteriaSignature;
+
     const renderUI = async () => {
       // 1. localStorage hit → show instantly, sync DB cache in background
       const localCached = loadUiFromLocalStorage(school_id, criteria);
       if (localCached?.html) {
-        setDynamicUI(localCached);
+        // Only re-render if the incoming UI differs from what's on screen now,
+        // so unchanged configs don't flash the table.
+        setDynamicUI(prev => (prev?.html === localCached.html ? prev : localCached));
         setLoading(false);
 
-        // Background refresh — hits cache-only endpoint, NEVER triggers AI.
-        // Only compares html now; headerHtml is rendered statically by the frontend.
+        // Background refresh — hits cache-only endpoint, NEVER triggers AI here.
         judgeGet(
           `/judge/render-ui-cached?school_id=${school_id}` +
           `&criteria_signature=${encodeURIComponent(criteriaSignature)}`
         )
           .then(data => {
-            if (!data.fromCache) return;
-            // Only re-render if the AI scoring table itself changed
-            if (data.html !== localCached.html) {
+            if (!data.fromCache) {
+              // Admin changed the config — no DB cache for the new signature yet.
+              // Generate (and cache) the new table in the background so the
+              // judge page self-updates without requiring a manual reload.
+              return ensureCachedUi(contestants, criteria, settings, school_id)
+                .then(ui => {
+                  if (ui?.html) {
+                    saveUiToLocalStorage(school_id, criteria, ui);
+                    setDynamicUI(prev => (prev?.html === ui.html ? prev : ui));
+                    setLoading(false);
+                  }
+                });
+            }
+            if (data.html && data.html !== localCached.html) {
               saveUiToLocalStorage(school_id, criteria, data);
               setDynamicUI({ html: data.html });
             }
@@ -218,39 +298,13 @@ export const useJudgeSystem = () => {
         return;
       }
 
-      // 2. No localStorage → submit job to async queue, then poll until done.
+      // 2. No local cache → ensure a server render exists for this config.
       setLoading(true);
       try {
-        // Submit to the async AI queue: API returns a generationId (202) OR a
-        // cached render if this exact config was already generated.
-        const submitResp = await judgePost('/ai/generate', {
-          contestants,
-          criteria,
-          school_id,
-          aiPrompt: settings?.ai_prompt || '',
-        });
-
-        // Cached fast-path still returns the html directly.
-        if (submitResp.result) {
-          const ui = { html: submitResp.result };
+        const ui = await ensureCachedUi(contestants, criteria, settings, school_id);
+        if (ui?.html) {
           saveUiToLocalStorage(school_id, criteria, ui);
           setDynamicUI(ui);
-          setLoading(false);
-          return;
-        }
-
-        // Queued path: show "Building Interface…" and poll until the job ends.
-        if (submitResp.generationId) {
-          const result = await pollJobUntilDone(submitResp.generationId, school_id);
-          if (result.html) {
-            const ui = { html: result.html };
-            saveUiToLocalStorage(school_id, criteria, ui);
-            setDynamicUI(ui);
-          } else {
-            showStatus('Error', result.error || 'UI generation failed.', 'error');
-          }
-        } else {
-          showStatus('Error', submitResp.error || 'UI generation failed.', 'error');
         }
       } catch (err) {
         showStatus('Error', err.message || 'Failed to generate judge interface.', 'error');
@@ -260,7 +314,42 @@ export const useJudgeSystem = () => {
     };
 
     renderUI();
-  }, [config]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config, uiRendered]);
+
+  // Generate-or-fetch the AI table for the given config, caching locally.
+  const ensureCachedUi = async (contestants, criteria, settings, school_id) => {
+    setLoading(true);
+    try {
+      const submitResp = await judgePost('/ai/generate', {
+        contestants,
+        criteria,
+        school_id,
+        aiPrompt: settings?.ai_prompt || '',
+      });
+
+      // Cached fast-path returns the html directly.
+      if (submitResp.result) {
+        return { html: submitResp.result };
+      }
+
+      // Queued path: poll until the job ends.
+      if (submitResp.generationId) {
+        const result = await pollJobUntilDone(submitResp.generationId, school_id);
+        if (result.html) return { html: result.html };
+        showStatus('Error', result.error || 'UI generation failed.', 'error');
+        return null;
+      }
+
+      showStatus('Error', submitResp.error || 'UI generation failed.', 'error');
+      return null;
+    } catch (err) {
+      showStatus('Error', err.message || 'Failed to generate judge interface.', 'error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ── STEP 3: Hydrate UI whenever dynamicUI or selectedJudge changes ─
   const selectedJudgeRef = useRef(selectedJudge);
@@ -322,7 +411,6 @@ export const useJudgeSystem = () => {
 
       if (data.success) {
         showStatus('Success', 'Scores submitted successfully!', 'success');
-        setTimeout(() => window.location.reload(), 2000);
       }
     } catch (err) {
       showStatus('Error', err.message || 'Failed to connect to server.', 'error');
@@ -338,7 +426,7 @@ export const useJudgeSystem = () => {
   const submitToDB = () => {
     if (!selectedJudge) return showStatus('Error', 'Please select a judge.', 'error');
     if (!allScoresFilled()) {
-      return showStatus('Incomplete Scores', 'Please fill in a score for every contestant before submitting.', 'warning');
+      return showStatus('Incomplete Scores', 'Please complete the scoring before submitting.', 'warning');
     }
     showStatus('Confirm Submission', 'Are you sure you want to submit these scores?', 'confirm', () => {
       closeModal();
@@ -346,10 +434,12 @@ export const useJudgeSystem = () => {
     });
   };
 
-  // ── Auto-submit: silently submit once every dropdown has a score ──
+  // ── Completeness + auto-submit: update the live "complete" indicator on
+  //    every score change, and silently submit once every dropdown is filled ──
   useEffect(() => {
     const handleChange = (e) => {
       if (!e.target?.classList?.contains('score-dropdown')) return;
+      evaluateCompleteness();
       if (e.target.value === '' || e.target.value === null) return;
       const dropdowns = document.querySelectorAll('.score-dropdown');
       const filled = dropdowns.length > 0 &&
@@ -358,15 +448,28 @@ export const useJudgeSystem = () => {
     };
     document.addEventListener('change', handleChange);
     return () => document.removeEventListener('change', handleChange);
-  }, []);
+  }, [evaluateCompleteness]);
 
-  // ── updateJudge: no reload, re-hydrate only ──────────────────────
+  // Re-check completeness shortly after the score table first renders so the
+  // button reflects any values already saved in localStorage for this judge.
+  useEffect(() => {
+    if (!dynamicUI) return;
+    const t = setTimeout(() => evaluateCompleteness(), 500);
+    return () => clearTimeout(t);
+  }, [dynamicUI, evaluateCompleteness]);
+
+  // ── updateJudge: no reload — switch judge in place ──
+  // Switches to the selected judge WITHOUT wiping their previously saved
+  // values, so scores are remembered even across switch/reload/offline.
   const updateJudge = useCallback((val) => {
+    if (!val) return;
+
     setSelectedJudge(val);
     localStorage.setItem('judge_id', val);
     selectedJudgeRef.current = val;
-    window.location.reload();
 
+    // Re-hydrate the table for the newly selected judge, restoring whatever
+    // they had saved in localStorage (empty if they never entered anything).
     if (dynamicUI && config.criteria?.length > 0) {
       getHydra_and_Calcu(
         dynamicUI,
@@ -375,16 +478,17 @@ export const useJudgeSystem = () => {
         recalculateRow,
         updateRankings,
         val,
-        loadCache
+        []
       );
     }
-  }, [dynamicUI, config, saveToCache, loadCache]);
+  }, [dynamicUI, config, saveToCache, recalculateRow, updateRankings]);
 
   return {
     selectedJudge,
     dynamicUI,
     config,
     loading,
+    isComplete,
     modal,
     isOnline,
     closeModal,

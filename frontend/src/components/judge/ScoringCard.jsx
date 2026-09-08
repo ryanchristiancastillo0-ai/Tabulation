@@ -1,23 +1,20 @@
  import { memo } from 'react';
 
  
- import {CardHeaderStrip,LoadingSpinner,ScrollHint} from '../../components/judge/index'
+ import {ScrollHint} from '../../components/judge/index'
+ import { USALoader } from '../../components/index'
 
- const ScoringCard = memo(function ScoringCard({ tableHtml, loading, selectedJudge, primary, secondary }) {
+ const ScoringCard = memo(function ScoringCard({ tableHtml, loading }) {
   return (
-    <div
-      className="bg-white rounded-sm sm:rounded-sm overflow-hidden w-full"
-      style={{
-        border:    `1px solid ${primary}20`,
-        boxShadow: `0 4px 24px ${primary}15`,
-      }}
-    >
-      <CardHeaderStrip primary={primary} secondary={secondary} selectedJudge={selectedJudge} />
-
+    <>
       {!loading && tableHtml && <ScrollHint />}
 
       {loading ? (
-        <LoadingSpinner secondary={secondary} />
+        <USALoader
+          fullScreen={false}
+          prompt="Building interface…"
+          background="transparent"
+        />
       ) : (
         <div className="ai-scroll-container">
           <div
@@ -26,14 +23,11 @@
           />
         </div>
       )}
-    </div>
+    </>
   );
 }, (prev, next) =>
-  prev.tableHtml     === next.tableHtml     &&
-  prev.loading       === next.loading       &&
-  prev.selectedJudge === next.selectedJudge &&
-  prev.primary       === next.primary       &&
-  prev.secondary     === next.secondary
+  prev.tableHtml === next.tableHtml &&
+  prev.loading   === next.loading
 );
 
 export default ScoringCard

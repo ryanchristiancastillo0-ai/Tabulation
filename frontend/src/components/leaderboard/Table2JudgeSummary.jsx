@@ -1,5 +1,5 @@
 import {useEffect} from 'react'
-import {SectionLabel,ExportMenu,getMedalClass} from './index'
+import {SectionLabel,ExportMenu,getMedalClass,getOrdinal} from './index'
 export default function Table2JudgeSummary({ standings, judgeIds, isRankMode, judgeCount, getJudgeScore, getJudgeRank, onCSV, onPNG }) {
   return (
     <section>

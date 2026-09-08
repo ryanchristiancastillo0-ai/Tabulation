@@ -25,7 +25,7 @@ export const getHydra_and_Calcu = (
   selectedJudge,
   dbScores = []
 ) => {
-  if (!dynamicUI || !selectedJudge) return;
+  if (!dynamicUI) return;
 
   // ── Tear down any previous observer + listener before starting fresh ──
   if (activeObserver) {

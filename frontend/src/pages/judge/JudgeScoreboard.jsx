@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {getSchoolId} from '../../utils/getSchoolId'
 import {FooterInfo,Hero,RankingsCards,RankingsTable,IdentityMissing} from '../../components/judgeLeaderboard/index'
+import { USALoader } from '../../components/index';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 
@@ -76,9 +77,11 @@ const JudgeScoreboard = () => {
         />
 
         {loading ? (
-          <div className="py-24 sm:py-40 text-center text-[#9ca3af] font-bold uppercase tracking-widest animate-pulse text-sm">
-            Syncing Scores…
-          </div>
+          <USALoader
+            fullScreen={false}
+            prompt="Syncing scores…"
+            background="transparent"
+          />
         ) : rankings.length === 0 ? (
           <div className="py-24 sm:py-40 text-center text-[#9ca3af] font-bold uppercase tracking-widest text-sm">
             No scores submitted yet.

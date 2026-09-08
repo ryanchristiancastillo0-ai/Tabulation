@@ -11,6 +11,8 @@ import {
   Loader2,
 } from 'lucide-react';
 
+import { USALoader } from '../../components/index';
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 const LOGO_SRC = '/img/USAL_LOGO.png';
@@ -73,6 +75,12 @@ const JudgeLoginPage = () => {
       className="relative h-screen w-full flex overflow-hidden"
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
+      {loading && (
+        <div className="fixed inset-0 z-[999]">
+          <USALoader fullScreen prompt="Signing in…" />
+        </div>
+      )}
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
       `}</style>

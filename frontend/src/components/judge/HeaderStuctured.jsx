@@ -1,14 +1,12 @@
-
 import {
   Building2,
   LogOut,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-
 import {
- JudgeSelector,
-} from '../../components/judge/index'
+  JudgeSelector,
+} from '../../components/judge/index';
 
 export default function HeaderStructured({ sysConfig, contestName, selectedJudge, judgeCount, updateJudge, isJudgeLocked }) {
   const primary   = sysConfig.primary_color   || '#1B4332';
@@ -26,113 +24,87 @@ export default function HeaderStructured({ sysConfig, contestName, selectedJudge
   };
 
   return (
-    <div style={{ width: '100%' }}>
+    <div className="w-full">
+      {/* Brand row – unchanged */}
       <div
-        style={{
-          background: primary,
-          padding: '10px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-        }}
+        className="px-4 py-2 flex items-center gap-3"
+        style={{ background: primary }}
       >
         {sysConfig.school_logo ? (
           <img
             src={sysConfig.school_logo}
             alt="logo"
-            style={{
-              width: 34, height: 34, borderRadius: r,
-              objectFit: 'cover',
-              border: '1.5px solid rgba(255,255,255,0.35)',
-              flexShrink: 0,
-            }}
+            className="w-8 h-8 object-cover border border-white/30 shrink-0"
+            style={{ borderRadius: r }}
           />
         ) : (
-          <div style={{
-            width: 34, height: 34, borderRadius: r,
-            background: 'rgba(255,255,255,0.15)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-            border: '1.5px solid rgba(255,255,255,0.25)',
-          }}>
-            <Building2 size={15} style={{ color: '#fff' }} />
+          <div
+            className="w-8 h-8 bg-white/10 border border-white/20 flex items-center justify-center shrink-0"
+            style={{ borderRadius: r }}
+          >
+            <Building2 size={14} className="text-white" />
           </div>
         )}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 13, color: '#fff', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-[13px] text-white leading-tight truncate">
             {sysConfig.portal_name || 'Veridict'}
           </div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div className="text-[10px] text-white/55 truncate">
             {sysConfig.school_name || 'Official Judging Portal'}
           </div>
         </div>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 5,
-          padding: '4px 10px', borderRadius: 999,
-          background: 'rgba(255,255,255,0.12)',
-          border: '1px solid rgba(255,255,255,0.2)',
-          flexShrink: 0,
-        }}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: secondary, display: 'inline-block' }} />
-          <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.9)', letterSpacing: '0.1em' }}>LIVE</span>
-        </div>
       </div>
 
-      <div style={{ height: 2, background: secondary }} />
+      <div className="h-[2px]" style={{ background: secondary }} />
 
-      <div style={{
-        background: '#fff',
-        padding: '10px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-        borderBottom: '1px solid rgba(0,0,0,0.08)',
-      }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7280', marginBottom: 2 }}>
-            Active Contest
+      {/* Contest + judge row – IMPROVED LAYOUT */}
+      <div className="bg-white px-4 py-3 flex items-center gap-6 border-b border-black/[0.06]">
+        {/* Left: contest info */}
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">
+            Active contest
           </div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#14201A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div className="text-sm font-semibold text-[#14201A] truncate">
             {contestName || 'Loading…'}
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7280' }}>
-            Judging As
+
+        {/* Right: judge selector + logout – better grouping */}
+        <div className="flex items-center gap-4 shrink-0 bg-gray-50/80 rounded-lg px-3 py-1.5 border border-gray-100/80">
+          {/* Judge selector block */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 whitespace-nowrap">
+              Judging as
+            </span>
+            <JudgeSelector
+              selectedJudge={selectedJudge}
+              judgeCount={judgeCount}
+              updateJudge={updateJudge}
+              isJudgeLocked={isJudgeLocked}
+              primary={primary}
+              compact={true}
+              darkBg={false}
+            />
           </div>
-          <JudgeSelector
-            selectedJudge={selectedJudge}
-            judgeCount={judgeCount}
-            updateJudge={updateJudge}
-            isJudgeLocked={isJudgeLocked}
-            primary={primary}
-            compact={true}
-            darkBg={false}
-          />
+
+          {/* Vertical divider */}
+          <div className="w-px h-6 bg-gray-300/60" />
+
+          {/* Logout button with label */}
           <button
             onClick={handleLogout}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '3px 10px', borderRadius: 6,
-              background: '#fef2f2', border: '1px solid #fecaca',
-              color: '#dc2626', fontSize: 10, fontWeight: 700,
-              cursor: 'pointer', marginTop: 6,
-            }}
+            title="Sign out"
+            aria-label="Sign out"
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-50/70 px-2 py-1 rounded-md transition-colors"
           >
-            <LogOut size={10} /> Log Out
+            <LogOut size={16} className="shrink-0" />
+            <span className="hidden sm:inline">Sign out</span>
           </button>
         </div>
       </div>
 
       {sysConfig.footer_text && (
-        <div style={{
-          background: '#f9fafb',
-          padding: '5px 20px',
-          fontSize: 10,
-          color: '#6b7280',
-          textAlign: 'center',
-          borderBottom: '1px solid rgba(0,0,0,0.06)',
-        }}>
+        <div className="bg-gray-50 px-4 py-1 text-[10px] text-gray-500 text-center border-b border-black/[0.06]">
           {sysConfig.footer_text}
         </div>
       )}

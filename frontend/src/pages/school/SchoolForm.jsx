@@ -8,6 +8,7 @@ import {AdminAccountSection,
   SuccessScreen,SubscriptionSection
 } from '../../components/school/index'
 import { CALABARZON_REGION_CODE, BATANGAS_PROVINCE_CODE } from '../../constant/schoolPresets'
+import { USALoader } from '../../components/index';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -309,6 +310,12 @@ export default function CreateSchoolForm() {
   // ── Main form ─────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#FBFCF9] font-['Inter',sans-serif] text-[#14201A]">
+      {status === 'saving' && (
+        <div className="fixed inset-0 z-[999]">
+          <USALoader fullScreen prompt="Creating school…" />
+        </div>
+      )}
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
       `}</style>

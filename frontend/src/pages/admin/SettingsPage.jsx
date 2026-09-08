@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/admin/Sidebar';
 import { LogoUploadField, MobileTopBar } from '../../components/admin/index';
 import { StrengthBar } from '../../components/school/index';
+import { USALoader } from '../../components/index';
 import { useTheme } from '../../providers/ThemeProvider';
 import apiClient from '../../utils/apiClient';
 import { navItems } from '../../constant/navlist.jsx';
@@ -132,7 +133,11 @@ export default function SettingsPage() {
       <div className="flex min-h-screen bg-[var(--bg)]">
         {!isMobile && <Sidebar activeNav="system" setActiveNav={() => {}} dark={dark} setDark={setDark} />}
         <main className="flex-1 flex items-center justify-center p-10">
-          <Loader2 className="animate-spin text-[var(--accent)]" size={28} />
+          <USALoader
+            fullScreen={false}
+            prompt="Loading settings…"
+            background="transparent"
+          />
         </main>
       </div>
     );
