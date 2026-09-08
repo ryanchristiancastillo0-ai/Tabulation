@@ -84,6 +84,7 @@ function JudgeTable() {
     dynamicUI,
     config,
     loading,
+    uiRefreshing,
     isComplete,
     modal,
     isOnline,
@@ -151,6 +152,7 @@ function JudgeTable() {
           <ScoringCard
             tableHtml={tableHtml}
             loading={loading}
+            refreshing={uiRefreshing}
           />
         </div>
 

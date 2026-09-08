@@ -11,10 +11,12 @@ import {MobileTopBar} from '../../components/admin/index'
 import apiClient from "../../utils/apiClient";
 import {navItems} from '../../constant/navlist.jsx'
 import { useTheme } from '../../providers/ThemeProvider';
+import { useConfigChange } from '../../providers/ConfigChangeContext';
 
 
 function Dashboard() {
   const { dark, setDark } = useTheme();
+  const { notifyConfigChanged } = useConfigChange();
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -138,6 +140,9 @@ function Dashboard() {
       });
       showToast("success", "Configuration saved!");
       await loadAllData();
+      // Notify any open judge tabs immediately so they show the loading
+      // spinner and regenerate the UI (cross-tab via BroadcastChannel).
+      notifyConfigChanged();
     } catch (err) {
       showToast("error", "Save failed: " + err.message);
     } finally {

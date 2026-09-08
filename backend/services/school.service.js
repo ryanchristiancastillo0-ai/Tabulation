@@ -283,6 +283,7 @@ async function updateSchoolProfile(school_id, body) {
   const {
     school_name, school_logo, school_email,
     school_phone, subscription_plan,
+    admin_name, admin_email,
   } = body;
 
   const [existing] = await pool.execute('SELECT id FROM schools WHERE id = ?', [school_id]);
@@ -353,6 +354,41 @@ async function updateSchoolProfile(school_id, body) {
     }
     console.error('Update school profile error:', err.message);
     throw err;
+  }
+
+  // ── Update admin account (name + email) ──
+  if (admin_name !== undefined || admin_email !== undefined) {
+    const [adminRows] = await pool.execute(
+      'SELECT id FROM admins WHERE school_id = ? LIMIT 1',
+      [school_id]
+    );
+    if (adminRows.length > 0) {
+      const adminId = adminRows[0].id;
+      const adminFields = [];
+      const adminValues = [];
+      if (admin_name !== undefined) {
+        adminFields.push('name = ?');
+        adminValues.push(admin_name);
+      }
+      if (admin_email !== undefined && admin_email) {
+        adminFields.push('email = ?');
+        adminValues.push(String(admin_email).trim());
+      }
+      if (adminFields.length) {
+        try {
+          adminValues.push(adminId);
+          await pool.execute(
+            `UPDATE admins SET ${adminFields.join(', ')} WHERE id = ?`,
+            adminValues
+          );
+        } catch (err) {
+          if (err.code === 'ER_DUP_ENTRY') {
+            throw new HttpError(409, 'That admin email is already in use by another account.');
+          }
+          throw err;
+        }
+      }
+    }
   }
 
   return { success: true, message: 'Profile updated successfully.' };

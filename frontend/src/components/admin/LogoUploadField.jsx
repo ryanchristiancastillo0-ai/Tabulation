@@ -3,7 +3,7 @@ import { Upload
 
 } from 'lucide-react';
 
-const LogoUploadField = ({ label, value, onChange }) => {
+const LogoUploadField = ({ label, value, onChange, readOnly }) => {
   const inputRef = useRef();
   const handleFile = (e) => {
     const file = e.target.files[0];
@@ -25,13 +25,27 @@ const LogoUploadField = ({ label, value, onChange }) => {
   return (
     <div>
       <div className="field-label">{label}</div>
-      <div onClick={() => inputRef.current.click()} style={{ border: '2px dashed var(--accent-bd)', borderRadius: 6, padding: '16px 14px', cursor: 'pointer', background: value ? 'var(--accent-lt)' : 'var(--surface2)', display: 'flex', alignItems: 'center', gap: 12, transition: 'all .2s' }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-mid)'; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--accent-bd)'; }}>
+      <div
+        onClick={() => { if (!readOnly) inputRef.current.click(); }}
+        style={{
+          border: '2px dashed var(--accent-bd)',
+          borderRadius: 6,
+          padding: '16px 14px',
+          cursor: readOnly ? 'default' : 'pointer',
+          background: value ? 'var(--accent-lt)' : 'var(--surface2)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          transition: 'all .2s',
+          opacity: readOnly ? 0.6 : 1,
+        }}
+        onMouseEnter={e => { if (!readOnly) e.currentTarget.style.borderColor = 'var(--accent-mid)'; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--accent-bd)'; }}
+      >
         {value ? (
           <>
             <img src={value} alt={label} style={{ width: 40, height: 40, borderRadius: 5, objectFit: 'cover', border: '1px solid var(--border)', flexShrink: 0 }} />
-            <div><div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>✓ Uploaded</div><div style={{ fontSize: 11, color: 'var(--text3)' }}>Click to replace</div></div>
+            <div><div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>✓ Uploaded</div><div style={{ fontSize: 11, color: 'var(--text3)' }}>{readOnly ? 'Enter edit mode to replace' : 'Click to replace'}</div></div>
           </>
         ) : (
           <>

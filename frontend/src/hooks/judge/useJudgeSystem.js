@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useConnectivity } from './useConnectivity';
 import { useJudgePersistence } from './useJudgePersistence';
+import { useConfigChange } from '../../providers/ConfigChangeContext';
 import { getHydra_and_Calcu } from './getHydration_and_Calculation';
 import {getSchoolId} from '../../utils/judge'
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
@@ -10,23 +11,24 @@ import { sanitizeAiHtml } from './getHydration_and_Calculation';
 
 
 /* ── Client-side HTML cache helpers ─────────────────────────────── */
-function getUiCacheKey(schoolId, criteria) {
+function getUiCacheKey(schoolId, criteria, aiPrompt) {
   const criteriaSignature = criteria.map(c => `${c.id}:${c.percentage}`).join(',');
-  return `ui_html_cache_${schoolId}_${criteriaSignature}`;
+  const promptSlug = (aiPrompt || 'default').slice(0, 64);
+  return `ui_html_cache_${schoolId}_${criteriaSignature}_${promptSlug}`;
 }
 
-function saveUiToLocalStorage(schoolId, criteria, ui) {
+function saveUiToLocalStorage(schoolId, criteria, ui, aiPrompt) {
   try {
-    const key = getUiCacheKey(schoolId, criteria);
+    const key = getUiCacheKey(schoolId, criteria, aiPrompt);
     localStorage.setItem(key, JSON.stringify({ html: sanitizeAiHtml(ui.html) }));
   } catch (e) {
     console.warn('[UICache] could not save HTML cache:', e.message);
   }
 }
 
-function loadUiFromLocalStorage(schoolId, criteria) {
+function loadUiFromLocalStorage(schoolId, criteria, aiPrompt) {
   try {
-    const key = getUiCacheKey(schoolId, criteria);
+    const key = getUiCacheKey(schoolId, criteria, aiPrompt);
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
@@ -127,11 +129,15 @@ export const useJudgeSystem = () => {
   const [dynamicUI,     setDynamicUI]     = useState('');
   const [config,        setConfig]        = useState({ contestants: [], criteria: [], settings: {} });
   const [loading,       setLoading]       = useState(false);
+  const [uiRefreshing,  setUiRefreshing]  = useState(false);
   const [isComplete,    setIsComplete]    = useState(false);
   const [modal,         setModal]         = useState({ show: false, title: '', message: '', type: 'success' });
 
   const isOnline = useConnectivity();
   const { saveToCache, loadCache } = useJudgePersistence(selectedJudge, config.contestants);
+
+  const schoolId = getSchoolId();
+  const { changeCount: configChangeCount } = useConfigChange();
 
   const showStatus = (title, message, type = 'success', onConfirm) =>
     setModal(onConfirm ? { show: true, title, message, type, onConfirm } : { show: true, title, message, type });
@@ -240,9 +246,41 @@ export const useJudgeSystem = () => {
     fetchConfig();
   }, []);
 
-  // ── STEP 2: Render AI UI — localStorage first, cache-only bg sync ─
+  // ── STEP 1b: Config saved in admin tab → show spinner + re-fetch instantly ─
+  // changeCount starts at 0 on mount; every admin save bumps it via the
+  // cross-tab ConfigChangeProvider (BroadcastChannel + storage fallback).
   const uiRendered = useRef('');
 
+  useEffect(() => {
+    if (configChangeCount === 0) return;
+
+    // Immediately show the full loader (USALoader in ScoringCard)
+    setLoading(true);
+    setUiRefreshing(false);
+
+    // Reset the render guard so STEP 2 re-runs with the new config
+    uiRendered.current = '';
+
+    // Re-fetch config from server to get the latest settings/contestants/criteria
+    judgeGet(`/public/get-all-data?school_id=${schoolId}`)
+      .then(data => {
+        if (data && !data.error) {
+          const fresh = {
+            contestants: data.contestants || [],
+            criteria:    data.criteria    || [],
+            settings:    data.settings    || {},
+          };
+          saveConfigToLocalStorage(schoolId, fresh);
+          setConfig(fresh);
+        }
+      })
+      .catch(() => {
+        // Even if the fetch fails, STEP 2 will still run with the current config
+        setLoading(false);
+      });
+  }, [configChangeCount]);
+
+  // ── STEP 2: Render AI UI — localStorage first, cache-only bg sync ─
   useEffect(() => {
     const { contestants, criteria, settings } = config;
 
@@ -252,15 +290,17 @@ export const useJudgeSystem = () => {
     const criteriaSignature = criteria
       .map(c => `${c.id}:${c.percentage}`)
       .join(',');
+    const aiPrompt = settings?.ai_prompt || '';
+    const renderSignature = `${criteriaSignature}::${aiPrompt}`;
 
     // Re-run only when the actual config signature changes (admin edits, etc.),
     // so unchanged configs don't cause redundant regenerations.
-    if (uiRendered.current === criteriaSignature) return;
-    uiRendered.current = criteriaSignature;
+    if (uiRendered.current === renderSignature) return;
+    uiRendered.current = renderSignature;
 
     const renderUI = async () => {
       // 1. localStorage hit → show instantly, sync DB cache in background
-      const localCached = loadUiFromLocalStorage(school_id, criteria);
+      const localCached = loadUiFromLocalStorage(school_id, criteria, aiPrompt);
       if (localCached?.html) {
         // Only re-render if the incoming UI differs from what's on screen now,
         // so unchanged configs don't flash the table.
@@ -277,17 +317,18 @@ export const useJudgeSystem = () => {
               // Admin changed the config — no DB cache for the new signature yet.
               // Generate (and cache) the new table in the background so the
               // judge page self-updates without requiring a manual reload.
+              setUiRefreshing(true);
               return ensureCachedUi(contestants, criteria, settings, school_id)
                 .then(ui => {
                   if (ui?.html) {
-                    saveUiToLocalStorage(school_id, criteria, ui);
+                    saveUiToLocalStorage(school_id, criteria, ui, aiPrompt);
                     setDynamicUI(prev => (prev?.html === ui.html ? prev : ui));
-                    setLoading(false);
                   }
-                });
+                })
+                .finally(() => setUiRefreshing(false));
             }
             if (data.html && data.html !== localCached.html) {
-              saveUiToLocalStorage(school_id, criteria, data);
+              saveUiToLocalStorage(school_id, criteria, data, aiPrompt);
               setDynamicUI({ html: data.html });
             }
           })
@@ -303,7 +344,7 @@ export const useJudgeSystem = () => {
       try {
         const ui = await ensureCachedUi(contestants, criteria, settings, school_id);
         if (ui?.html) {
-          saveUiToLocalStorage(school_id, criteria, ui);
+          saveUiToLocalStorage(school_id, criteria, ui, aiPrompt);
           setDynamicUI(ui);
         }
       } catch (err) {
@@ -488,6 +529,7 @@ export const useJudgeSystem = () => {
     dynamicUI,
     config,
     loading,
+    uiRefreshing,
     isComplete,
     modal,
     isOnline,

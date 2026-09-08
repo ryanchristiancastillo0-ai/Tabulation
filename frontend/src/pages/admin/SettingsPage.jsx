@@ -8,7 +8,7 @@ import { useTheme } from '../../providers/ThemeProvider';
 import apiClient from '../../utils/apiClient';
 import { navItems } from '../../constant/navlist.jsx';
 import {
-  ArrowLeft, KeyRound, Save, Loader2, Check, AlertCircle,
+  ArrowLeft, KeyRound, Save, Loader2, Check, AlertCircle, Pencil, X,
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -34,6 +34,7 @@ export default function SettingsPage() {
 
   const [loading,      setLoading]      = useState(true);
   const [saving,       setSaving]       = useState(false);
+  const [editing,      setEditing]      = useState(false);
   const [formMsg,      setFormMsg]      = useState(null);
   const [passwordMsg,  setPasswordMsg]  = useState(null);
 
@@ -77,6 +78,8 @@ export default function SettingsPage() {
         school_email:      schoolEmail.trim(),
         school_phone:      schoolPhone.trim(),
         school_logo:       schoolLogo,
+        admin_name:        adminName.trim(),
+        admin_email:       adminEmail.trim(),
       };
       if (judgePassword) payload.judge_password = judgePassword;
       await apiClient.put('/schools/profile', payload);
@@ -86,6 +89,7 @@ export default function SettingsPage() {
       }
       setFormMsg({ type: 'success', text: 'Profile updated successfully.' });
       localStorage.setItem('schoolName', schoolName.trim());
+      setEditing(false);
     } catch (err) {
       setFormMsg({ type: 'error', text: 'Save failed: ' + err.message });
     } finally {
@@ -180,6 +184,18 @@ export default function SettingsPage() {
                 <div className="gold-rule mt-2.5" />
               </div>
             </div>
+
+            <button
+              onClick={() => { setEditing(v => !v); setFormMsg(null); setPasswordMsg(null); }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-sm text-xs font-semibold border transition-colors ${
+                editing
+                  ? 'border-[#fecdd3] bg-[var(--red-lt)] text-[var(--red)] hover:bg-red-100'
+                  : 'border-[var(--gold-bd)] bg-[var(--gold-lt)] text-[var(--gold)] hover:bg-yellow-100'
+              }`}
+            >
+              {editing ? <X size={15} /> : <Pencil size={15} />}
+              {editing ? 'Cancel' : 'Edit'}
+            </button>
           </div>
 
           <div className="h-px mb-8 bg-gradient-to-r from-transparent via-[var(--border)] to-transparent" />
@@ -192,7 +208,7 @@ export default function SettingsPage() {
             <div className="section-heading" style={{ margin: 0 }}>School Information</div>
 
             <div style={{ maxWidth: 280 }}>
-              <LogoUploadField label="School Logo" value={schoolLogo} onChange={setSchoolLogo} />
+              <LogoUploadField label="School Logo" value={schoolLogo} onChange={setSchoolLogo} readOnly={!editing} />
             </div>
 
             <div style={gridStyle}>
@@ -202,6 +218,7 @@ export default function SettingsPage() {
                   className="field-input"
                   placeholder="School name"
                   value={schoolName}
+                  readOnly={!editing}
                   onChange={(e) => { setSchoolName(e.target.value); setFormMsg(null); }}
                 />
               </div>
@@ -212,6 +229,7 @@ export default function SettingsPage() {
                   type="email"
                   placeholder="info@school.edu.ph"
                   value={schoolEmail}
+                  readOnly={!editing}
                   onChange={(e) => { setSchoolEmail(e.target.value); setFormMsg(null); }}
                 />
               </div>
@@ -221,6 +239,7 @@ export default function SettingsPage() {
                   className="field-input"
                   placeholder="+63 912 345 6789"
                   value={schoolPhone}
+                  readOnly={!editing}
                   onChange={(e) => setSchoolPhone(e.target.value)}
                 />
               </div>
@@ -239,22 +258,25 @@ export default function SettingsPage() {
                 minLength="8"
                 placeholder="Min. 8 characters"
                 value={judgePassword}
+                readOnly={!editing}
                 onChange={(e) => setJudgePassword(e.target.value)}
               />
               <p className="text-[10px] text-[var(--text3)] mt-1">Judges log in with the school email + this password.</p>
-              <StrengthBar pw={judgePassword} />
+              {editing && <StrengthBar pw={judgePassword} />}
             </div>
 
-            <div>
-              <button
-                onClick={handleSaveProfile}
-                disabled={saving}
-                className="btn-primary flex items-center justify-center gap-2"
-              >
-                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                <span>{saving ? 'Saving…' : 'Save Profile'}</span>
-              </button>
-            </div>
+            {editing && (
+              <div>
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={saving}
+                  className="btn-primary flex items-center justify-center gap-2"
+                >
+                  {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                  <span>{saving ? 'Saving…' : 'Save Profile'}</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Administrator Account */}
@@ -267,6 +289,7 @@ export default function SettingsPage() {
                 <input
                   className="field-input"
                   value={adminName}
+                  readOnly={!editing}
                   onChange={(e) => setAdminName(e.target.value)}
                 />
               </div>
@@ -276,8 +299,8 @@ export default function SettingsPage() {
                   className="field-input"
                   type="email"
                   value={adminEmail}
-                  disabled
-                  style={{ opacity: 0.6 }}
+                  readOnly={!editing}
+                  onChange={(e) => setAdminEmail(e.target.value)}
                 />
               </div>
             </div>
@@ -294,6 +317,7 @@ export default function SettingsPage() {
                   className="field-input"
                   type="password"
                   value={curPassword}
+                  readOnly={!editing}
                   onChange={(e) => setCurPassword(e.target.value)}
                   placeholder="Enter current password"
                 />
@@ -304,6 +328,7 @@ export default function SettingsPage() {
                   className="field-input"
                   type="password"
                   value={newPassword}
+                  readOnly={!editing}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Min. 8 characters"
                 />
@@ -314,21 +339,24 @@ export default function SettingsPage() {
                   className="field-input"
                   type="password"
                   value={confirmPassword}
+                  readOnly={!editing}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new password"
                 />
               </div>
             </div>
 
-            <div>
-              <button
-                onClick={handleChangePassword}
-                className="btn-ghost flex items-center justify-center gap-2"
-              >
-                <KeyRound size={16} />
-                Update Admin Password
-              </button>
-            </div>
+            {editing && (
+              <div>
+                <button
+                  onClick={handleChangePassword}
+                  className="btn-ghost flex items-center justify-center gap-2"
+                >
+                  <KeyRound size={16} />
+                  Update Admin Password
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </main>

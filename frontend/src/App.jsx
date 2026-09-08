@@ -12,6 +12,7 @@ import CreateSchoolForm from './pages/school/SchoolForm';
 import JudgeLoginPage from './pages/judge/JudgeLoginPage';
 import { ContestProvider } from './providers/ContestContext';
 import { ThemeProvider } from './providers/ThemeProvider';
+import { ConfigChangeProvider } from './providers/ConfigChangeContext';
 
 const AdminProtectedRoute = () => {
   const token = localStorage.getItem('adminToken');
@@ -45,33 +46,35 @@ const ThemeScope = () => (
 
 export default function App() {
   return (
-    <Routes>
-      {/* ── PUBLIC ROUTES (no polling) ── */}
-      <Route path='/' element={<Home />} />
-      <Route path='/login' element={<AdminLogin />} />
-      <Route path='/judge/login' element={<JudgeLoginPage />} />
-      <Route path='/forgot-password' element={<ForgotPassword />} />
-      <Route path='/school' element={<CreateSchoolForm/>} />
+    <ConfigChangeProvider>
+      <Routes>
+        {/* ── PUBLIC ROUTES (no polling) ── */}
+        <Route path='/' element={<Home />} />
+        <Route path='/login' element={<AdminLogin />} />
+        <Route path='/judge/login' element={<JudgeLoginPage />} />
+        <Route path='/forgot-password' element={<ForgotPassword />} />
+        <Route path='/school' element={<CreateSchoolForm/>} />
 
-      {/* ── EVERYTHING THAT NEEDS CONTEST STATE ── */}
-      <Route element={<ContestScope />}>
-        <Route element={<AdminProtectedRoute />}>
-          <Route element={<ThemeScope />}>
-            <Route path='/admin' element={<Dashboard />} />
-            <Route path='/admin/dashboard' element={<Dashboard />} />
-            <Route path='/admin/settings' element={<SettingsPage />} />
-            <Route path='/admin/leaderboard' element={<LeaderBoard />} />
+        {/* ── EVERYTHING THAT NEEDS CONTEST STATE ── */}
+        <Route element={<ContestScope />}>
+          <Route element={<AdminProtectedRoute />}>
+            <Route element={<ThemeScope />}>
+              <Route path='/admin' element={<Dashboard />} />
+              <Route path='/admin/dashboard' element={<Dashboard />} />
+              <Route path='/admin/settings' element={<SettingsPage />} />
+              <Route path='/admin/leaderboard' element={<LeaderBoard />} />
+            </Route>
+          </Route>
+
+          <Route element={<JudgeProtectedRoute />}>
+            <Route path='/judge' element={<JudgeTable />} />
+            <Route path='/judge/scoreboard' element={<JudgeScoreboard />} />
           </Route>
         </Route>
 
-        <Route element={<JudgeProtectedRoute />}>
-          <Route path='/judge' element={<JudgeTable />} />
-          <Route path='/judge/scoreboard' element={<JudgeScoreboard />} />
-        </Route>
-      </Route>
-
-      {/* ── 404 CATCH-ALL ── */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* ── 404 CATCH-ALL ── */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ConfigChangeProvider>
   );
 }

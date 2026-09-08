@@ -100,8 +100,8 @@ const LOADER_CSS = `
 export default function USALoader({
   fullScreen = true,
   prompt = 'Loading…',
-  background = '#0f1115',
-  dark = true,
+  background = 'var(--bg)',
+  dark,
 }) {
   const core = (
     <div className="usal-loader">
@@ -118,7 +118,7 @@ export default function USALoader({
       {prompt && (
         <div
           className="usal-prompt"
-          style={{ color: dark ? '#9ca3af' : '#6c7a71' }}
+          style={{ color: dark === undefined ? 'var(--text3)' : (dark ? '#9ca3af' : '#6c7a71') }}
         >
           <span className="text-xs font-bold uppercase tracking-[0.2em]">{prompt}</span>
         </div>
