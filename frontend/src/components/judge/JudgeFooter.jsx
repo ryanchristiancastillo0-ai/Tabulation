@@ -1,17 +1,15 @@
-
-
 export default function JudgeFooter({ sysConfig }) {
   const primary = sysConfig.primary_color || '#1B4332';
 
   return (
     <footer
-      className="mt-10 border-t border-white/10"
+      className="mt-6 border-t border-white/10"
       style={{ backgroundColor: primary }}
     >
-      <div className="max-w-screen-xl 2xl:max-w-[1920px] 3xl:max-w-[2560px] mx-auto px-6 lg:px-10 py-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+      <div className="max-w-screen-xl 2xl:max-w-[1920px] 3xl:max-w-[2560px] mx-auto px-6 lg:px-10 py-5">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-white">
+            <h2 className="text-lg font-bold tracking-tight text-white">
               {sysConfig.portal_name || 'Veridict'}
             </h2>
             <p className="text-sm mt-1 text-white/70 max-w-md leading-relaxed">
@@ -19,18 +17,8 @@ export default function JudgeFooter({ sysConfig }) {
               and academic institutions in the Philippines.
             </p>
           </div>
-          <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-3 rounded-sm border border-white/10">
-            <div className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-400"></span>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-white">Secure System Active</p>
-              <p className="text-xs text-white/60">Encrypted judging session</p>
-            </div>
-          </div>
         </div>
-        <div className="w-full h-px bg-white/10 my-6" />
+        <div className="w-full h-px bg-white/10 my-4" />
         <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-sm">
           <p className="text-white/60 text-center md:text-left">
             © {new Date().getFullYear()}{' '}

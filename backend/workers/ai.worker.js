@@ -1,17 +1,14 @@
-// ── AI Generation Worker — separate process (npm run worker) ─────────────────
+// ── AI Generation Worker ────────────────────────────────────────────────────
 // Pulls ai-generation jobs from Redis (BullMQ), calls the EXISTING LLM service,
 // and stores results through the existing database architecture.
 //
-// Run the Express API and the worker as separate processes:
-//   npm run server   (in backend/)
-//   npm run worker   (in backend/)
-
-require('dotenv').config();
+// Can run as a standalone process:  npm run worker   (in backend/)
+// Or be embedded in the Express server (default — see server.js).
 
 const { Worker } = require('bullmq');
 const HttpError = require('../utils/http-error');
 const pool = require('../config/db');
-const { assertRedisConfigured, createWorkerConnection } = require('../config/redis');
+const { createWorkerConnection } = require('../config/redis');
 const { QUEUE_NAME } = require('../config/ai-queue');
 const dataService = require('../services/data.service');
 const judgeService = require('../services/judge.service');
@@ -97,58 +94,65 @@ async function buildPayload(generationId, schoolId) {
   };
 }
 
-// ── Graceful shutdown (SIGTERM/SIGINT — Render-compatible) ───────────────────
+// ── In-process start/stop (used by server.js) ───────────────────────────────
 let worker;
 let workerConnection;
-let shuttingDown = false;
+let started = false;
 
-async function shutdown(signal) {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  console.log(`🛑 ${signal} received. Stopping AI worker (letting active jobs finish)…`);
+function startWorker() {
+  if (started) return;
+  started = true;
 
-  const forceExit = setTimeout(() => {
-    console.error('❌ Worker forced to exit (graceful shutdown timed out).');
-    process.exit(1);
-  }, 30000);
-  forceExit.unref();
+  workerConnection = createWorkerConnection();
 
-  try {
-    if (worker) await worker.close();               // stop polling, drain active jobs
-    if (workerConnection) await workerConnection.quit();
-    await pool.end();                               // close MySQL pool
-    console.log('✅ AI worker shut down cleanly.');
-    process.exit(0);
-  } catch (err) {
-    console.error('❌ Worker shutdown error:', err.message);
-    process.exit(1);
-  }
+  worker = new Worker(QUEUE_NAME, processJob, {
+    connection:   workerConnection,
+    concurrency:  CONCURRENCY,
+    lockDuration: Math.max(JOB_TIMEOUT_MS + 30000, 120000),
+  });
+
+  worker.on('failed', async (job, _err) => {
+    const generationId = typeof job === 'string' ? job : job?.data?.generationId;
+    console.error(`❌ [ai-worker] job permanently failed after retries generation=${generationId}`);
+    if (generationId) {
+      await genService.markFailed(generationId, 'AI generation failed. Please try again.');
+    }
+  });
+
+  worker.on('error', (err) => console.error('❌ [ai-worker] worker error:', err.message));
+
+  console.log(`🚀 AI worker started · queue=${QUEUE_NAME} · concurrency=${CONCURRENCY} · timeout=${JOB_TIMEOUT_MS}ms`);
 }
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT',  shutdown);
-
-// ── Boot ──────────────────────────────────────────────────────────────────────
-assertRedisConfigured('worker');
-
-workerConnection = createWorkerConnection();
-
-worker = new Worker(QUEUE_NAME, processJob, {
-  connection:   workerConnection,
-  concurrency:  CONCURRENCY,
-  // Longer than the LLM timeout so a long-running job is never stolen as stalled.
-  lockDuration: Math.max(JOB_TIMEOUT_MS + 30000, 120000),
-});
-
-// Backstop: if BullMQ exhausts all retries, finalize the DB status.
-worker.on('failed', async (job, _err) => {
-  const generationId = typeof job === 'string' ? job : job?.data?.generationId;
-  console.error(`❌ [ai-worker] job permanently failed after retries generation=${generationId}`);
-  if (generationId) {
-    await genService.markFailed(generationId, 'AI generation failed. Please try again.');
+async function stopWorker() {
+  if (worker) {
+    try { await worker.close(); } catch { /* ignore */ }
+    worker = null;
   }
-});
+  if (workerConnection) {
+    try { await workerConnection.quit(); } catch { /* ignore */ }
+    workerConnection = null;
+  }
+  started = false;
+}
 
-worker.on('error', (err) => console.error('❌ [ai-worker] worker error:', err.message));
+// ── Standalone mode: require('dotenv').config() was already at the top ───────
+// When run directly via `npm run worker`, start the worker automatically.
+if (require.main === module) {
+  require('dotenv').config();
+  const { assertRedisConfigured } = require('../config/redis');
+  assertRedisConfigured('worker');
+  startWorker();
 
-console.log(`🚀 AI worker started · queue=${QUEUE_NAME} · concurrency=${CONCURRENCY} · timeout=${JOB_TIMEOUT_MS}ms`);
+  async function shutdown(signal) {
+    console.log(`🛑 ${signal} received. Stopping AI worker…`);
+    await stopWorker();
+    await pool.end();
+    console.log('✅ AI worker shut down cleanly.');
+    process.exit(0);
+  }
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT',  () => shutdown('SIGINT'));
+}
+
+module.exports = { startWorker, stopWorker };

@@ -16,6 +16,11 @@ const aiRoutes     = require('./routes/ai.routes');
 // Fail fast with a clear message when Upstash Redis is not configured.
 assertRedisConfigured('server');
 
+// Boot the AI generation worker in-process so queued jobs are always consumed
+// and the judge interface never hangs waiting for an external worker process.
+const { startWorker, stopWorker } = require('./workers/ai.worker');
+startWorker();
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -52,6 +57,7 @@ async function gracefulShutdown(signal) {
 
   try {
     await new Promise((resolve) => server.close(resolve));   // stop accepting new requests
+    await stopWorker();                                      // stop AI worker & close its Redis connection
     const { closeAll } = require('./config/redis');
     await closeAll();                                        // close BullMQ producer connection
     await require('./config/db').end();                      // close MySQL pool
