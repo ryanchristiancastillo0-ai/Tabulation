@@ -4,7 +4,7 @@ export default function Hero({ judgeId, compType, contestName, onRefresh }) {
       {/* Background image */}
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/img/backgroundAdmin.png')" }}
+        style={{ backgroundImage: "url('/img/hero.png')" }}
       />
       {/* Dark overlay so text stays readable regardless of image */}
       <div className="absolute inset-0 bg-[#14201A]/80" />

@@ -4,7 +4,7 @@ export default function HeroBanner({ contestName, isRankMode }) {
       {/* Background image */}
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/img/backgroundAdmin.png')" }}
+        style={{ backgroundImage: "url('/img/hero.png')" }}
       />
 
       {/* Gradient overlay — tints the image and keeps text readable */}

@@ -19,7 +19,7 @@ import {
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 const LOGO_SRC = '/img/USAL_LOGO.png';
-const BG_IMAGE_SRC = 'https://images.unsplash.com/photo-1741061966372-8e7e2c221de7?fm=jpg&q=80&w=1600&auto=format&fit=crop';
+const BG_IMAGE_SRC = '/img/right-panel.png';
 
 const AdminLogin = () => {
   const navigate = useNavigate();

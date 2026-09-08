@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import SignInModal from './SignInModal';
 
 export default function Header({ navigate }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -32,7 +34,7 @@ export default function Header({ navigate }) {
         {/* Desktop Links */}
         <div className="hidden md:flex items-center gap-4">
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => setIsSignInOpen(true)}
             className="text-base text-[#3C4A3E] hover:text-[#1B4332] transition-colors px-2 py-1 font-medium"
           >
             Sign In
@@ -73,7 +75,7 @@ export default function Header({ navigate }) {
           }`}
         >
           <button
-            onClick={() => { navigate('/login'); setIsMenuOpen(false); }}
+            onClick={() => { setIsMenuOpen(false); setIsSignInOpen(true); }}
             className="block w-full text-left text-base text-[#3C4A3E] hover:text-[#1B4332] font-medium py-2.5 border-b border-[#E1E8DE]"
           >
             Sign In
@@ -86,6 +88,12 @@ export default function Header({ navigate }) {
           </button>
         </div>
       )}
+
+      <SignInModal
+        open={isSignInOpen}
+        onClose={() => setIsSignInOpen(false)}
+        navigate={navigate}
+      />
     </nav>
   );
 }

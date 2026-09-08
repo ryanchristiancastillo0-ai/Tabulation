@@ -3,9 +3,8 @@ import {
   LayoutGrid, Trophy, Sparkles, Scale,
   Users, UserPlus, Moon, Sun, TrophyIcon, LogOut, MonitorCog, Settings,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-
-const API_BASE = import.meta.env.VITE_API_URL;
+import { useNavigate, useSearchParams } from "react-router-dom";
+import apiClient from "../../utils/apiClient";
 
 // Same nav list used by Dashboard for the mobile drawer
 export const navItems = [
@@ -24,10 +23,12 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
     school_logo: "", portal_name: "", school_name: "",
   });
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || activeNav;
 
   useEffect(() => {
-    fetch(`${API_BASE}/system-config`)
-      .then((r) => r.json())
+    apiClient
+      .get("/system-config")
       .then((data) => { if (data) setSysConfig((p) => ({ ...p, ...data })); })
       .catch(() => {});
   }, []);
@@ -87,11 +88,11 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
       {/* ── Nav items ── */}
       <nav style={{ flex: 1, padding: "0 12px 12px" }}>
         {navItems.map((item) => {
-          const active = activeNav === item.id;
+          const active = activeTab === item.id;
           return (
             <button
               key={item.id}
-              onClick={() => setActiveNav(item.id)}
+              onClick={() => { setActiveNav?.(item.id); navigate('/admin/dashboard?tab=' + item.id); }}
               style={{
                 width: "100%", display: "flex", alignItems: "center", gap: 12,
                 padding: "10px 12px", borderRadius: 6, border: active ? "1px solid var(--accent-bd)" : "1px solid transparent",

@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS `schools` (
   `subscription_plan` VARCHAR(50) DEFAULT 'free' COMMENT 'free, premium, etc.',
   `status` VARCHAR(50) DEFAULT 'active' COMMENT 'active, inactive, suspended',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `last_active_at` TIMESTAMP NULL DEFAULT NULL COMMENT 'last authenticated activity (admin or judge) used for live active-school tracking',
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY `school_email` (`school_email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -167,6 +168,25 @@ CREATE TABLE IF NOT EXISTS `ui_cache` (
   KEY `school_id` (`school_id`),
   UNIQUE KEY `unique_cache` (`school_id`, `prompt_hash`),
   CONSTRAINT `fk_ui_cache_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- TABLE: generations
+-- Description: Source of truth for async AI UI-generation jobs (Redis is the queue, MySQL owns status)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `generations` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `school_id` INT NOT NULL,
+  `prompt` TEXT NOT NULL COMMENT 'AI design goal used for generation',
+  `status` ENUM('QUEUED','PROCESSING','COMPLETED','FAILED') NOT NULL DEFAULT 'QUEUED',
+  `prompt_hash` VARCHAR(32) DEFAULT NULL COMMENT 'links to the result in ui_cache',
+  `error` TEXT DEFAULT NULL COMMENT 'safe, user-facing failure message',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `started_at` TIMESTAMP NULL DEFAULT NULL,
+  `completed_at` TIMESTAMP NULL DEFAULT NULL,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY `school_id` (`school_id`),
+  CONSTRAINT `fk_generations_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================

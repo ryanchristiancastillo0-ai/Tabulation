@@ -3,8 +3,10 @@ const pool = require('../config/db');
 const HttpError = require('../utils/http-error');
 const { generateWithFallback } = require('../config/ai');
 
-// ── RENDER JUDGE SCORING TABLE (AI-generated) ──
-async function renderUI({ contestants, criteria, aiPrompt: incomingPrompt, school_id }) {
+// ── Prepare: validate input + check ui_cache, one source of hash logic ──────
+// Returns the settings, resolved design goal, config hash, and the cached html
+// (or null). Shared by the real-time path (renderUI) and the async queue path.
+async function prepareRender({ contestants, criteria, aiPrompt, school_id }) {
   if (!school_id) throw new HttpError(400, 'school_id is required.');
   if (!contestants?.length || !criteria?.length) {
     throw new HttpError(400, 'contestants and criteria are required.');
@@ -15,7 +17,7 @@ async function renderUI({ contestants, criteria, aiPrompt: incomingPrompt, schoo
     [school_id]
   );
   const settings = rows[0] || { contest_name: 'Event', ai_prompt: 'Modern and Professional' };
-  const finalDesignGoal = incomingPrompt || settings.ai_prompt || 'Modern and Professional';
+  const finalDesignGoal = aiPrompt || settings.ai_prompt || 'Modern and Professional';
 
   const configHash = crypto.createHash('md5')
     .update(finalDesignGoal + JSON.stringify(criteria) + String(school_id))
@@ -26,13 +28,25 @@ async function renderUI({ contestants, criteria, aiPrompt: incomingPrompt, schoo
     [configHash, school_id]
   );
 
-  if (cache.length > 0) {
-    return { html: cache[0].html_content };
+  return {
+    settings,
+    finalDesignGoal,
+    configHash,
+    html: cache.length > 0 ? cache[0].html_content : null,
+  };
+}
+
+// ── RENDER JUDGE SCORING TABLE (AI-generated) ──
+async function renderUI({ contestants, criteria, aiPrompt, school_id }) {
+  const prep = await prepareRender({ contestants, criteria, aiPrompt, school_id });
+
+  if (prep.html) {
+    return { html: prep.html, promptHash: prep.configHash };
   }
 
   const aiInstruction = `
     Act as a Senior Tailwind Developer.
-    [THEME]: "${finalDesignGoal}"
+    [THEME]: "${prep.finalDesignGoal}"
 
     [COLOR SCHEME]:
     - Derive a Tailwind color palette from the theme name.
@@ -55,7 +69,7 @@ async function renderUI({ contestants, criteria, aiPrompt: incomingPrompt, schoo
     - ALWAYS add the same bg and text classes to every <option> — browsers ignore parent styles on options.
 
     [CONTEXT]:
-    - Contest: ${settings.contest_name}
+    - Contest: ${prep.settings.contest_name}
     - Data: ${JSON.stringify(contestants.map(c => ({ id: c.id, n: c.name, num: c.entry_number })))}
     - Criteria: ${JSON.stringify(criteria.map(cr => ({ id: cr.id, name: cr.name, percentage: cr.percentage })))}
 
@@ -68,7 +82,7 @@ async function renderUI({ contestants, criteria, aiPrompt: incomingPrompt, schoo
     - Ranks: id="rank-{cId}"
 
     [OUTPUT]: Return ONLY a <div> with a Tailwind <table>. No markdown.
-`;
+  `;
 
   const tableHTML = await generateWithFallback(aiInstruction);
   const cleanTable = tableHTML.replace(/```html/g, '').replace(/```/g, '').trim();
@@ -78,10 +92,10 @@ async function renderUI({ contestants, criteria, aiPrompt: incomingPrompt, schoo
      VALUES (?, ?, ?)
      ON DUPLICATE KEY UPDATE
        html_content = VALUES(html_content)`,
-    [configHash, school_id, cleanTable]
+    [prep.configHash, school_id, cleanTable]
   );
 
-  return { html: cleanTable };
+  return { html: cleanTable, promptHash: prep.configHash };
 }
 
 // ── SUBMIT SCORES (transaction) ──
@@ -171,6 +185,7 @@ async function getCachedUI(schoolId, criteriaSignature) {
 }
 
 module.exports = {
+  prepareRender,
   renderUI,
   submitScores,
   getMyScores,

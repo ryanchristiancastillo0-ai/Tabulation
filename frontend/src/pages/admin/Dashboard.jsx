@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import Sidebar from "../../components/admin/Sidebar";
 import { Modal } from "../../components/admin/Modal";
 import SectionRender, {
@@ -13,7 +14,8 @@ import { useTheme } from '../../providers/ThemeProvider';
 
 
 function Dashboard() {
- const { dark, setDark } = useTheme();
+  const { dark, setDark } = useTheme();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
@@ -50,6 +52,17 @@ function Dashboard() {
   const [toast,           setToast]           = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [saving,          setSaving]          = useState(false);
+
+  // Keep activeNav in sync with the ?tab= query param (set by the sidebar)
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab) setActiveNav(tab);
+  }, [searchParams]);
+
+  const setActiveNavFromTab = (tab) => {
+    setActiveNav(tab);
+    setSearchParams({ tab }, { replace: true });
+  };
 
   // ── Track window width for responsive layout ──────────────────────────────
   useEffect(() => {
@@ -168,7 +181,7 @@ function Dashboard() {
         {!isMobile && (
           <Sidebar
             activeNav={activeNav}
-            setActiveNav={setActiveNav}
+            setActiveNav={setActiveNavFromTab}
             dark={dark}
             setDark={setDark}
           />
@@ -180,7 +193,7 @@ function Dashboard() {
             isOpen={mobileMenuOpen}
             onClose={() => setMobileMenuOpen(false)}
             activeNav={activeNav}
-            setActiveNav={setActiveNav}
+            setActiveNav={setActiveNavFromTab}
             navItems={navItems}
             dark={dark}
             setDark={setDark}

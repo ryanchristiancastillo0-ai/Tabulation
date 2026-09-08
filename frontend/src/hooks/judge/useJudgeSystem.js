@@ -58,6 +58,29 @@ async function judgeGet(path) {
   return data;
 }
 
+/* ── AI UI generation (async job queue) ─────────────────────────── */
+const AI_POLL_INTERVAL_MS  = 2000;
+const AI_POLL_MAX_ATTEMPTS = 100;
+
+// Polls a queued AI generation job until it COMPLETES, FAILS, or gives up.
+// Returns { html } on success or { error } otherwise.
+async function pollJobUntilDone(jobId, schoolId, cancelledRef) {
+  const url = `/ai/generations/${jobId}?school_id=${encodeURIComponent(schoolId)}`;
+  for (let attempt = 0; attempt < AI_POLL_MAX_ATTEMPTS; attempt++) {
+    if (cancelledRef?.current) return { error: 'Generation cancelled.' };
+    let status;
+    try {
+      status = await judgeGet(url);
+    } catch (err) {
+      return { error: err.message || 'Failed to check generation status.' };
+    }
+    if (status?.status === 'COMPLETED' && status.result) return { html: status.result };
+    if (status?.status === 'FAILED') return { error: status.error || 'AI generation failed.' };
+    await new Promise(r => setTimeout(r, AI_POLL_INTERVAL_MS));
+  }
+  return { error: 'AI generation is taking too long. Please try again.' };
+}
+
 /* ── Hook ────────────────────────────────────────────────────────── */
 export const useJudgeSystem = () => {
   const [selectedJudge, setSelectedJudge] = useState(localStorage.getItem('judge_id') || '');
@@ -71,9 +94,15 @@ export const useJudgeSystem = () => {
   const isOnline = useConnectivity();
   const { saveToCache, loadCache } = useJudgePersistence(selectedJudge, config.contestants);
 
-  const showStatus = (title, message, type = 'success') =>
-    setModal({ show: true, title, message, type });
+  const showStatus = (title, message, type = 'success', onConfirm) =>
+    setModal(onConfirm ? { show: true, title, message, type, onConfirm } : { show: true, title, message, type });
   const closeModal = () => setModal(prev => ({ ...prev, show: false }));
+
+  const allScoresFilled = () => {
+    const dropdowns = document.querySelectorAll('.score-dropdown');
+    return dropdowns.length > 0 &&
+      Array.from(dropdowns).every(el => el.value !== '' && el.value !== null);
+  };
 
   const recalculateRow = (contestantId) => {
     const scores = document.querySelectorAll(`[id^="score-${contestantId}-"]`);
@@ -189,21 +218,39 @@ export const useJudgeSystem = () => {
         return;
       }
 
-      // 2. No localStorage → full POST (DB cache hit or AI generation)
+      // 2. No localStorage → submit job to async queue, then poll until done.
       setLoading(true);
       try {
-        const data = await judgePost('/judge/render-ui', {
+        // Submit to the async AI queue: API returns a generationId (202) OR a
+        // cached render if this exact config was already generated.
+        const submitResp = await judgePost('/ai/generate', {
           contestants,
           criteria,
           school_id,
           aiPrompt: settings?.ai_prompt || '',
         });
 
-        if (data.html) {
-          saveUiToLocalStorage(school_id, criteria, data);
-          setDynamicUI({ html: data.html });
+        // Cached fast-path still returns the html directly.
+        if (submitResp.result) {
+          const ui = { html: submitResp.result };
+          saveUiToLocalStorage(school_id, criteria, ui);
+          setDynamicUI(ui);
+          setLoading(false);
+          return;
+        }
+
+        // Queued path: show "Building Interface…" and poll until the job ends.
+        if (submitResp.generationId) {
+          const result = await pollJobUntilDone(submitResp.generationId, school_id);
+          if (result.html) {
+            const ui = { html: result.html };
+            saveUiToLocalStorage(school_id, criteria, ui);
+            setDynamicUI(ui);
+          } else {
+            showStatus('Error', result.error || 'UI generation failed.', 'error');
+          }
         } else {
-          showStatus('Error', data.error || 'UI generation failed.', 'error');
+          showStatus('Error', submitResp.error || 'UI generation failed.', 'error');
         }
       } catch (err) {
         showStatus('Error', err.message || 'Failed to generate judge interface.', 'error');
@@ -236,8 +283,16 @@ export const useJudgeSystem = () => {
   }, [dynamicUI, config]);
 
   // ── Submit scores ────────────────────────────────────────────────
-  const submitToDB = async () => {
+  const submittingRef = useRef(false);
+  const performSubmitRef = useRef(null);
+
+  const performSubmit = async () => {
+    if (submittingRef.current) return;
     if (!selectedJudge) return showStatus('Error', 'Please select a judge.', 'error');
+
+    if (!allScoresFilled()) {
+      return showStatus('Incomplete Scores', 'Please fill in a score for every contestant before submitting.', 'warning');
+    }
 
     const school_id     = getSchoolId();
     const scoreElements = document.querySelectorAll('.score-dropdown');
@@ -245,6 +300,9 @@ export const useJudgeSystem = () => {
     if (!scoreElements.length) {
       return showStatus('Error', 'No scores found to submit.', 'error');
     }
+
+    submittingRef.current = true;
+    setLoading(true);
 
     const scores = Array.from(scoreElements).map(el => {
       const [, contestantId, criterionId] = el.id.split('-');
@@ -255,7 +313,6 @@ export const useJudgeSystem = () => {
       };
     });
 
-    setLoading(true);
     try {
       const data = await judgePost('/judge/submit', {
         judgeId: selectedJudge,
@@ -270,9 +327,38 @@ export const useJudgeSystem = () => {
     } catch (err) {
       showStatus('Error', err.message || 'Failed to connect to server.', 'error');
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
+
+  performSubmitRef.current = performSubmit;
+
+  // ── Manual submit (button): confirm first, block if incomplete ──
+  const submitToDB = () => {
+    if (!selectedJudge) return showStatus('Error', 'Please select a judge.', 'error');
+    if (!allScoresFilled()) {
+      return showStatus('Incomplete Scores', 'Please fill in a score for every contestant before submitting.', 'warning');
+    }
+    showStatus('Confirm Submission', 'Are you sure you want to submit these scores?', 'confirm', () => {
+      closeModal();
+      performSubmit();
+    });
+  };
+
+  // ── Auto-submit: silently submit once every dropdown has a score ──
+  useEffect(() => {
+    const handleChange = (e) => {
+      if (!e.target?.classList?.contains('score-dropdown')) return;
+      if (e.target.value === '' || e.target.value === null) return;
+      const dropdowns = document.querySelectorAll('.score-dropdown');
+      const filled = dropdowns.length > 0 &&
+        Array.from(dropdowns).every(el => el.value !== '' && el.value !== null);
+      if (filled) performSubmitRef.current();
+    };
+    document.addEventListener('change', handleChange);
+    return () => document.removeEventListener('change', handleChange);
+  }, []);
 
   // ── updateJudge: no reload, re-hydrate only ──────────────────────
   const updateJudge = useCallback((val) => {

@@ -1,26 +1,75 @@
 const pool = require('../config/db');
 const HttpError = require('../utils/http-error');
+const { ACTIVE_WINDOW_MINUTES } = require('../utils/activity');
+const { cacheGetJson, cacheSetJson, cacheDel, cacheDelPattern, CACHE_TTL_SECONDS } = require('../utils/redis-cache');
+
+const allDataKey      = (schoolId) => `public:get-all-data:${schoolId}`;
+const systemConfigKey = (schoolId) => `public:system-config:${schoolId}`;
+const schoolUiKey     = (schoolId) => `ui:html:${schoolId}:*`;
+
+// ── ACTIVE SCHOOLS (real-time) ──
+// Schools that have had authenticated activity within the last ACTIVE_WINDOW_MINUTES.
+async function getActiveSchools() {
+  const [rows] = await pool.execute(
+    `SELECT id, school_name, school_logo, last_active_at
+       FROM schools
+      WHERE status = 'active'
+        AND last_active_at >= NOW() - INTERVAL 5 MINUTE
+      ORDER BY last_active_at DESC, id DESC
+      LIMIT 100`
+  );
+
+  return {
+    count:           rows.length,
+    windowMinutes:   ACTIVE_WINDOW_MINUTES,
+    schools:         rows.map((s) => ({
+      id:             s.id,
+      school_name:    s.school_name,
+      school_logo:    s.school_logo || null,
+      last_active_at: s.last_active_at,
+    })),
+  };
+}
 
 // ── SYSTEM CONFIG ──
 async function getSystemConfig(schoolId) {
+  const key = systemConfigKey(schoolId);
+  const cached = await cacheGetJson(key);
+  if (cached) return cached;
+
   const [config] = await pool.execute(
     'SELECT * FROM system_config WHERE school_id = ? ORDER BY id DESC LIMIT 1',
     [schoolId]
   );
-  return config[0] || {};
+  const result = config[0] || {};
+  await cacheSetJson(key, result, CACHE_TTL_SECONDS.PUBLIC_SYSTEM_CONFIG);
+  return result;
 }
 
 // ── ALL CONTEST DATA (settings + contestants + criteria) ──
 async function getAllData(schoolId) {
+  const key = allDataKey(schoolId);
+  const cached = await cacheGetJson(key);
+  if (cached) return cached;
+
   const [settings] = await pool.execute('SELECT * FROM settings WHERE school_id = ? LIMIT 1', [schoolId]);
   const [contestants] = await pool.execute('SELECT * FROM contestants WHERE school_id = ? ORDER BY entry_number ASC', [schoolId]);
   const [criteria] = await pool.execute('SELECT * FROM criteria WHERE school_id = ?', [schoolId]);
 
-  return {
+  const result = {
     settings:    settings[0] || { contest_name: 'Event', judge_count: 3 },
     contestants,
     criteria,
   };
+  await cacheSetJson(key, result, CACHE_TTL_SECONDS.PUBLIC_ALL_DATA);
+  return result;
+}
+
+// Invalidates the Redis entries that mirror data written by the writes below.
+async function invalidateSchoolCaches(schoolId, { system = false, ui = true } = {}) {
+  await cacheDel(allDataKey(schoolId));
+  if (system) await cacheDel(systemConfigKey(schoolId));
+  if (ui)     await cacheDelPattern(schoolUiKey(schoolId));
 }
 
 // ── LEADERBOARD (average or rank-sum) ──
@@ -127,6 +176,7 @@ async function resetData(schoolId) {
       [schoolId]
     );
     await connection.commit();
+    await invalidateSchoolCaches(schoolId);
     return { success: true, message: 'All data for your school has been cleared.' };
   } catch (err) {
     await connection.rollback();
@@ -218,6 +268,7 @@ async function saveConfig(schoolId, body) {
     }
 
     await connection.commit();
+    await invalidateSchoolCaches(schoolId);
     return { success: true, message: 'Configuration saved!' };
   } catch (error) {
     await connection.rollback();
@@ -264,12 +315,15 @@ async function saveSystemConfig(schoolId, body) {
     ]
   );
 
+  await invalidateSchoolCaches(schoolId, { system: true, ui: false });
+
   return { success: true, message: 'System configuration updated.' };
 }
 
 module.exports = {
   getSystemConfig,
   getAllData,
+  getActiveSchools,
   computeLeaderboard,
   getJudgeIds,
   getJudgeScores,

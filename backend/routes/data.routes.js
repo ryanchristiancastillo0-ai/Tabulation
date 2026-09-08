@@ -11,6 +11,7 @@ router.get('/public/get-all-data', ctrl.publicGetAllData);
 router.get('/public/leaderboard', ctrl.publicLeaderboard);
 router.get('/public/judge/ids', ctrl.publicJudgeIds);
 router.get('/public/judge/scores', ctrl.publicJudgeScores);
+router.get('/public/active-schools', ctrl.publicActiveSchools);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROTECTED ROUTES — auth required from here down

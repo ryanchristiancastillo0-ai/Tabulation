@@ -6,7 +6,7 @@ import {
   UserX, X
 } from 'lucide-react';
 
-const BG_IMAGE_SRC = 'https://images.unsplash.com/photo-1741061966372-8e7e2c221de7?fm=jpg&q=80&w=1600&auto=format&fit=crop';
+const BG_IMAGE_SRC = '/img/right-panel.png';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();

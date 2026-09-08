@@ -35,6 +35,10 @@ exports.publicJudgeScores = async (req, res) => {
   res.json(await dataService.getJudgeScores(school_id, judgeId));
 };
 
+exports.publicActiveSchools = async (req, res) => {
+  res.json(await dataService.getActiveSchools());
+};
+
 // ── PROTECTED ROUTES (auth via middleware) ──
 exports.getAllData = async (req, res) => {
   res.json(await dataService.getAllData(req.school_id));

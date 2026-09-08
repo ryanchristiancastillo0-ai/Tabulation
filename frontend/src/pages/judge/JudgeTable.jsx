@@ -125,6 +125,7 @@ function JudgeTable() {
         message={modal.message}
         type={modal.type}
         onClose={closeModal}
+        onConfirm={modal.onConfirm}
       />
 
       <JudgeHeader

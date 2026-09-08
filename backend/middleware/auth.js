@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config/jwt');
+const { touchSchoolActivity } = require('../utils/activity');
 
 // ── requireAuth ────────────────────────────────────────────────────────────
 // Verifies JWT from Authorization header and injects req.school_id + req.admin
@@ -22,6 +23,10 @@ function requireAuth(req, res, next) {
 
     req.school_id = decoded.school_id;   // ← every route can use req.school_id
     req.admin     = decoded;             // { admin_id, admin_email, school_id, iat, exp }
+
+    // Track that this school is actively in use (throttled, non-blocking).
+    touchSchoolActivity(decoded.school_id);
+
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token.' });
