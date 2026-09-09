@@ -19,8 +19,17 @@ async function prepareRender({ contestants, criteria, aiPrompt, school_id }) {
   const settings = rows[0] || { contest_name: 'Event', ai_prompt: 'Modern and Professional' };
   const finalDesignGoal = aiPrompt || settings.ai_prompt || 'Modern and Professional';
 
+  // Deterministic, EXACTLY the same "id:percentage" signature the frontend
+  // sends to /judge/render-ui-cached and getCachedUI() hashes with. Keeping
+  // this identical is what lets the background cache refresh actually hit the
+  // rows renderUI() saved — otherwise every load misses the cache and
+  // re-triggers an expensive AI generation.
+  const criteriaSignature = criteria
+    .map((c) => `${c.id}:${c.percentage || 0}`)
+    .join(',');
+
   const configHash = crypto.createHash('md5')
-    .update(finalDesignGoal + JSON.stringify(criteria) + String(school_id))
+    .update(finalDesignGoal + criteriaSignature + String(school_id))
     .digest('hex');
 
   const [cache] = await pool.execute(

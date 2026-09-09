@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   JudgeSelector,
 } from '../../components/judge/index';
+import { getSchoolId, clearJudgeToken, clearActiveSchoolId } from '../../utils/judge';
 
 export default function HeaderStructured({ sysConfig, contestName, selectedJudge, judgeCount, updateJudge, isJudgeLocked }) {
   const primary   = sysConfig.primary_color   || '#1B4332';
@@ -16,11 +17,14 @@ export default function HeaderStructured({ sysConfig, contestName, selectedJudge
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    const sid = getSchoolId();
     localStorage.removeItem('judgeToken');
     localStorage.removeItem('judgeSchool');
-    localStorage.removeItem('judge_id');
+    localStorage.removeItem(`judge_id_${sid}`);
     localStorage.removeItem('auth');
-    navigate('/judge/login');
+    clearJudgeToken(sid);
+    clearActiveSchoolId();
+    navigate(`/judge/login?school_id=${sid}`);
   };
 
   return (

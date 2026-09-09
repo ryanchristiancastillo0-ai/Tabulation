@@ -1,23 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { getSchoolId, tokenSchoolId } from '../utils/getSchoolId';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
-function getSchoolId() {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('school_id')) return params.get('school_id');
-    const user = localStorage.getItem('adminUser');
-    if (user) return JSON.parse(user)?.school_id || 1;
-    const auth = localStorage.getItem('auth');
-    if (auth) return JSON.parse(auth)?.admin?.school_id || 1;
-    return 1;
-  } catch {
-    return 1;
-  }
-}
-
 function getAuthToken() {
   try {
+    const sid = String(getSchoolId());
+    const scoped = localStorage.getItem(`admin_token_${sid}`);
+    if (scoped) return scoped;
+    const legacy = localStorage.getItem('adminToken');
+    if (legacy && String(tokenSchoolId(legacy)) === sid) return legacy;
     const auth = localStorage.getItem('auth');
     if (auth) return JSON.parse(auth)?.token || null;
     const user = localStorage.getItem('adminUser');

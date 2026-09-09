@@ -193,13 +193,7 @@ const SystemConfigSection = ({
                   Professional judging and tabulation platform for Catholic schools and academic institutions in the Philippines.
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '8px 12px' }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: secondary, flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>Secure System Active</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)' }}>Encrypted judging session</div>
-                </div>
-              </div>
+             
             </div>
             <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '0 0 12px' }} />
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>

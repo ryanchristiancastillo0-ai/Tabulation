@@ -1,20 +1,7 @@
 import apiClient from '..//utils/apiClient';  // ← add this import at the top
+import { getSchoolId } from '../utils/getSchoolId';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-
-function getSchoolId() {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('school_id')) return params.get('school_id');
-    const user = localStorage.getItem('adminUser');
-    if (user) return JSON.parse(user)?.school_id || 1;
-    const auth = localStorage.getItem('auth');
-    if (auth) return JSON.parse(auth)?.admin?.school_id || 1;
-    return 1;
-  } catch {
-    return 1;
-  }
-}
 
 export const getJudgeDataFetch = async (setLoading, setConfig, setDynamicUI, showStatus) => {
   setLoading(true);

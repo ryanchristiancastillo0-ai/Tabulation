@@ -23,9 +23,14 @@ export const getHydra_and_Calcu = (
   recalculateRow,
   updateRankings,
   selectedJudge,
-  dbScores = []
+  dbScores = [],
+  schoolId
 ) => {
   if (!dynamicUI) return;
+
+  const scoreKeyPrefix = schoolId
+    ? `j${schoolId}_judge_${selectedJudge}_`
+    : `judge_${selectedJudge}_`;
 
   // ── Tear down any previous observer + listener before starting fresh ──
   if (activeObserver) {
@@ -78,7 +83,7 @@ export const getHydra_and_Calcu = (
       select.innerHTML = options;
 
       const dbVal    = dbLookup[select.id];
-      const localVal = localStorage.getItem(`judge_${selectedJudge}_${select.id}`);
+      const localVal = localStorage.getItem(`${scoreKeyPrefix}${select.id}`);
 
       if (dbVal !== undefined && dbVal !== null) {
         select.value = String(dbVal);
@@ -123,7 +128,7 @@ export const getHydra_and_Calcu = (
   const handleChange = (e) => {
     if (!e.target.classList.contains('score-dropdown')) return;
     const conId = e.target.id.split('-')[1];
-    localStorage.setItem(`judge_${selectedJudge}_${e.target.id}`, e.target.value);
+    localStorage.setItem(`${scoreKeyPrefix}${e.target.id}`, e.target.value);
     if (saveToCache) saveToCache(e.target.id, e.target.value);
     recalculateRow(conId);
     updateRankings();

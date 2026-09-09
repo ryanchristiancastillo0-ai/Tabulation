@@ -4,6 +4,7 @@ import {Lock,X, User, Trophy, Shield, LogOut} from 'lucide-react';
 
 
 import {JudgeSelector,LogoMark} from '../../components/judge/index'
+import { getSchoolId, clearJudgeToken, clearActiveSchoolId } from '../../utils/judge';
 
 export default function MobileDrawer({
   isOpen, onClose,
@@ -16,12 +17,15 @@ export default function MobileDrawer({
   const navigate  = useNavigate();
 
   const handleLogout = () => {
+    const sid = getSchoolId();
     localStorage.removeItem('judgeToken');
     localStorage.removeItem('judgeSchool');
-    localStorage.removeItem('judge_id');
+    localStorage.removeItem(`judge_id_${sid}`);
     localStorage.removeItem('auth');
+    clearJudgeToken(sid);
+    clearActiveSchoolId();
     onClose();
-    navigate('/judge/login');
+    navigate(`/judge/login?school_id=${sid}`);
   };
 
   useEffect(() => {

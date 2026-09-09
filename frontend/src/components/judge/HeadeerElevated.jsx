@@ -1,6 +1,7 @@
 import { Building2, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { JudgeSelector } from '../../components/judge/index'
+import { getSchoolId, clearJudgeToken, clearActiveSchoolId } from '../../utils/judge';
 
 
 export default function HeaderElevated({ sysConfig, contestName, selectedJudge, judgeCount, updateJudge, isJudgeLocked }) {
@@ -12,11 +13,14 @@ export default function HeaderElevated({ sysConfig, contestName, selectedJudge, 
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    const sid = getSchoolId();
     localStorage.removeItem('judgeToken');
     localStorage.removeItem('judgeSchool');
-    localStorage.removeItem('judge_id');
+    localStorage.removeItem(`judge_id_${sid}`);
     localStorage.removeItem('auth');
-    navigate('/judge/login');
+    clearJudgeToken(sid);
+    clearActiveSchoolId();
+    navigate(`/judge/login?school_id=${sid}`);
   };
 
   return (

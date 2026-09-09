@@ -6,7 +6,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 
 const JudgeScoreboard = () => {
-  const [judgeId, setJudgeId]       = useState(localStorage.getItem('judge_id') || '');
+  const [judgeId, setJudgeId]       = useState(localStorage.getItem(`judge_id_${getSchoolId()}`) || '');
   const [rankings, setRankings]     = useState([]);
   const [loading, setLoading]       = useState(false);
   const [contestName, setContestName] = useState('Leaderboard');
@@ -47,7 +47,7 @@ const JudgeScoreboard = () => {
   }, []);
 
   useEffect(() => {
-    const storedId = localStorage.getItem('judge_id');
+    const storedId = localStorage.getItem(`judge_id_${getSchoolId()}`);
     if (storedId) setJudgeId(storedId);
 
     // Public route — judges have no admin JWT, so call the public

@@ -18,39 +18,52 @@ const OverviewSection = ({
 
     {(schoolLogo || portalName || schoolName) && (
       <div style={{
-        ...card,
-        padding: '16px 20px',
+        padding: '28px 24px',
         display: 'flex', alignItems: 'center', gap: 14,
-        background: 'linear-gradient(135deg, var(--accent-lt), var(--surface))',
         position: 'relative', overflow: 'hidden',
+        borderRadius: 10,
+        border: '1px solid var(--accent-bd)',
+        minHeight: 120,
+        backgroundImage: backgroundLogo
+          ? `linear-gradient(135deg, rgba(15,23,42,0.72), rgba(15,23,42,0.55)), url(${backgroundLogo})`
+          : 'linear-gradient(135deg, var(--accent-lt), var(--surface))',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
       }}>
-        {backgroundLogo && (
-          <img src={backgroundLogo} alt="bg" style={{
-            position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
-            width: 64, height: 64, objectFit: 'contain', opacity: 0.10,
-          }} />
-        )}
         {schoolLogo ? (
           <img src={schoolLogo} alt="school logo" style={{
             width: 46, height: 46,
             borderRadius: logoRadius >= 999 ? '50%' : `${logoRadius}px`,
-            objectFit: 'cover', border: '2px solid var(--accent-bd)',
+            objectFit: 'cover', border: '2px solid #fff',
             flexShrink: 0,
+            position: 'relative', zIndex: 1,
           }} />
         ) : (
           <div style={{
             width: 46, height: 46, borderRadius: 6, flexShrink: 0,
-            background: 'var(--accent-lt)', border: '1.5px solid var(--accent-bd)',
+            background: backgroundLogo ? 'rgba(255,255,255,0.15)' : 'var(--accent-lt)',
+            border: backgroundLogo ? '1.5px solid rgba(255,255,255,0.4)' : '1.5px solid var(--accent-bd)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'relative', zIndex: 1,
           }}>
-            <Building2 size={20} style={{ color: 'var(--accent)' }} />
+            <Building2 size={20} style={{ color: backgroundLogo ? '#fff' : 'var(--accent)' }} />
           </div>
         )}
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ minWidth: 0, position: 'relative', zIndex: 1 }}>
+          <div style={{
+            fontWeight: 800, fontSize: 15,
+            color: backgroundLogo ? '#fff' : 'var(--text1)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            textShadow: backgroundLogo ? '0 1px 3px rgba(0,0,0,0.4)' : 'none',
+          }}>
             {portalName || 'Your Portal'}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+          <div style={{
+            fontSize: 12,
+            color: backgroundLogo ? 'rgba(255,255,255,0.85)' : 'var(--text3)',
+            marginTop: 2,
+            textShadow: backgroundLogo ? '0 1px 3px rgba(0,0,0,0.4)' : 'none',
+          }}>
             {schoolName || 'Your School'}
           </div>
         </div>

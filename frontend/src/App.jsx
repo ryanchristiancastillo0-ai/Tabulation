@@ -13,18 +13,30 @@ import JudgeLoginPage from './pages/judge/JudgeLoginPage';
 import { ContestProvider } from './providers/ContestContext';
 import { ThemeProvider } from './providers/ThemeProvider';
 import { ConfigChangeProvider } from './providers/ConfigChangeContext';
+import { getSchoolId, tokenSchoolId } from './utils/getSchoolId';
 
 const AdminProtectedRoute = () => {
-  const token = localStorage.getItem('adminToken');
+  const sid = getSchoolId();
+  const token = localStorage.getItem(`admin_token_${sid}`) ||
+                localStorage.getItem('adminToken');
   if (!token || token === "undefined") {
+    return <Navigate to="/login" replace />;
+  }
+  // Also verify the token really belongs to the school this tab shows.
+  if (String(tokenSchoolId(token)) !== String(sid)) {
     return <Navigate to="/login" replace />;
   }
   return <Outlet />;
 };
 
 const JudgeProtectedRoute = () => {
-  const token = localStorage.getItem('judgeToken');
+  const sid = getSchoolId();
+  const token = localStorage.getItem(`judge_token_${sid}`) ||
+                localStorage.getItem('judgeToken');
   if (!token || token === "undefined") {
+    return <Navigate to="/judge/login" replace />;
+  }
+  if (String(tokenSchoolId(token)) !== String(sid)) {
     return <Navigate to="/judge/login" replace />;
   }
   return <Outlet />;

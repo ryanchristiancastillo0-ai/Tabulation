@@ -63,7 +63,13 @@ function Dashboard() {
 
   const setActiveNavFromTab = (tab) => {
     setActiveNav(tab);
-    setSearchParams({ tab }, { replace: true });
+    // Preserve existing query params (e.g. ?school_id=…) so the URL keeps
+    // identifying the school this dashboard belongs to.
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      return next;
+    }, { replace: true });
   };
 
   // ── Track window width for responsive layout ──────────────────────────────

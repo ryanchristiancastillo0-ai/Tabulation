@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { getSchoolId } from '../utils/judge';
+import { getSchoolId, patchHistoryForSchoolSync } from '../utils/getSchoolId';
 
 const ConfigChangeContext = createContext(null);
 
@@ -10,31 +10,44 @@ export const useConfigChange = () => {
 };
 
 /**
- * Cross-tab "config changed" signalling.
+ * Cross-tab "config changed" signalling, scoped to ONE school.
  *
  * Admin tab calls notifyConfigChanged() after a successful save. Any other
- * open tab of the same origin (e.g. the judge page) receives the signal via:
+ * open tab of the SAME school receives the signal via:
  *   1. BroadcastChannel (instant, no server round-trip)
  *   2. localStorage 'storage' event fallback
+ *
+ * The channel + storage key are built from `school_id`, which is resolved
+ * URL-first (see utils/getSchoolId). Judge/admin routes carry ?school_id= in
+ * the URL, so each school gets its own channel and a save for school 1 can
+ * NEVER trigger a reload of school 2's judge tab, even in multi-tab use.
  *
  * changeCount increments once per signal, deduplicated across both channels
  * (they share the same localStorage timestamp, so only the first mechanism
  * that observes it actually increments).
- *
- * Notes:
- * - BroadcastChannel/storage events only fire in OTHER tabs, never the
- *   sender's own tab, so the admin never accidentally triggers itself.
- * - A freshly-opened judge tab does not re-trigger (baseline is recorded on
- *   mount) — the normal config-fetch / cache-key path handles that case.
  */
 export const ConfigChangeProvider = ({ children }) => {
-  const schoolId = getSchoolId();
+  const [schoolId, setSchoolId] = useState(() => getSchoolId());
   const [changeCount, setChangeCount] = useState(0);
 
   const channelName = `config-change-${schoolId}`;
   const signalKey   = `config_signal_${schoolId}`;
 
   const lastSeenRef = useRef(null);
+
+  // Re-resolve the school whenever the URL changes (react-router navigations
+  // like /judge?school_id=2, admin ?tab=…, back/forward, etc.), so the channel
+  // always tracks the school this tab is actually showing.
+  useEffect(() => {
+    const sync = () => setSchoolId(getSchoolId());
+    window.addEventListener('popstate', sync);
+    window.addEventListener('school_id_urlchange', sync);
+    patchHistoryForSchoolSync();
+    return () => {
+      window.removeEventListener('popstate', sync);
+      window.removeEventListener('school_id_urlchange', sync);
+    };
+  }, []);
 
   useEffect(() => {
     if (!schoolId) return;
@@ -98,7 +111,7 @@ export const ConfigChangeProvider = ({ children }) => {
   }, [channelName, signalKey]);
 
   return (
-    <ConfigChangeContext.Provider value={{ changeCount, notifyConfigChanged }}>
+    <ConfigChangeContext.Provider value={{ changeCount, notifyConfigChanged, schoolId }}>
       {children}
     </ConfigChangeContext.Provider>
   );

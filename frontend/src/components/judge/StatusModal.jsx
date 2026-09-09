@@ -1,4 +1,5 @@
 import { CheckCircle2, AlertCircle, XCircle, HelpCircle, ArrowRight, X } from 'lucide-react';
+import { getSchoolId } from '../../utils/getSchoolId';
 
 export default function StatusModal({ isOpen, title, message, type, onClose, onConfirm }) {
   if (!isOpen) return null;
@@ -65,7 +66,7 @@ export default function StatusModal({ isOpen, title, message, type, onClose, onC
           ) : (
             <div className="mt-7 flex flex-col gap-2 w-full">
               <a
-                href="/judge/scoreboard"
+                href={`/judge/scoreboard?school_id=${getSchoolId()}`}
                 className="w-full py-2.5 text-sm text-white font-semibold rounded-sm bg-[#1B4332] hover:bg-[#123024] transition-all active:scale-95 shadow-sm flex items-center justify-center gap-2"
               >
                 <ArrowRight size={15} />

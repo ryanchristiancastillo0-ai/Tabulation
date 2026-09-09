@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 
 import { USALoader } from '../../components/index';
+import { setActiveSchoolId } from '../../utils/getSchoolId';
+import { setJudgeToken } from '../../utils/judge';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -52,14 +54,17 @@ const JudgeLoginPage = () => {
       }
 
       if (data.token) {
+        const schoolId = data.school?.id;
         localStorage.setItem('judgeToken', data.token);
+        setJudgeToken(schoolId, data.token);
         localStorage.setItem('judgeSchool', JSON.stringify(data.school));
         localStorage.setItem('auth', JSON.stringify({
           token: data.token,
           school: data.school,
           role: 'judge',
         }));
-        navigate('/judge');
+        setActiveSchoolId(schoolId);
+        navigate(`/judge?school_id=${schoolId}`);
       } else {
         throw new Error('No token received from server.');
       }

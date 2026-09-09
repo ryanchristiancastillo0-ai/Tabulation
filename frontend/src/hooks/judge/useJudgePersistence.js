@@ -1,8 +1,11 @@
 import { useRef } from 'react';
 
-export const useJudgePersistence = (selectedJudge, contestants) => {
+export const useJudgePersistence = (selectedJudge, contestants, schoolId) => {
   const scoreCache = useRef({});
-  const getStorageKey = () => `backup_scores_judge_${selectedJudge}`;
+  const getStorageKey = () =>
+    schoolId
+      ? `backup_scores_s${schoolId}_judge_${selectedJudge}`
+      : `backup_scores_judge_${selectedJudge}`;
 
   const saveToCache = (id, value) => {
     scoreCache.current[id] = value;

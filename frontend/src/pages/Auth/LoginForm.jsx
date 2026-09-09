@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 
 import { USALoader } from '../../components/index';
+import { setActiveSchoolId } from '../../utils/getSchoolId';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -57,13 +58,16 @@ const AdminLogin = () => {
       }
 
       if (data.token) {
+        const schoolId = data.admin?.school_id;
+        localStorage.setItem(`admin_token_${schoolId}`, data.token);
         localStorage.setItem('adminToken', data.token);
         localStorage.setItem('adminUser', JSON.stringify(data.admin));
         localStorage.setItem('auth', JSON.stringify({
           token: data.token,
           admin: data.admin,
         }));
-        navigate('/admin/dashboard');
+        setActiveSchoolId(schoolId);
+        navigate(`/admin/dashboard?school_id=${schoolId}`);
       } else {
         throw new Error('No token received from server.');
       }

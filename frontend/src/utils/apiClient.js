@@ -6,9 +6,21 @@
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
+import { getSchoolId, tokenSchoolId } from './getSchoolId';
+
+// Admin tokens are stored per school (admin_token_<school_id>) so multiple
+// school dashboards in different tabs never share/overwrite a single global
+// token. Legacy single 'adminToken' is only used when it belongs to the
+// school this tab is currently showing.
 function getToken() {
   try {
-    return localStorage.getItem('adminToken') || null;
+    const sid = String(getSchoolId());
+    const scoped = localStorage.getItem(`admin_token_${sid}`);
+    if (scoped) return scoped;
+
+    const legacy = localStorage.getItem('adminToken');
+    if (legacy && String(tokenSchoolId(legacy)) === sid) return legacy;
+    return null;
   } catch {
     return null;
   }

@@ -125,7 +125,9 @@ async function pollJobUntilDone(jobId, schoolId, cancelledRef) {
 
 /* ── Hook ────────────────────────────────────────────────────────── */
 export const useJudgeSystem = () => {
-  const [selectedJudge, setSelectedJudge] = useState(localStorage.getItem('judge_id') || '');
+  const schoolId = getSchoolId();
+
+  const [selectedJudge, setSelectedJudge] = useState(localStorage.getItem(`judge_id_${schoolId}`) || '');
   const [dynamicUI,     setDynamicUI]     = useState('');
   const [config,        setConfig]        = useState({ contestants: [], criteria: [], settings: {} });
   const [loading,       setLoading]       = useState(false);
@@ -134,9 +136,8 @@ export const useJudgeSystem = () => {
   const [modal,         setModal]         = useState({ show: false, title: '', message: '', type: 'success' });
 
   const isOnline = useConnectivity();
-  const { saveToCache, loadCache } = useJudgePersistence(selectedJudge, config.contestants);
+  const { saveToCache, loadCache } = useJudgePersistence(selectedJudge, config.contestants, schoolId);
 
-  const schoolId = getSchoolId();
   const { changeCount: configChangeCount } = useConfigChange();
 
   const showStatus = (title, message, type = 'success', onConfirm) =>
@@ -250,13 +251,19 @@ export const useJudgeSystem = () => {
   // changeCount starts at 0 on mount; every admin save bumps it via the
   // cross-tab ConfigChangeProvider (BroadcastChannel + storage fallback).
   const uiRendered = useRef('');
+  const dynamicUIRef = useRef('');
+  useEffect(() => {
+    dynamicUIRef.current = typeof dynamicUI === 'string' ? dynamicUI : (dynamicUI?.html || '');
+  }, [dynamicUI]);
 
   useEffect(() => {
     if (configChangeCount === 0) return;
 
-    // Immediately show the full loader (USALoader in ScoringCard)
-    setLoading(true);
-    setUiRefreshing(false);
+    // If a table is already on screen, keep it visible under the refresh
+    // overlay instead of blocking the whole page with the full loader.
+    const hasTable = !!dynamicUIRef.current;
+    setLoading(!hasTable);
+    setUiRefreshing(hasTable);
 
     // Reset the render guard so STEP 2 re-runs with the new config
     uiRendered.current = '';
@@ -278,7 +285,7 @@ export const useJudgeSystem = () => {
         // Even if the fetch fails, STEP 2 will still run with the current config
         setLoading(false);
       });
-  }, [configChangeCount]);
+  }, [configChangeCount, schoolId]);
 
   // ── STEP 2: Render AI UI — localStorage first, cache-only bg sync ─
   useEffect(() => {
@@ -318,7 +325,7 @@ export const useJudgeSystem = () => {
               // Generate (and cache) the new table in the background so the
               // judge page self-updates without requiring a manual reload.
               setUiRefreshing(true);
-              return ensureCachedUi(contestants, criteria, settings, school_id)
+              return ensureCachedUi(contestants, criteria, settings, school_id, true)
                 .then(ui => {
                   if (ui?.html) {
                     saveUiToLocalStorage(school_id, criteria, ui, aiPrompt);
@@ -340,6 +347,24 @@ export const useJudgeSystem = () => {
       }
 
       // 2. No local cache → ensure a server render exists for this config.
+      const hasTable = !!dynamicUIRef.current;
+      if (hasTable) {
+        // Keep the current table on screen and generate in the background,
+        // so the judge never sits on a blank "Building interface…" screen
+        // while the AI job runs (its previous table is still useful).
+        setUiRefreshing(true);
+        try {
+          const ui = await ensureCachedUi(contestants, criteria, settings, school_id, true);
+          if (ui?.html) {
+            saveUiToLocalStorage(school_id, criteria, ui, aiPrompt);
+            setDynamicUI(ui);
+          }
+        } finally {
+          setUiRefreshing(false);
+        }
+        return;
+      }
+
       setLoading(true);
       try {
         const ui = await ensureCachedUi(contestants, criteria, settings, school_id);
@@ -359,8 +384,10 @@ export const useJudgeSystem = () => {
   }, [config, uiRendered]);
 
   // Generate-or-fetch the AI table for the given config, caching locally.
-  const ensureCachedUi = async (contestants, criteria, settings, school_id) => {
-    setLoading(true);
+  // When `silent` is true the caller already manages the loading indication
+  // (e.g. the refresh overlay), so this never flips the full-screen loader.
+  const ensureCachedUi = async (contestants, criteria, settings, school_id, silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const submitResp = await judgePost('/ai/generate', {
         contestants,
@@ -388,7 +415,7 @@ export const useJudgeSystem = () => {
       showStatus('Error', err.message || 'Failed to generate judge interface.', 'error');
       return null;
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -407,7 +434,8 @@ export const useJudgeSystem = () => {
         recalculateRow,
         updateRankings,
         selectedJudgeRef.current,
-        loadCache
+        loadCache,
+        schoolId
       );
     }
   }, [dynamicUI, config]);
@@ -506,7 +534,7 @@ export const useJudgeSystem = () => {
     if (!val) return;
 
     setSelectedJudge(val);
-    localStorage.setItem('judge_id', val);
+    localStorage.setItem(`judge_id_${schoolId}`, val);
     selectedJudgeRef.current = val;
 
     // Re-hydrate the table for the newly selected judge, restoring whatever
@@ -519,10 +547,11 @@ export const useJudgeSystem = () => {
         recalculateRow,
         updateRankings,
         val,
-        []
+        [],
+        schoolId
       );
     }
-  }, [dynamicUI, config, saveToCache, recalculateRow, updateRankings]);
+  }, [dynamicUI, config, saveToCache, recalculateRow, updateRankings, schoolId]);
 
   return {
     selectedJudge,
