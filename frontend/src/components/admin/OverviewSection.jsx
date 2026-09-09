@@ -110,7 +110,7 @@ const OverviewSection = ({
         {[
           { label: 'Contest', icon: <Trophy size={12} />, value: contestName ? <span style={{ color: 'var(--text1)', fontWeight: 600 }}>{contestName}</span> : <em style={{ color: 'var(--text3)' }}>Not set</em> },
           { label: 'Type', icon: <Tag size={12} />, value: <span className="badge badge-indigo" style={{ textTransform: 'capitalize' }}>{contestType}</span> },
-          { label: 'Calculation', icon: <Calculator size={12} />, value: <span className="badge badge-indigo">{calculationType === 'average' ? 'Average Score' : 'Rank-Sum (By Place)'}</span> },
+          { label: 'Calculation', icon: <Calculator size={12} />, value: <span className="badge badge-indigo">{calculationType === 'custom' ? 'Custom' : calculationType === 'average' ? 'Average Score' : 'Rank-Sum (By Place)'}</span> },
           { label: 'Weight', icon: <PieChart size={12} />, value: <span className={`badge ${totalWeight === 100 ? 'badge-green' : 'badge-red'}`}>{totalWeight}% {totalWeight === 100 ? '✓ Valid' : '✗ Must be 100%'}</span> },
           { label: 'AI Prompt', icon: <Sparkles size={12} />, value: <span style={{ color: aiPrompt ? 'var(--accent-mid)' : 'var(--red)', fontWeight: 600, fontSize: 12 }}>{aiPrompt ? '✓ Configured' : '✗ Not set'}</span> },
           { label: 'Judge Access', icon: <ShieldCheck size={12} />, value: <span className={`badge ${isJudgeLocked ? 'badge-red' : 'badge-green'}`}>{isJudgeLocked ? 'Locked' : 'Open'}</span> },

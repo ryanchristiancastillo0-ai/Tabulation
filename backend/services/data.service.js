@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const HttpError = require('../utils/http-error');
+const { rankValues, numeric } = require('../utils/ranks');
 const { ACTIVE_WINDOW_MINUTES } = require('../utils/activity');
 const { cacheGetJson, cacheSetJson, cacheDel, cacheDelPattern, CACHE_TTL_SECONDS } = require('../utils/redis-cache');
 
@@ -75,32 +76,58 @@ async function invalidateSchoolCaches(schoolId, { system = false, ui = true } = 
 // ── LEADERBOARD (average or rank-sum) ──
 // Returns null when the school has no settings row yet, so callers decide
 // how to respond (public route → empty array, protected route → 404).
+//
+// Rank modes:
+//   computation_type = 'average' → rank each contestant's final average
+//                                  (midrank ties).
+//   computation_type = 'rank'    → per-judge ranks are summed; tied totals
+//                                  share a midrank per judge and tied rank-sums
+//                                  share a midrank in the final standings.
+//   computation_type = 'custom'  → base calc = custom_base ('average' or
+//                                  'rank'), ties ranked with
+//                                  tie_break_method ('midrank' | 'shared' |
+//                                  'sequential').
 async function computeLeaderboard(schoolId) {
   const [settings] = await pool.execute(
-    'SELECT computation_type, judge_count FROM settings WHERE school_id = ? LIMIT 1',
+    `SELECT computation_type, custom_base, tie_break_method, judge_count
+       FROM settings
+      WHERE school_id = ? LIMIT 1`,
     [schoolId]
   );
 
   if (!settings[0]) return null;
 
-  const { computation_type: type } = settings[0];
+  const s        = settings[0];
+  const base     = s.computation_type === 'custom' ? (s.custom_base || 'average') : s.computation_type;
+  const tieBreak = s.computation_type === 'custom' ? (s.tie_break_method || 'midrank') : 'midrank';
 
   // ── AVERAGE MODE ─────────────────────────────────────────────────────────
   // FIX: divide by COUNT(DISTINCT judge_id) instead of the settings judge_count
   // value. This ensures the average is always correct regardless of how many
   // judges have actually submitted, and works correctly across all schools.
-  if (type === 'average') {
+  if (base === 'average') {
     const [results] = await pool.execute(
-      `SELECT c.name,
+      `SELECT c.id, c.name, c.entry_number,
               SUM(s.score_value) / COUNT(DISTINCT s.judge_id) AS final_score
        FROM   scores      s
        JOIN   contestants c ON c.id = s.contestant_id AND c.school_id = ?
        WHERE  s.school_id = ?
-       GROUP  BY c.id
-       ORDER  BY final_score DESC`,
+       GROUP  BY c.id`,
       [schoolId, schoolId]
     );
-    return results;
+
+    const ranked = rankValues(
+      results.map(r => ({ ...r, final_score: numeric(r.final_score), value: numeric(r.final_score) })),
+      { method: tieBreak, ascending: false }
+    );
+
+    return ranked.map(r => ({
+      id:            r.id,
+      name:          r.name,
+      entry_number:  r.entry_number,
+      final_score:   r.final_score,
+      rank:          r.rank,
+    }));
   }
 
   // ── RANK-SUM MODE ─────────────────────────────────────────────────────────
@@ -114,24 +141,41 @@ async function computeLeaderboard(schoolId) {
     [schoolId, schoolId]
   );
 
-  const judgeRanks = {};
+  const judgeScores = {};
   rawScores.forEach(s => {
-    if (!judgeRanks[s.judge_id]) judgeRanks[s.judge_id] = [];
-    judgeRanks[s.judge_id].push(s);
+    if (!judgeScores[s.judge_id]) judgeScores[s.judge_id] = [];
+    judgeScores[s.judge_id].push(s);
   });
 
   const finalTallies = {};
-  Object.values(judgeRanks).forEach(scores => {
-    scores.sort((a, b) => b.judge_total - a.judge_total);
-    scores.forEach((s, index) => {
+  Object.values(judgeScores).forEach(scores => {
+    // Per judge: rank contestants by total with the active tie-break method,
+    // so tied totals share a midrank instead of getting sequential positions.
+    const ranked = rankValues(
+      scores.map(s => ({ ...s, value: numeric(s.judge_total) })),
+      { method: tieBreak, ascending: false }
+    );
+    ranked.forEach(s => {
       if (!finalTallies[s.contestant_id]) {
-        finalTallies[s.contestant_id] = { name: s.name, total_rank: 0 };
+        finalTallies[s.contestant_id] = { id: s.contestant_id, name: s.name, total_rank: 0 };
       }
-      finalTallies[s.contestant_id].total_rank += index + 1;
+      finalTallies[s.contestant_id].total_rank += s.rank;
     });
   });
 
-  return Object.values(finalTallies).sort((a, b) => a.total_rank - b.total_rank);
+  // Final standings: lowest rank-sum wins; equal rank-sums share the next
+  // available midrank so e.g. two tied sums of 3.5 become 1.5 / 1.5 / 3.
+  const final = rankValues(
+    Object.values(finalTallies).map(t => ({ ...t, value: numeric(t.total_rank) })),
+    { method: tieBreak, ascending: true }
+  );
+
+  return final.map(t => ({
+    id:           t.id,
+    name:         t.name,
+    total_rank:   t.total_rank,
+    rank:         t.rank,
+  }));
 }
 
 // ── JUDGE IDS ──
@@ -148,16 +192,35 @@ async function getJudgeIds(schoolId) {
 
 // ── CONTESTANT TOTALS FOR A SINGLE JUDGE ──
 async function getJudgeScores(schoolId, judgeId) {
+  const [settings] = await pool.execute(
+    `SELECT computation_type, tie_break_method FROM settings WHERE school_id = ? LIMIT 1`,
+    [schoolId]
+  );
+  const tieBreak = settings[0]?.computation_type === 'custom'
+    ? (settings[0].tie_break_method || 'midrank')
+    : 'midrank';
+
   const [scores] = await pool.execute(
-    `SELECT c.name, SUM(s.score_value) AS total
+    `SELECT c.id, c.name, c.entry_number, SUM(s.score_value) AS total
      FROM   scores      s
      JOIN   contestants c ON c.id = s.contestant_id AND c.school_id = ?
      WHERE  s.judge_id  = ? AND s.school_id = ?
-     GROUP  BY c.id
-     ORDER  BY total DESC`,
+     GROUP  BY c.id`,
     [schoolId, judgeId, schoolId]
   );
-  return scores;
+
+  const ranked = rankValues(
+    scores.map(r => ({ ...r, total: numeric(r.total), value: numeric(r.total) })),
+    { method: tieBreak, ascending: false }
+  );
+
+  return ranked.map(r => ({
+    id:           r.id,
+    name:         r.name,
+    entry_number: r.entry_number,
+    total:        r.total,
+    rank:         r.rank,
+  }));
 }
 
 // ── RESET ALL DATA FOR A SCHOOL (transaction) ──
@@ -171,7 +234,8 @@ async function resetData(schoolId) {
     await connection.execute('DELETE FROM criteria     WHERE school_id = ?', [schoolId]);
     await connection.execute(
       `UPDATE settings SET contest_name = '', judge_count = 3, ai_prompt = 'Modern and Professional',
-       computation_type = 'average', contest_type = 'pageant', is_judge_locked = 0
+       computation_type = 'average', custom_base = 'average', tie_break_method = 'midrank',
+       contest_type = 'pageant', is_judge_locked = 0
        WHERE school_id = ?`,
       [schoolId]
     );
@@ -191,6 +255,7 @@ async function saveConfig(schoolId, body) {
   const {
     contest_name, judge_count, ai_prompt, contestants,
     criteria, computation_type, contest_type, is_judge_locked,
+    custom_base, tie_break_method,
   } = body;
 
   const connection = await pool.getConnection();
@@ -213,6 +278,8 @@ async function saveConfig(schoolId, body) {
            judge_count      = ?,
            ai_prompt        = ?,
            computation_type = ?,
+           custom_base      = ?,
+           tie_break_method = ?,
            is_judge_locked  = ?
          WHERE school_id = ?`,
         [
@@ -221,6 +288,8 @@ async function saveConfig(schoolId, body) {
           judge_count      ?? 3,
           ai_prompt        ?? '',
           computation_type ?? 'average',
+          custom_base      ?? 'average',
+          tie_break_method ?? 'midrank',
           is_judge_locked  ?? 0,
           schoolId,
         ]
@@ -229,8 +298,9 @@ async function saveConfig(schoolId, body) {
       // No row yet — INSERT a fresh one
       await connection.execute(
         `INSERT INTO settings
-           (school_id, contest_name, contest_type, judge_count, ai_prompt, computation_type, is_judge_locked)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           (school_id, contest_name, contest_type, judge_count, ai_prompt, computation_type,
+            custom_base, tie_break_method, is_judge_locked)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           schoolId,
           contest_name     ?? '',
@@ -238,6 +308,8 @@ async function saveConfig(schoolId, body) {
           judge_count      ?? 3,
           ai_prompt        ?? '',
           computation_type ?? 'average',
+          custom_base      ?? 'average',
+          tie_break_method ?? 'midrank',
           is_judge_locked  ?? 0,
         ]
       );

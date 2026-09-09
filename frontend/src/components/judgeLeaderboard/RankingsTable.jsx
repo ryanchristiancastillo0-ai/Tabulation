@@ -1,5 +1,5 @@
-import {getOrdinal} from '../../utils/getOrdinal'
 import {rankBadgeColor} from '../../utils/rankBadeColor'
+import { formatRank } from '../../utils/ranks'
 export default function RankingsTable({ rankings, compType }) {
   return (
     <table className="hidden md:table w-full text-left">
@@ -21,7 +21,7 @@ export default function RankingsTable({ rankings, compType }) {
           >
             <td className="px-6 py-5">
               <div className={`w-9 h-9 rounded-sm flex items-center justify-center font-bold text-sm ${rankBadgeColor(idx)}`}>
-                {idx + 1}
+                {formatRank(con.rankPosition ?? idx + 1)}
               </div>
             </td>
             <td className="px-6 py-5">
@@ -39,7 +39,7 @@ export default function RankingsTable({ rankings, compType }) {
               {compType === 'rank' ? (
                 <div className="flex flex-col items-end">
                   <span className={`text-xl font-extrabold ${idx === 0 ? 'text-[#1B4332]' : 'text-[#14201A]'}`}>
-                    {getOrdinal(con.rankPosition)}
+                    {formatRank(con.rankPosition)}
                   </span>
                   <span className="text-[9px] font-bold text-[#9ca3af] uppercase tracking-wider">
                     This Judge's Rank

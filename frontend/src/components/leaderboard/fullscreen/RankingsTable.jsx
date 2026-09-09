@@ -1,6 +1,7 @@
 import { BsCircleFill } from 'react-icons/bs';
 import getMedalStyleFS from '../getMedalStyleFS';
 import { MEDAL_ICONS, MEDAL_LABEL } from './constants.jsx';
+import { formatRank } from '../../../utils/ranks';
 
 export default function RankingsTable({ standings, isRankMode, accentColor, textColor }) {
   return (
@@ -51,7 +52,7 @@ export default function RankingsTable({ standings, isRankMode, accentColor, text
                 >
                   {isTop
                     ? <div style={{ filter: 'brightness(1.2)' }}>{MEDAL_ICONS[idx]}</div>
-                    : <span className="text-sm font-black">{idx + 1}</span>
+                    : <span className="text-sm font-black">{formatRank(c.rank ?? idx + 1)}</span>
                   }
                 </div>
 

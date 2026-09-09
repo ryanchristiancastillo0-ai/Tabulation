@@ -1,4 +1,5 @@
 import {getOrdinal} from './index'
+import { formatRank } from '../../utils/ranks'
 export default function SingleJudgeCard({ judgeId, scores }) {
   return (
     <div>
@@ -27,7 +28,7 @@ export default function SingleJudgeCard({ judgeId, scores }) {
               <tr key={row.name} className="border-b border-[var(--border)] hover:bg-[var(--accent-lt)] transition-colors">
                 <td className="px-2.5 sm:px-3 py-2 sm:py-2.5 text-center">
                   <span className={`text-[9px] sm:text-[10px] font-bold ${rIdx === 0 ? 'text-[var(--amber)]' : 'text-[var(--text3)]'}`}>
-                    {getOrdinal(rIdx + 1)}
+                    {formatRank(row.rank ?? rIdx + 1)}
                   </span>
                 </td>
                 <td className="px-2.5 sm:px-3 py-2 sm:py-2.5 font-bold bg-[var(--surface2)] text-[var(--text1)]">{row.name}</td>

@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const pool = require('../config/db');
 const HttpError = require('../utils/http-error');
+const { rankValues, numeric } = require('../utils/ranks');
 const { generateWithFallback } = require('../config/ai');
 
 // ── Prepare: validate input + check ui_cache, one source of hash logic ──────
@@ -86,7 +87,7 @@ async function renderUI({ contestants, criteria, aiPrompt, school_id }) {
     - Render EXACTLY ${contestants.length} rows.
     - Columns: No., Name, ${criteria.map(c => `${c.name} (${c.percentage}%)`).join(', ')}, Total, Rank.
     - Each criteria column header MUST show name AND percentage: "Performance (60%)"
-    - Dropdowns must have options from 0 to the criterion's percentage (e.g. a 25% criterion gets 0–25; 100% gets 0–100). class="score-dropdown" id="score-{cId}-{crId}"
+    - Dropdowns must have options from the criterion's percentage down to 0 in DESCENDING order (e.g. a 25% criterion gets 25, 24, ... 0; 100% gets 100, 99, ... 0). class="score-dropdown" id="score-{cId}-{crId}"
     - Totals: id="total-{cId}"
     - Ranks: id="rank-{cId}"
 
@@ -141,16 +142,34 @@ async function getMyScores(schoolId, judgeId) {
   if (!judgeId) throw new HttpError(400, 'Judge ID is required');
   if (!schoolId) throw new HttpError(400, 'school_id is required');
 
+  const [settings] = await pool.execute(
+    'SELECT computation_type, tie_break_method FROM settings WHERE school_id = ? LIMIT 1',
+    [schoolId]
+  );
+  const tieBreak = settings[0]?.computation_type === 'custom'
+    ? (settings[0].tie_break_method || 'midrank')
+    : 'midrank';
+
   const [rankings] = await pool.execute(
-    `SELECT c.name, SUM(s.score_value) as total
+    `SELECT c.id, c.name, SUM(s.score_value) as total
      FROM   scores      s
      JOIN   contestants c ON s.contestant_id = c.id AND c.school_id = ?
      WHERE  s.judge_id  = ? AND s.school_id = ?
-     GROUP  BY c.id, c.name
-     ORDER  BY total DESC`,
+     GROUP  BY c.id, c.name`,
     [schoolId, judgeId, schoolId]
   );
-  return rankings;
+
+  const ranked = rankValues(
+    rankings.map(r => ({ ...r, total: numeric(r.total), value: numeric(r.total) })),
+    { method: tieBreak, ascending: false }
+  );
+
+  return ranked.map(r => ({
+    id:    r.id,
+    name:  r.name,
+    total: r.total,
+    rank:  r.rank,
+  }));
 }
 
 // ── MY RAW SCORES (for UI persistence) ──

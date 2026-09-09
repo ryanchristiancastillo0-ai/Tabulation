@@ -159,6 +159,8 @@ const SectionRender = ({
   aiPrompt, setAiPrompt,
   judgeCount, setJudgeCount,
   calculationType, setCalculationType,
+  customBase, setCustomBase,
+  tieBreakMethod, setTieBreakMethod,
   criteria, setCriteria,
   contestants, setContestants,
   newCrit, setNewCrit,
@@ -217,6 +219,8 @@ const SectionRender = ({
         <JudgesSection
           judgeCount={judgeCount} setJudgeCount={setJudgeCount}
           calculationType={calculationType} setCalculationType={setCalculationType}
+          customBase={customBase} setCustomBase={setCustomBase}
+          tieBreakMethod={tieBreakMethod} setTieBreakMethod={setTieBreakMethod}
         />
       )}
       {activeNav === 'contestants' && (

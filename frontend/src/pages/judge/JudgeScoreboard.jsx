@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {getSchoolId} from '../../utils/getSchoolId'
 import {FooterInfo,Hero,RankingsCards,RankingsTable,IdentityMissing} from '../../components/judgeLeaderboard/index'
 import { USALoader } from '../../components/index';
+import { rankValues } from '../../utils/ranks';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 
@@ -36,9 +37,10 @@ const JudgeScoreboard = () => {
         total: parseFloat(item.total || 0),
       }));
 
-      const withRanks = [...formatted]
-        .sort((a, b) => b.total - a.total)
-        .map((item, idx) => ({ ...item, rankPosition: idx + 1 }));
+      const withRanks = rankValues(
+        formatted.map(f => ({ ...f, value: f.total })),
+        { method: 'midrank', ascending: false }
+      ).map(item => ({ ...item, rankPosition: item.rank }));
 
       setRankings(withRanks);
     } catch (err) {
@@ -58,7 +60,10 @@ const JudgeScoreboard = () => {
       .then(res => res.json())
       .then(data => {
         setContestName(data.settings?.contest_name || 'Tournament');
-        setCompType(data.settings?.computation_type || 'average');
+        const baseType = (data.settings?.computation_type === 'custom'
+          ? data.settings?.custom_base
+          : data.settings?.computation_type) || 'average';
+        setCompType(baseType);
         if (storedId) fetchMyRankings(storedId);
       })
       .catch(err => console.error('Config fetch error:', err.message));

@@ -27,6 +27,8 @@ function Dashboard() {
   const [aiPrompt,        setAiPrompt]        = useState("");
   const [judgeCount,      setJudgeCount]      = useState(3);
   const [calculationType, setCalculationType] = useState("average");
+  const [customBase,      setCustomBase]      = useState("average");
+  const [tieBreakMethod,  setTieBreakMethod]  = useState("midrank");
   const [isJudgeLocked,   setIsJudgeLocked]   = useState(false);
 
   // ── Criteria & Contestants ────────────────────────────────────────────────
@@ -94,6 +96,8 @@ function Dashboard() {
       setAiPrompt(settings.ai_prompt ?? "");
       setJudgeCount(Number(settings.judge_count ?? 3));
       setCalculationType(settings.computation_type ?? "average");
+      setCustomBase(settings.custom_base ?? "average");
+      setTieBreakMethod(settings.tie_break_method ?? "midrank");
       setIsJudgeLocked(Boolean(settings.is_judge_locked));
       setContestants(
         (rawC || []).map((c) => ({ id: String(c.id), name: c.name, number: c.entry_number }))
@@ -133,6 +137,8 @@ function Dashboard() {
         ai_prompt:        aiPrompt,
         judge_count:      judgeCount,
         computation_type: calculationType,
+        custom_base:      customBase,
+        tie_break_method: tieBreakMethod,
         is_judge_locked:  isJudgeLocked ? 1 : 0,
         contestants: contestants.map((c)  => ({ name: c.name, entry_number: c.number })),
         criteria:    criteria.map((cr)    => ({ name: cr.name, percentage: cr.weight })),
@@ -266,6 +272,8 @@ function Dashboard() {
               aiPrompt={aiPrompt}               setAiPrompt={setAiPrompt}
               judgeCount={judgeCount}           setJudgeCount={setJudgeCount}
               calculationType={calculationType} setCalculationType={setCalculationType}
+              customBase={customBase}           setCustomBase={setCustomBase}
+              tieBreakMethod={tieBreakMethod}   setTieBreakMethod={setTieBreakMethod}
               isJudgeLocked={isJudgeLocked}     setIsJudgeLocked={setIsJudgeLocked}
               criteria={criteria}               setCriteria={setCriteria}
               contestants={contestants}         setContestants={setContestants}

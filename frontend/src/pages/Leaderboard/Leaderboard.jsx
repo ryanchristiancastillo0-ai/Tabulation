@@ -1,24 +1,14 @@
 // pages/LeaderBoard.jsx
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../utils/apiClient';
+import { getSchoolId } from '../../utils/getSchoolId';
+import { rankValues } from '../../utils/ranks';
 import {
   getOrdinal, ExportAllPanel,
-  FullscreenView, HeroBanner, LoadingState, NavBar, RefreshBar,
+  ErrorState, FullscreenView, HeroBanner, LoadingState, NavBar, RefreshBar,
   Table1FinalStandings, Table2JudgeSummary, Table3JudgeBreakdowns,
   exportToCSV, exportToPNG
 } from '../../components/leaderboard/index';
-
-function getSchoolIdFromToken() {
-  try {
-    const token = localStorage.getItem('adminToken');
-    if (!token) return null;
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    return JSON.parse(atob(parts[1])).school_id || null;
-  } catch {
-    return null;
-  }
-}
 
 const DEFAULT_FS_CONFIG = {
   bgColor:      '#1B4332',
@@ -43,7 +33,7 @@ const LeaderBoard = () => {
 
   // ── Load fullscreen config from backend ──────────────────────
   const loadFsConfig = useCallback(async () => {
-    const schoolId = getSchoolIdFromToken();
+    const schoolId = getSchoolId();
     if (!schoolId) return;
     try {
       const res = await apiClient.get(`/leaderboard/fullscreen-config?school_id=${schoolId}`);
@@ -63,7 +53,7 @@ const LeaderBoard = () => {
 
   // ── Save fullscreen config to backend ────────────────────────
   const saveFsConfig = useCallback(async () => {
-    const schoolId = getSchoolIdFromToken();
+    const schoolId = getSchoolId();
     if (!schoolId) return;
     setFsSaving(true);
     try {
@@ -88,7 +78,7 @@ const LeaderBoard = () => {
     setLoading(true);
     setError(null);
     try {
-      const schoolId = getSchoolIdFromToken();
+      const schoolId = getSchoolId();
       if (!schoolId) throw new Error('Could not determine school ID from session. Please log in again.');
 
       const [configData, lbData, rawJudgeIds] = await Promise.all([
@@ -109,7 +99,7 @@ const LeaderBoard = () => {
       const judgeCount = Number(safeConfig?.settings?.judge_count) || 0;
 
       const lbArray = Array.isArray(lbData) ? lbData : Array.isArray(lbData?.data) ? lbData.data : [];
-      setStandings(lbArray.map((item, idx) => ({ ...item, rank: idx + 1 })));
+      setStandings(lbArray.map((item, idx) => ({ ...item, rank: item.rank ?? idx + 1 })));
 
       const idsRaw      = Array.isArray(rawJudgeIds) ? rawJudgeIds : Array.isArray(rawJudgeIds?.data) ? rawJudgeIds.data : [];
       const resolvedIds = idsRaw.length > 0
@@ -151,7 +141,10 @@ const LeaderBoard = () => {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  const isRankMode  = data.settings?.computation_type === 'rank';
+  // Custom mode inherits the base calculation (average or rank) from settings;
+  // the tie-break method only affects how equal values are ranked.
+  const compType   = data.settings?.computation_type;
+  const isRankMode = (compType === 'rank' || (compType === 'custom' && data.settings?.custom_base === 'rank'));
   const judgeCount  = judgeIds.length || Number(data.settings?.judge_count) || 0;
   const contestName = data.settings?.contest_name || 'Competition';
 
@@ -161,15 +154,21 @@ const LeaderBoard = () => {
   };
 
   const getJudgeRank = (name, judgeId) => {
-    const sorted = [...(judgeScores[judgeId] || [])].sort((a, b) => b.total - a.total);
-    const idx    = sorted.findIndex(s => s.name === name);
-    return idx >= 0 ? idx + 1 : null;
+    const list = judgeScores[judgeId] || [];
+    const found = list.find(s => s.name === name);
+    if (found && found.rank != null) return found.rank;
+    // Fallback: compute midrank client-side if the backend hasn't ranked yet.
+    const ranked = rankValues(list.map(s => ({ ...s, value: s.total })));
+    const r = ranked.find(s => s.name === name);
+    return r ? r.rank : null;
   };
+
+  const rankValueOf = (c) => (isRankMode ? c.total_rank : parseFloat(c.final_score).toFixed(2));
 
   const exportStandingsCSV = () => {
     const headers = ['Rank', 'Contestant', isRankMode ? 'Rank Sum' : 'Final Average'];
-    const rows    = standings.map((c, idx) => [
-      idx + 1, c.name,
+    const rows    = standings.map((c) => [
+      c.rank, c.name,
       isRankMode ? c.total_rank : parseFloat(c.final_score).toFixed(2),
     ]);
     exportToCSV(`${contestName}_standings.csv`, headers, rows);
@@ -180,7 +179,7 @@ const LeaderBoard = () => {
       isRankMode ? [`Judge ${jId} Score`, `Judge ${jId} Rank`] : [`Judge ${jId} Score`]
     );
     const headers = ['Place', 'Contestant', ...judgeHeaders, isRankMode ? 'Rank Sum' : 'Final Avg'];
-    const rows    = standings.map((c, idx) => {
+    const rows    = standings.map((c) => {
       const judgeData = judgeIds.flatMap(jId => {
         const score = getJudgeScore(c.name, jId);
         const rank  = getJudgeRank(c.name, jId);
@@ -188,7 +187,7 @@ const LeaderBoard = () => {
           ? [score !== null ? score.toFixed(2) : '—', getOrdinal(rank)]
           : [score !== null ? score.toFixed(2) : '—'];
       });
-      return [idx + 1, c.name, ...judgeData, isRankMode ? c.total_rank : parseFloat(c.final_score).toFixed(2)];
+      return [c.rank, c.name, ...judgeData, rankValueOf(c)];
     });
     exportToCSV(`${contestName}_judge_summary.csv`, headers, rows);
   };
@@ -199,7 +198,7 @@ const LeaderBoard = () => {
       const scores = [...(judgeScores[judgeId] || [])].sort((a, b) => b.total - a.total);
       lines.push(`Judge ${judgeId}`);
       lines.push(['Rank', 'Contestant', 'Total'].join(','));
-      scores.forEach((row, rIdx) => lines.push([rIdx + 1, row.name, parseFloat(row.total).toFixed(2)].join(',')));
+      scores.forEach((row, rIdx) => lines.push([row.rank ?? rIdx + 1, row.name, parseFloat(row.total).toFixed(2)].join(',')));
       lines.push('');
     }
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });

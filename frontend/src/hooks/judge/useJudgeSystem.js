@@ -4,6 +4,7 @@ import { useJudgePersistence } from './useJudgePersistence';
 import { useConfigChange } from '../../providers/ConfigChangeContext';
 import { getHydra_and_Calcu } from './getHydration_and_Calculation';
 import {getSchoolId, getJudgeToken} from '../../utils/judge'
+import { rankValues, formatRank } from '../../utils/ranks'
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 
@@ -171,22 +172,21 @@ export const useJudgeSystem = () => {
 
   const updateRankings = () => {
     if (!config.contestants?.length) return;
-    const standings = config.contestants
+    // Rank only contestants that actually have a total — a zero total means no
+    // score has been entered yet, so it stays blank (same behavior as before).
+    const rows = config.contestants
       .map(c => ({
         id:    c.id,
         total: parseFloat(document.getElementById(`total-${c.id}`)?.innerText || 0),
       }))
-      .sort((a, b) => b.total - a.total);
+      .filter(item => item.total > 0)
+      .map(item => ({ ...item, value: item.total }));
 
-    standings.forEach((item, idx) => {
+    rankValues(rows, { method: 'midrank', ascending: false });
+
+    rows.forEach(item => {
       const cell = document.getElementById(`rank-${item.id}`);
-      if (cell && item.total > 0) {
-        const rank = idx + 1;
-        const sfx  = ['th', 'st', 'nd', 'rd'][
-          (rank % 10 > 3 || Math.floor(rank % 100 / 10) === 1) ? 0 : rank % 10
-        ];
-        cell.innerText = `${rank}${sfx}`;
-      }
+      if (cell) cell.innerText = formatRank(item.rank);
     });
   };
 

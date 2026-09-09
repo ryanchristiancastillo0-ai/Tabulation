@@ -101,8 +101,20 @@ const JudgePasswordManager = () => {
   );
 };
 
-const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculationType }) => {
+const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculationType, customBase, setCustomBase, tieBreakMethod, setTieBreakMethod }) => {
   const { isJudgeLocked, toggleLock, lockLoading, lockError } = useContestContext();
+
+  const baseOpts = [
+    { id: 'average', title: 'By Average', desc: 'Standard percentage-based average. Highest score wins.' },
+    { id: 'rank',    title: 'By Place (Rank-Sum)', desc: 'Rank points summed from all judges. Lowest sum wins.' },
+    { id: 'custom',  title: 'Custom', desc: 'Pick a base calculation and your own tie-breaking rule.' },
+  ];
+
+  const tieOpts = [
+    { id: 'midrank',    title: 'Midrank',    desc: 'Tied contestants share the average position — e.g. 1, 2.5, 2.5, 4.' },
+    { id: 'shared',     title: 'Shared',     desc: 'Tied contestants share the first position — e.g. 1, 2, 2, 4.' },
+    { id: 'sequential', title: 'Sequential', desc: 'Tied contestants get consecutive positions — e.g. 1, 2, 3, 4.' },
+  ];
 
   return (
     <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -146,10 +158,7 @@ const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculat
       <div>
         <div className="field-label" style={{ marginBottom: 12 }}>Result Calculation Type</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} className="sm:flex-row">
-          {[
-            { id: 'average', title: 'By Average', desc: 'Standard percentage-based average. Highest score wins.' },
-            { id: 'rank',    title: 'By Place (Rank-Sum)', desc: 'Rank points summed from all judges. Lowest sum wins.' },
-          ].map(opt => {
+          {baseOpts.map(opt => {
             const active = calculationType === opt.id;
             return (
               <div key={opt.id} onClick={() => setCalculationType(opt.id)} style={{ flex: 1, padding: 14, borderRadius: 6, cursor: 'pointer', transition: 'all .2s', border: `2px solid ${active ? 'var(--accent-mid)' : 'var(--border)'}`, background: active ? 'var(--accent-lt)' : 'var(--surface2)', boxShadow: active ? '0 0 0 3px var(--accent-lt)' : 'none' }}>
@@ -160,6 +169,43 @@ const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculat
           })}
         </div>
       </div>
+
+      {calculationType === 'custom' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <div className="field-label" style={{ marginBottom: 8 }}>Custom Base Calculation</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} className="sm:flex-row">
+              {[
+                { id: 'average', title: 'By Average', desc: 'Rank the final average of all judges\' scores.' },
+                { id: 'rank',    title: 'By Place (Rank-Sum)', desc: 'Sum each judge\'s rank; lowest sum wins.' },
+              ].map(opt => {
+                const active = customBase === opt.id;
+                return (
+                  <div key={opt.id} onClick={() => setCustomBase(opt.id)} style={{ flex: 1, padding: 12, borderRadius: 6, cursor: 'pointer', transition: 'all .2s', border: `2px solid ${active ? 'var(--accent-mid)' : 'var(--border)'}`, background: active ? 'var(--accent-lt)' : 'var(--surface2)' }}>
+                    <div style={{ fontWeight: 800, color: active ? 'var(--accent)' : 'var(--text1)', fontSize: 13 }}>{opt.title}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{opt.desc}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <div className="field-label" style={{ marginBottom: 8 }}>Tie-Break Method</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} className="sm:flex-row">
+              {tieOpts.map(opt => {
+                const active = tieBreakMethod === opt.id;
+                return (
+                  <div key={opt.id} onClick={() => setTieBreakMethod(opt.id)} style={{ flex: 1, padding: 12, borderRadius: 6, cursor: 'pointer', transition: 'all .2s', border: `2px solid ${active ? 'var(--accent-mid)' : 'var(--border)'}`, background: active ? 'var(--accent-lt)' : 'var(--surface2)' }}>
+                    <div style={{ fontWeight: 800, color: active ? 'var(--accent)' : 'var(--text1)', fontSize: 13 }}>{opt.title}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{opt.desc}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }

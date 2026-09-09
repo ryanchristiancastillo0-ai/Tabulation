@@ -1,5 +1,6 @@
 import {useEffect} from 'react'
 import {SectionLabel,ExportMenu,getMedalClass,getOrdinal} from './index'
+import { formatRank } from '../../utils/ranks'
 export default function Table2JudgeSummary({ standings, judgeIds, isRankMode, judgeCount, getJudgeScore, getJudgeRank, onCSV, onPNG }) {
   return (
     <section>
@@ -53,7 +54,7 @@ export default function Table2JudgeSummary({ standings, judgeIds, isRankMode, ju
               >
                 <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-center">
                   <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-sm sm:rounded-sm flex items-center justify-center font-bold text-[10px] sm:text-xs mx-auto ${getMedalClass(idx)}`}>
-                    {idx + 1}
+                    {formatRank(c.rank ?? idx + 1)}
                   </div>
                 </td>
                 <td className="px-3 sm:px-4 py-2.5 sm:py-3 font-bold text-[var(--text1)] text-xs sm:text-sm">{c.name}</td>
@@ -69,7 +70,7 @@ export default function Table2JudgeSummary({ standings, judgeIds, isRankMode, ju
                           <span className="font-mono font-bold text-[var(--text1)] text-xs sm:text-sm">{score.toFixed(2)}</span>
                           {isRankMode && (
                             <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${rankPos === 1 ? 'bg-[var(--amber-lt)] text-[var(--amber)]' : 'bg-[var(--accent-lt)] text-[var(--accent)]'}`}>
-                              {getOrdinal(rankPos)}
+                              {formatRank(rankPos)}
                             </span>
                           )}
                         </div>

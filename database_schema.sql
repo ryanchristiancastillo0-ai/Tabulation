@@ -71,7 +71,9 @@ CREATE TABLE IF NOT EXISTS `settings` (
   `contest_type` VARCHAR(50) DEFAULT 'pageant' COMMENT 'pageant, competition, etc.',
   `judge_count` INT DEFAULT 3,
   `ai_prompt` VARCHAR(255) DEFAULT 'Modern and Professional',
-  `computation_type` VARCHAR(50) DEFAULT 'average' COMMENT 'average or rank-sum',
+  `computation_type` VARCHAR(50) DEFAULT 'average' COMMENT 'average, rank, or custom',
+  `custom_base` VARCHAR(20) DEFAULT 'average' COMMENT 'average or rank; used when computation_type=custom',
+  `tie_break_method` VARCHAR(20) DEFAULT 'midrank' COMMENT 'midrank, shared, or sequential; used when computation_type=custom',
   `is_judge_locked` TINYINT DEFAULT 0 COMMENT '0=unlocked, 1=locked',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -187,6 +189,23 @@ CREATE TABLE IF NOT EXISTS `generations` (
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY `school_id` (`school_id`),
   CONSTRAINT `fk_generations_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- TABLE: fullscreen_config
+-- Description: Per-school leaderboard fullscreen display customization
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `fullscreen_config` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `school_id` INT NOT NULL UNIQUE,
+  `bg_color` VARCHAR(7) DEFAULT '#1B4332',
+  `accent_color` VARCHAR(7) DEFAULT '#1B4332',
+  `text_color` VARCHAR(7) DEFAULT '#ffffff',
+  `title_text` VARCHAR(255) DEFAULT '',
+  `subtitle_text` VARCHAR(255) DEFAULT '',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_fullscreen_config_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================

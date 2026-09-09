@@ -77,7 +77,7 @@ export const getHydra_and_Calcu = (
         ? maxByCriterion[parts[2]]
         : 100;
       let options = '<option value="">-</option>';
-      for (let i = 0; i <= max; i++) {
+      for (let i = max; i >= 0; i--) {
         options += `<option value="${i}">${i}</option>`;
       }
       select.innerHTML = options;

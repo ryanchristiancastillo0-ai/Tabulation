@@ -1,5 +1,6 @@
 
 import {SectionLabel,ExportMenu,FullscreenIcon, getMedalClass} from './index'
+import { formatRank } from '../../utils/ranks'
 
 
 
@@ -57,7 +58,7 @@ export default  function Table1FinalStandings({ standings, isRankMode, onFullscr
                 >
                   <td className="px-3 sm:px-6 py-3 sm:py-5 text-center">
                     <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-sm sm:rounded-sm flex items-center justify-center font-bold text-xs sm:text-sm mx-auto ${getMedalClass(idx)}`}>
-                      {idx + 1}
+                      {formatRank(c.rank ?? idx + 1)}
                     </div>
                   </td>
                   <td className="px-3 sm:px-6 py-3 sm:py-5">

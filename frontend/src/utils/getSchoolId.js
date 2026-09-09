@@ -79,19 +79,19 @@ export function getSchoolId() {
     if (direct) return direct;
 
     const judgeSchool = localStorage.getItem('judgeSchool');
-    if (judgeSchool) return JSON.parse(judgeSchool)?.id || 1;
+    if (judgeSchool) return JSON.parse(judgeSchool)?.id || null;
 
     const user = localStorage.getItem('adminUser');
-    if (user) return JSON.parse(user)?.school_id || 1;
+    if (user) return JSON.parse(user)?.school_id || null;
 
     const auth = localStorage.getItem('auth');
     if (auth) {
       const parsed = JSON.parse(auth);
-      return parsed?.admin?.school_id || parsed?.school?.id || 1;
+      return parsed?.admin?.school_id || parsed?.school?.id || null;
     }
-    return 1;
+    return null;
   } catch {
-    return 1;
+    return null;
   }
 }
 
