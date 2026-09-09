@@ -401,7 +401,7 @@ export const useJudgeSystem = () => {
         contestants,
         criteria,
         school_id,
-        aiPrompt: settings?.ai_prompt || '',
+        aiPrompt: settings?.ai_prompt || 'Modern and Professional',
       });
 
       // Cached fast-path returns the html directly.

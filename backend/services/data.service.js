@@ -269,30 +269,34 @@ async function saveConfig(schoolId, body) {
       [schoolId]
     );
 
+    // Partial updates (e.g. lock/unlock sends ONLY is_judge_locked) must not
+    // wipe the other stored settings, so only include fields the client
+    // actually supplied in the UPDATE.
+    const scalarFields = {
+      contest_name:     () => contest_name ?? '',
+      contest_type:     () => contest_type ?? 'pageant',
+      judge_count:      () => judge_count ?? 3,
+      ai_prompt:        () => ai_prompt ?? '',
+      computation_type: () => computation_type ?? 'average',
+      custom_base:      () => custom_base ?? 'average',
+      tie_break_method: () => tie_break_method ?? 'midrank',
+      is_judge_locked:  () => is_judge_locked ?? 0,
+    };
+
     if (existing.length > 0) {
-      // Row exists — UPDATE only this school's row
+      // Row exists — UPDATE only this school's row, and only the columns
+      // present in the request body so sparse saves can't wipe other settings.
+      const updates = Object.keys(scalarFields)
+        .filter((field) => Object.prototype.hasOwnProperty.call(body, field));
+      const assignments = updates.map((field) => `${field} = ?`).join(', ');
+
+      if (updates.length === 0) {
+        throw new HttpError(400, 'No settings fields provided.');
+      }
+
       await connection.execute(
-        `UPDATE settings SET
-           contest_name     = ?,
-           contest_type     = ?,
-           judge_count      = ?,
-           ai_prompt        = ?,
-           computation_type = ?,
-           custom_base      = ?,
-           tie_break_method = ?,
-           is_judge_locked  = ?
-         WHERE school_id = ?`,
-        [
-          contest_name     ?? '',
-          contest_type     ?? 'pageant',
-          judge_count      ?? 3,
-          ai_prompt        ?? '',
-          computation_type ?? 'average',
-          custom_base      ?? 'average',
-          tie_break_method ?? 'midrank',
-          is_judge_locked  ?? 0,
-          schoolId,
-        ]
+        `UPDATE settings SET ${assignments} WHERE school_id = ?`,
+        [...updates.map((field) => scalarFields[field]()), schoolId]
       );
     } else {
       // No row yet — INSERT a fresh one
