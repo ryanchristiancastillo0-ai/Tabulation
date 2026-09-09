@@ -2,8 +2,11 @@
 let activeObserver = null;
 let activeChangeHandler = null;
 
-// ── Sanitize AI HTML before caching ─────────────────────────────────
-function sanitizeAiHtml(html) {
+// ── Sanitize AI HTML before caching / before render ─────────────────
+// Also force-cleans every .score-dropdown so AI templating garbage
+// (${i40}, {cId}, …) can never leak into the rendered options even when
+// the table is remounted (e.g. the submit loader toggles loading).
+function sanitizeAiHtml(html, criteria) {
   const div = document.createElement('div');
   div.innerHTML = html;
   const wrapper = div.firstElementChild;
@@ -13,6 +16,25 @@ function sanitizeAiHtml(html) {
     wrapper.style.position  = '';
     wrapper.style.overflow  = '';
   }
+
+  const maxByCriterion = {};
+  if (Array.isArray(criteria)) {
+    criteria.forEach(c => {
+      if (c.id !== undefined && c.id !== null) maxByCriterion[String(c.id)] = Number(c.percentage) || 0;
+    });
+  }
+
+  div.querySelectorAll('select.score-dropdown').forEach(select => {
+    const parts = (select.id || '').split('-');
+    const critId = parts[2];
+    const max = critId && maxByCriterion[critId] !== undefined ? maxByCriterion[critId] : 100;
+    let options = '<option value="">-</option>';
+    for (let i = max; i >= 0; i--) {
+      options += `<option value="${i}">${i}</option>`;
+    }
+    select.innerHTML = options;
+  });
+
   return div.innerHTML;
 }
 
@@ -85,10 +107,19 @@ export const getHydra_and_Calcu = (
       const dbVal    = dbLookup[select.id];
       const localVal = localStorage.getItem(`${scoreKeyPrefix}${select.id}`);
 
-      if (dbVal !== undefined && dbVal !== null) {
+      // Only restore a real numeric score that still exists in the rebuilt
+      // options — stale AI-templated values (e.g. "${i40}") must not stick.
+      const inRange = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) && n >= 0 && n <= max && String(n) in select.options;
+      };
+
+      if (dbVal !== undefined && dbVal !== null && inRange(dbVal)) {
         select.value = String(dbVal);
-      } else if (localVal) {
+      } else if (localVal && inRange(localVal)) {
         select.value = localVal;
+      } else {
+        select.value = '';
       }
     });
 

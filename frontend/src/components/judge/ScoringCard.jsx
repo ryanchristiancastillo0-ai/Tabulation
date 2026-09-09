@@ -5,11 +5,13 @@
  import { USALoader } from '../../components/index'
 
  const ScoringCard = memo(function ScoringCard({ tableHtml, loading, refreshing }) {
+   const hasTable = !!tableHtml;
+
    return (
      <>
        {!loading && tableHtml && <ScrollHint />}
 
-       {loading ? (
+       {loading && !hasTable ? (
          <USALoader
            fullScreen={false}
            prompt="Building interface…"
@@ -17,7 +19,7 @@
          />
        ) : (
          <div className="ai-scroll-container" style={{ position: 'relative' }}>
-           {refreshing && (
+           {(refreshing || loading) && (
              <div
                style={{
                  position: 'absolute',
@@ -32,7 +34,7 @@
              >
                <USALoader
                  fullScreen={false}
-                 prompt="Updating interface…"
+                 prompt={loading ? 'Please wait…' : 'Updating interface…'}
                  background="transparent"
                />
              </div>

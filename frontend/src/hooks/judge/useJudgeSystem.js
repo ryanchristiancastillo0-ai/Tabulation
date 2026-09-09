@@ -21,7 +21,7 @@ function getUiCacheKey(schoolId, criteria, aiPrompt) {
 function saveUiToLocalStorage(schoolId, criteria, ui, aiPrompt) {
   try {
     const key = getUiCacheKey(schoolId, criteria, aiPrompt);
-    localStorage.setItem(key, JSON.stringify({ html: sanitizeAiHtml(ui.html) }));
+    localStorage.setItem(key, JSON.stringify({ html: sanitizeAiHtml(ui.html, criteria) }));
   } catch (e) {
     console.warn('[UICache] could not save HTML cache:', e.message);
   }
@@ -34,7 +34,7 @@ function loadUiFromLocalStorage(schoolId, criteria, aiPrompt) {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed?.html) {
-      parsed.html = sanitizeAiHtml(parsed.html);
+      parsed.html = sanitizeAiHtml(parsed.html, criteria);
     }
     return parsed;
   } catch {
@@ -151,7 +151,12 @@ export const useJudgeSystem = () => {
 
   const showStatus = (title, message, type = 'success', onConfirm) =>
     setModal(onConfirm ? { show: true, title, message, type, onConfirm } : { show: true, title, message, type });
-  const closeModal = () => setModal(prev => ({ ...prev, show: false }));
+
+  const closeModal = () => {
+    setModal(prev => ({ ...prev, show: false }));
+    // Make sure submitted values stay visible after the modal is dismissed.
+    setTimeout(restoreScores, 0);
+  };
 
   const allScoresFilled = useCallback(() => {
     const dropdowns = document.querySelectorAll('.score-dropdown');
@@ -189,6 +194,25 @@ export const useJudgeSystem = () => {
       if (cell) cell.innerText = formatRank(item.rank);
     });
   };
+
+  // Re-apply the current judge's saved values into the table. Called after
+  // every modal dismissal so that whatever re-render happened underneath
+  // (e.g. the submit loader toggling) can never leave empty dropdowns.
+  const restoreScores = useCallback(() => {
+    if (!dynamicUI || !config.criteria?.length || !selectedJudgeRef.current) {
+      return;
+    }
+    getHydra_and_Calcu(
+      dynamicUI,
+      config,
+      saveToCache,
+      recalculateRow,
+      updateRankings,
+      selectedJudgeRef.current,
+      loadCache,
+      schoolId
+    );
+  }, [dynamicUI, config, saveToCache, recalculateRow, updateRankings, loadCache, schoolId]);
 
   // ── STEP 1: Load config — cache first (instant), then background sync ─
   useEffect(() => {
@@ -343,8 +367,9 @@ export const useJudgeSystem = () => {
                 .finally(() => setUiRefreshing(false));
             }
             if (data.html && data.html !== localCached.html) {
-              saveUiToLocalStorage(school_id, criteria, data, aiPrompt);
-              setDynamicUI({ html: data.html });
+              const cleanHtml = sanitizeAiHtml(data.html, criteria);
+              saveUiToLocalStorage(school_id, criteria, { html: cleanHtml }, aiPrompt);
+              setDynamicUI({ html: cleanHtml });
             }
           })
           .catch(() => {
@@ -406,13 +431,13 @@ export const useJudgeSystem = () => {
 
       // Cached fast-path returns the html directly.
       if (submitResp.result) {
-        return { html: submitResp.result };
+        return { html: sanitizeAiHtml(submitResp.result, criteria) };
       }
 
       // Queued path: poll until the job ends.
       if (submitResp.generationId) {
         const result = await pollJobUntilDone(submitResp.generationId, school_id);
-        if (result.html) return { html: result.html };
+        if (result.html) return { html: sanitizeAiHtml(result.html, criteria) };
         showStatus('Error', result.error || 'UI generation failed.', 'error');
         return null;
       }
@@ -487,6 +512,19 @@ export const useJudgeSystem = () => {
       });
 
       if (data.success) {
+        // Immediately re-apply the judge's saved values after a successful
+        // submit, so the submitted scores stay visible in the dropdowns even
+        // if the table re-renders / remounts (submit toggles the loader).
+        getHydra_and_Calcu(
+          dynamicUI,
+          config,
+          saveToCache,
+          recalculateRow,
+          updateRankings,
+          selectedJudge,
+          loadCache,
+          school_id
+        );
         showStatus('Success', 'Scores submitted successfully!', 'success');
       }
     } catch (err) {
