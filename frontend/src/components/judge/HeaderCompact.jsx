@@ -21,7 +21,7 @@ export default function HeaderCompact({ sysConfig, contestName, selectedJudge, j
     localStorage.removeItem('auth');
     clearJudgeToken(sid);
     clearActiveSchoolId();
-    navigate(`/judge/login?school_id=${sid}`);
+    navigate('/judge/login');
   };
 
   return (

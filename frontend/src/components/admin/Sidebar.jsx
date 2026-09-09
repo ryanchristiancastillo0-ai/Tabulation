@@ -3,7 +3,7 @@ import {
   LayoutGrid, Trophy, Sparkles, Scale,
   Users, UserPlus, Moon, Sun, TrophyIcon, LogOut, MonitorCog, Settings,
 } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import apiClient from "../../utils/apiClient";
 
 // Same nav list used by Dashboard for the mobile drawer
@@ -23,8 +23,12 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
     school_logo: "", portal_name: "", school_name: "",
   });
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") || activeNav;
+  const isDashboardRoute = location.pathname === "/admin/dashboard";
+  const activeTab = isDashboardRoute ? (searchParams.get("tab") || activeNav) : null;
+  const isLeaderboardActive = location.pathname === "/admin/leaderboard";
+  const isSettingsActive = location.pathname === "/admin/settings";
 
   useEffect(() => {
     apiClient
@@ -105,9 +109,15 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
       <div className="px-3 pb-2">
         <button
           onClick={() => navigate("/admin/leaderboard")}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md border border-transparent bg-transparent text-[var(--text2)] text-sm font-semibold cursor-pointer font-inherit transition-all duration-150 hover:bg-[#fff1f2] hover:text-[#be123c] hover:border-[#fecdd3]"
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md border text-sm font-semibold cursor-pointer font-inherit transition-all duration-150 ${
+            isLeaderboardActive
+              ? "border-[#fecdd3] bg-[#fff1f2] text-[#be123c]"
+              : "border-transparent bg-transparent text-[var(--text2)] hover:bg-[#fff1f2] hover:text-[#be123c] hover:border-[#fecdd3]"
+          }`}
         >
-          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0 bg-[var(--surface2)]">
+          <div className={`w-7 h-7 rounded flex items-center justify-center shrink-0 ${
+            isLeaderboardActive ? "bg-[#ffe4e6]" : "bg-[var(--surface2)]"
+          }`}>
             <TrophyIcon size={15} />
           </div>
           Leaderboard
@@ -118,9 +128,15 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
       <div className="px-3 pb-2">
         <button
           onClick={() => navigate("/admin/settings")}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md border border-transparent bg-transparent text-[var(--text2)] text-sm font-semibold cursor-pointer font-inherit transition-all duration-150 hover:bg-[var(--surface2)] hover:text-[var(--accent)] hover:border-[var(--accent-bd)]"
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md border text-sm font-semibold cursor-pointer font-inherit transition-all duration-150 ${
+            isSettingsActive
+              ? "border-[var(--accent-bd)] bg-[var(--accent-lt)] text-[var(--accent)]"
+              : "border-transparent bg-transparent text-[var(--text2)] hover:bg-[var(--surface2)] hover:text-[var(--accent)] hover:border-[var(--accent-bd)]"
+          }`}
         >
-          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0 bg-[var(--surface2)]">
+          <div className={`w-7 h-7 rounded flex items-center justify-center shrink-0 ${
+            isSettingsActive ? "bg-[var(--accent-bd)] text-[var(--accent)]" : "bg-[var(--surface2)]"
+          }`}>
             <Settings size={15} />
           </div>
           Settings

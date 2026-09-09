@@ -13,7 +13,7 @@ import {
 
 import { USALoader } from '../../components/index';
 import { setActiveSchoolId } from '../../utils/getSchoolId';
-import { setJudgeToken } from '../../utils/judge';
+import { setJudgeToken, getJudgePageUrl } from '../../utils/judge';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -64,7 +64,7 @@ const JudgeLoginPage = () => {
           role: 'judge',
         }));
         setActiveSchoolId(schoolId);
-        navigate(`/judge?school_id=${schoolId}`);
+        navigate(getJudgePageUrl('/judge', schoolId));
       } else {
         throw new Error('No token received from server.');
       }

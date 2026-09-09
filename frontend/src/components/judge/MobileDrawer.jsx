@@ -25,7 +25,7 @@ export default function MobileDrawer({
     clearJudgeToken(sid);
     clearActiveSchoolId();
     onClose();
-    navigate(`/judge/login?school_id=${sid}`);
+    navigate('/judge/login');
   };
 
   useEffect(() => {

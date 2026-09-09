@@ -5,12 +5,13 @@ const { enqueueGeneration } = require('../config/ai-queue');
 const { touchSchoolActivity } = require('../utils/activity');
 
 // ── POST /api/ai/generate — enqueue, never wait for the LLM ────────────────
+// Protected by requireJudge: school_id comes from the token (req.school_id).
 exports.generate = async (req, res) => {
-  touchSchoolActivity(req.body && req.body.school_id);
+  const school_id = req.school_id;
+  touchSchoolActivity(school_id);
 
-  const { contestants, criteria, aiPrompt, school_id } = req.body || {};
+  const { contestants, criteria, aiPrompt } = req.body || {};
 
-  if (!school_id) throw new HttpError(400, 'school_id is required.');
   if (!aiPrompt)   throw new HttpError(400, 'Prompt is required.');
   if (!contestants?.length || !criteria?.length) {
     throw new HttpError(400, 'contestants and criteria are required.');
@@ -47,8 +48,8 @@ exports.generate = async (req, res) => {
   });
 };
 
-// ── GET /api/ai/generations/:id?school_id=… — status (school-scoped) ───────
+// ── GET /api/ai/generations/:id — status (school comes from the token) ─────
 exports.generationStatus = async (req, res) => {
-  touchSchoolActivity(req.query.school_id);
-  res.json(await genService.getGeneration(req.params.id, req.query.school_id));
+  touchSchoolActivity(req.school_id);
+  res.json(await genService.getGeneration(req.params.id, req.school_id));
 };

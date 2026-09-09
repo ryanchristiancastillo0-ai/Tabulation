@@ -14,6 +14,7 @@ import { ContestProvider } from './providers/ContestContext';
 import { ThemeProvider } from './providers/ThemeProvider';
 import { ConfigChangeProvider } from './providers/ConfigChangeContext';
 import { getSchoolId, tokenSchoolId, isTokenExpired } from './utils/getSchoolId';
+import { getValidJudgeSchool, getJudgePageUrl } from './utils/judge';
 
 const AdminProtectedRoute = () => {
   const sid = getSchoolId();
@@ -30,14 +31,21 @@ const AdminProtectedRoute = () => {
 };
 
 const JudgeProtectedRoute = () => {
-  const sid = getSchoolId();
-  const token = localStorage.getItem(`judge_token_${sid}`) ||
-                localStorage.getItem('judgeToken');
-  if (!token || token === "undefined" || isTokenExpired(token)) {
+  // The judge's REAL school always comes from the valid token/session — the
+  // URL is never trusted. If the URL was tampered with (?school_id=2, ?sc=…)
+  // to point at another school, we bounce the judge to their OWN school page.
+  const activeSid = getValidJudgeSchool();
+  if (!activeSid) {
     return <Navigate to="/judge/login" replace />;
   }
-  if (String(tokenSchoolId(token)) !== String(sid)) {
-    return <Navigate to="/judge/login" replace />;
+
+  const ownHref = getJudgePageUrl(window.location.pathname, activeSid);
+  const currentHref = window.location.pathname + window.location.search;
+
+  // Canonicalize whatever the user typed into their own canonical judge URL
+  // (handles no-param, stale ?school_id=, and foreign-school attempts alike).
+  if (currentHref !== ownHref) {
+    return <Navigate to={ownHref} replace />;
   }
   return <Outlet />;
 };

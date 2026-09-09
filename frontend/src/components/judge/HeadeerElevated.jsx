@@ -20,7 +20,7 @@ export default function HeaderElevated({ sysConfig, contestName, selectedJudge, 
     localStorage.removeItem('auth');
     clearJudgeToken(sid);
     clearActiveSchoolId();
-    navigate(`/judge/login?school_id=${sid}`);
+    navigate('/judge/login');
   };
 
   return (

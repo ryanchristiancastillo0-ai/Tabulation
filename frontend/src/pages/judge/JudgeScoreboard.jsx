@@ -17,8 +17,10 @@ const JudgeScoreboard = () => {
     const school_id = getSchoolId();
     setLoading(true);
     try {
-      // Public route — plain fetch, no JWT, but needs school_id
-      const res  = await fetch(`${API_BASE}/judge/my-scores?judgeId=${id}&school_id=${school_id}`);
+      // Judge-only route — school comes from the JWT, not the query string
+      const token   = localStorage.getItem(`judge_token_${school_id}`) || null;
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res  = await fetch(`${API_BASE}/judge/my-scores?judgeId=${id}`, { headers });
       const data = await res.json();
 
       // Guard: make sure it's an array before mapping
@@ -50,8 +52,7 @@ const JudgeScoreboard = () => {
     const storedId = localStorage.getItem(`judge_id_${getSchoolId()}`);
     if (storedId) setJudgeId(storedId);
 
-    // Public route — judges have no admin JWT, so call the public
-    // getAllData endpoint using school_id in the query string.
+    // Config is still public data (leaderboard/home use it), so no JWT here.
     const school_id = getSchoolId();
     fetch(`${API_BASE}/public/get-all-data?school_id=${school_id}`)
       .then(res => res.json())

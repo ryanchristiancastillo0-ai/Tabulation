@@ -3,7 +3,7 @@ import { useConnectivity } from './useConnectivity';
 import { useJudgePersistence } from './useJudgePersistence';
 import { useConfigChange } from '../../providers/ConfigChangeContext';
 import { getHydra_and_Calcu } from './getHydration_and_Calculation';
-import {getSchoolId} from '../../utils/judge'
+import {getSchoolId, getJudgeToken} from '../../utils/judge'
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 
@@ -81,11 +81,19 @@ function loadConfigFromLocalStorage(schoolId) {
   }
 }
 
-/* ── Plain fetch helpers (no JWT needed for judge routes) ────────── */
+/* ── Plain fetch helpers with the judge JWT ─────────────────────── */
+// The judge/AI endpoints are protected by requireJudge: the school comes from
+// the token, so these calls MUST carry the judge's Bearer token. The /public/*
+// endpoints ignore it, so sending it on every judge call is harmless.
+function judgeAuthHeader() {
+  const token = getJudgeToken(getSchoolId()) || '';
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function judgePost(path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...judgeAuthHeader() },
     body:    JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
@@ -94,7 +102,7 @@ async function judgePost(path, body) {
 }
 
 async function judgeGet(path) {
-  const res  = await fetch(`${API_BASE}${path}`);
+  const res  = await fetch(`${API_BASE}${path}`, { headers: judgeAuthHeader() });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
