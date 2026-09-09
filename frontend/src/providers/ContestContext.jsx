@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { getSchoolId, tokenSchoolId } from '../utils/getSchoolId';
+import { handleUnauthorized } from '../utils/apiClient';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -104,6 +105,10 @@ export const ContestProvider = ({ children, pollInterval = 4000 }) => {
         method: 'POST',
         body: JSON.stringify({ is_judge_locked: locked ? 1 : 0 }),
       });
+      if (res.status === 401) {
+        handleUnauthorized();
+        throw new Error('Your session has expired. Please sign in again.');
+      }
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Failed to save lock state');
     } catch (err) {

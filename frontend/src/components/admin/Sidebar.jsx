@@ -34,77 +34,65 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("adminToken");
+    Object.keys(localStorage)
+      .filter(
+        (k) =>
+          k.startsWith("admin_token_") ||
+          k === "adminToken" ||
+          k === "auth" ||
+          k === "adminUser"
+      )
+      .forEach((k) => localStorage.removeItem(k));
     window.location.href = "/login";
   };
 
   const portalName = sysConfig.portal_name || "CompPortal";
 
   return (
-    <aside
-      style={{
-        width: 256,
-        flexShrink: 0,
-        display: "flex",
-        flexDirection: "column",
-        background: "var(--surface)",
-        borderRight: "1px solid var(--border)",
-        position: "sticky",
-        top: 0,
-        height: "100vh",
-        overflowY: "auto",
-        transition: "background .25s, border-color .25s",
-      }}
-    >
+    <aside className="w-64 shrink-0 flex flex-col bg-[var(--surface)] border-r border-[var(--border)] sticky top-0 h-screen overflow-y-auto transition-colors duration-250">
       {/* ── Logo / Brand ── */}
-      <div style={{ padding: "20px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid var(--border)" }}>
+      <div className="p-5 flex items-center gap-3 border-b border-[var(--border)]">
         <img
           src="/img/USAL_LOGO.png"
           alt="Logo"
-          style={{
-            width: 44, height: 44, objectFit: "contain",
-            borderRadius: "50%", border: "1px solid var(--border)", flexShrink: 0,
-          }}
+          className="w-11 h-11 object-contain rounded-full border border-[var(--border)] shrink-0"
           onError={(e) => { e.currentTarget.style.display = "none"; }}
         />
         <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text1)", letterSpacing: "-0.01em", fontFamily: "var(--font-serif)" }}>
+          <div className="text-[15px] font-bold text-[var(--text1)] tracking-tight font-[var(--font-serif)]">
             {portalName}
           </div>
-          <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "#C9A227" }}>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-[#C9A227]">
             Administrator
           </div>
         </div>
       </div>
 
       {/* ── Badge pill ── */}
-      <div style={{ padding: "12px 20px" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 999, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", background: "var(--gold-lt)", color: "var(--gold)", border: "1px solid var(--gold-bd)" }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--gold)", animation: "pulse 2s infinite" }} />
+      <div className="px-5 py-3">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[var(--gold-lt)] text-[var(--gold)] border border-[var(--gold-bd)]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />
           Administrator
         </div>
       </div>
 
       {/* ── Nav items ── */}
-      <nav style={{ flex: 1, padding: "0 12px 12px" }}>
+      <nav className="flex-1 px-3 pb-3">
         {navItems.map((item) => {
           const active = activeTab === item.id;
           return (
             <button
               key={item.id}
               onClick={() => { setActiveNav?.(item.id); navigate('/admin/dashboard?tab=' + item.id); }}
-              style={{
-                width: "100%", display: "flex", alignItems: "center", gap: 12,
-                padding: "10px 12px", borderRadius: 6, border: active ? "1px solid var(--accent-bd)" : "1px solid transparent",
-                background: active ? "var(--accent-lt)" : "transparent",
-                color: active ? "var(--accent)" : "var(--text2)",
-                fontSize: 14, fontWeight: 600, cursor: "pointer",
-                fontFamily: "inherit", marginBottom: 2, transition: "all .15s",
-              }}
-              onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = "var(--surface2)"; e.currentTarget.style.color = "var(--text1)"; } }}
-              onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text2)"; } }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md border mb-0.5 text-sm font-semibold cursor-pointer font-inherit transition-all duration-150 ${
+                active
+                  ? "border-[var(--accent-bd)] bg-[var(--accent-lt)] text-[var(--accent)]"
+                  : "border-transparent text-[var(--text2)] hover:bg-[var(--surface2)] hover:text-[var(--text1)]"
+              }`}
             >
-              <div style={{ width: 28, height: 28, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: active ? "var(--accent-bd)" : "var(--surface2)", color: active ? "var(--accent)" : "var(--text3)" }}>
+              <div className={`w-7 h-7 rounded flex items-center justify-center shrink-0 ${
+                active ? "bg-[var(--accent-bd)] text-[var(--accent)]" : "bg-[var(--surface2)] text-[var(--text3)]"
+              }`}>
                 {item.icon}
               </div>
               {item.label}
@@ -113,30 +101,13 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
         })}
       </nav>
 
-      {/* ── Sign out ── */}
-      <div style={{ borderTop: "1px solid var(--border)", padding: "12px 12px 8px" }}>
-        <button
-          onClick={handleLogout}
-          style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 6, border: "1px solid transparent", background: "transparent", color: "var(--text2)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "#fff1f2"; e.currentTarget.style.color = "#be123c"; e.currentTarget.style.borderColor = "#fecdd3"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text2)"; e.currentTarget.style.borderColor = "transparent"; }}
-        >
-          <div style={{ width: 28, height: 28, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "var(--surface2)" }}>
-            <LogOut size={15} />
-          </div>
-          Sign Out
-        </button>
-      </div>
-
       {/* ── Leaderboard ── */}
-      <div style={{ padding: "0 12px 8px" }}>
+      <div className="px-3 pb-2">
         <button
           onClick={() => navigate("/admin/leaderboard")}
-          style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 6, border: "1px solid transparent", background: "transparent", color: "var(--text2)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "#fff1f2"; e.currentTarget.style.color = "#be123c"; e.currentTarget.style.borderColor = "#fecdd3"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text2)"; e.currentTarget.style.borderColor = "transparent"; }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md border border-transparent bg-transparent text-[var(--text2)] text-sm font-semibold cursor-pointer font-inherit transition-all duration-150 hover:bg-[#fff1f2] hover:text-[#be123c] hover:border-[#fecdd3]"
         >
-          <div style={{ width: 28, height: 28, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "var(--surface2)" }}>
+          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0 bg-[var(--surface2)]">
             <TrophyIcon size={15} />
           </div>
           Leaderboard
@@ -144,14 +115,12 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
       </div>
 
       {/* ── Settings / Profile ── */}
-      <div style={{ padding: "0 12px 8px" }}>
+      <div className="px-3 pb-2">
         <button
           onClick={() => navigate("/admin/settings")}
-          style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 6, border: "1px solid transparent", background: "transparent", color: "var(--text2)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface2)"; e.currentTarget.style.color = "var(--accent)"; e.currentTarget.style.borderColor = "var(--accent-bd)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text2)"; e.currentTarget.style.borderColor = "transparent"; }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md border border-transparent bg-transparent text-[var(--text2)] text-sm font-semibold cursor-pointer font-inherit transition-all duration-150 hover:bg-[var(--surface2)] hover:text-[var(--accent)] hover:border-[var(--accent-bd)]"
         >
-          <div style={{ width: 28, height: 28, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "var(--surface2)" }}>
+          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0 bg-[var(--surface2)]">
             <Settings size={15} />
           </div>
           Settings
@@ -159,17 +128,28 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
       </div>
 
       {/* ── Dark / Light toggle ── */}
-      <div style={{ padding: "0 12px 16px" }}>
+      <div className="px-3 pb-4">
         <button
           onClick={() => setDark(!dark)}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", fontSize: 14, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
+          className="w-full flex items-center justify-between px-3 py-2.5 rounded-md border border-[var(--border)] bg-[var(--surface2)] text-[var(--text2)] text-sm font-medium cursor-pointer font-inherit"
         >
           <span>{dark ? "Dark Mode" : "Light Mode"}</span>
-          {dark ? <Moon size={15} style={{ color: "var(--accent)" }} /> : <Sun size={15} style={{ color: "var(--accent)" }} />}
+          {dark ? <Moon size={15} className="text-[var(--accent)]" /> : <Sun size={15} className="text-[var(--accent)]" />}
         </button>
       </div>
 
-      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }`}</style>
+      {/* ── Sign out ── */}
+      <div className="border-t border-[var(--border)] p-3 pb-4">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md border border-[#fecdd3] bg-[#fff1f2] text-[#be123c] text-sm font-semibold cursor-pointer font-inherit transition-all duration-150 hover:bg-[#fee2e2] hover:border-[#fca5a5]"
+        >
+          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0 bg-[#ffe4e6] text-[#be123c]">
+            <LogOut size={15} />
+          </div>
+          Sign Out
+        </button>
+      </div>
     </aside>
   );
 }

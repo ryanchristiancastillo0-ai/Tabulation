@@ -4,7 +4,7 @@
 // so anything already reading those keys keeps working.
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   User,
@@ -13,6 +13,7 @@ import {
   EyeOff,
   ArrowRight,
   AlertCircle,
+  Info,
   Loader2,
 } from 'lucide-react';
 
@@ -26,11 +27,15 @@ const BG_IMAGE_SRC = '/img/right-panel.png';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [showPw,   setShowPw]   = useState(false);
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
+  const [expiredNotice] = useState(
+    () => (searchParams.get('expired') ? 'Your session has expired. Please sign in again.' : '')
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -156,6 +161,14 @@ const AdminLogin = () => {
           </div>
 
           <div className="h-px mb-7 bg-[#E1E8DE]" />
+
+          {/* Session-expired notice */}
+          {expiredNotice && (
+            <div className="flex items-center gap-2 p-3 rounded-sm text-xs font-medium mb-5 border border-amber-200 bg-amber-50 text-amber-800">
+              <Info size={14} className="shrink-0" />
+              <span>{expiredNotice}</span>
+            </div>
+          )}
 
           {/* Error banner */}
           {error && (

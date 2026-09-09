@@ -26,6 +26,29 @@ function getToken() {
   }
 }
 
+// Clears every stored admin credential for this origin and routes the user to
+// the login screen. Shared by apiClient (all admin API calls) and the contest
+// provider's authFetch (lock/unlock), so an expired/invalid token is handled
+// exactly once instead of surfacing as confusing raw 401 errors.
+export function handleUnauthorized() {
+  try {
+    Object.keys(localStorage)
+      .filter(
+        (k) =>
+          k.startsWith('admin_token_') ||
+          k === 'adminToken' ||
+          k === 'auth' ||
+          k === 'adminUser'
+      )
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* ignore */
+  }
+  if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+    window.location.assign('/login?expired=1');
+  }
+}
+
 async function request(path, options = {}) {
   const token = getToken();
 
@@ -41,6 +64,11 @@ async function request(path, options = {}) {
   });
 
   const data = await res.json().catch(() => ({}));
+
+  if (res.status === 401) {
+    handleUnauthorized(data);
+    throw new Error('Your session has expired. Please sign in again.');
+  }
 
   if (!res.ok) {
     throw new Error(data.error || `HTTP ${res.status}`);

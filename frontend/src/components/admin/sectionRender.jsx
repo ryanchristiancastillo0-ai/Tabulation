@@ -17,7 +17,15 @@ export const MobileNavDrawer = ({ isOpen, onClose, activeNav, setActiveNav, navI
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem("adminToken");
+    Object.keys(localStorage)
+      .filter(
+        (k) =>
+          k.startsWith("admin_token_") ||
+          k === "adminToken" ||
+          k === "auth" ||
+          k === "adminUser"
+      )
+      .forEach((k) => localStorage.removeItem(k));
     window.location.href = "/login";
   };
 

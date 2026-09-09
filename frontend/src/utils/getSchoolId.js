@@ -64,6 +64,21 @@ export function tokenSchoolId(token) {
   }
 }
 
+// True when a JWT exists but its exp claim is already in the past. Used by the
+// router guards so an expired session sends the user to login instead of
+// letting the dashboard mount and hammer the API with 401s.
+export function isTokenExpired(token) {
+  if (!token) return true;
+  try {
+    const payload = JSON.parse(base64UrlDecode(token.split('.')[1]));
+    const exp = payload?.exp;
+    if (!exp) return false;
+    return Date.now() / 1000 > exp;
+  } catch {
+    return true;
+  }
+}
+
 // JWT payloads are base64url (uses - and _ instead of + and /); normalize to
 // plain base64 before decoding so we never throw on standard JWT characters.
 function base64UrlDecode(input) {
