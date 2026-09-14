@@ -1,24 +1,16 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import Sidebar from "../../components/admin/Sidebar";
-import { Modal } from "../../components/admin/Modal";
-import SectionRender, {
-  MobileNavDrawer,
-
-} from "../../components/admin/sectionRender"
-
-import {MobileTopBar} from '../../components/admin/index'
-import apiClient from "../../utils/apiClient";
-import {navItems} from '../../constant/navlist.jsx'
-import { useTheme } from '../../providers/ThemeProvider';
-import { useConfigChange } from '../../providers/ConfigChangeContext';
+import AdminLayout from "../../layouts/AdminLayout";
+import Button from "../../components/ui/Button";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import SectionRender from "./sections/sectionRender"
+import apiClient from "../../services/api";
+import { useConfigChange } from '../../context/ConfigChangeContext';
 
 
 function Dashboard() {
-  const { dark, setDark } = useTheme();
   const { notifyConfigChanged } = useConfigChange();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   // ── Contest settings ────────────────────────────────────────────────────
@@ -180,63 +172,24 @@ function Dashboard() {
   const totalWeight = criteria.reduce((s, c) => s + Number(c.weight || 0), 0);
 
   const SaveButton = ({ full }) => (
-    <button
-      className={`btn-primary flex items-center justify-center gap-2 shrink-0 text-sm transition-opacity ${
-        full ? "w-full py-3 px-4" : "w-auto"
-      } ${saving ? "opacity-70" : "opacity-100"}`}
+    <Button
+      variant="primary"
+      full={full}
+      loading={saving}
+      loadingText="Saving…"
       onClick={onSave}
       disabled={saving}
     >
-      {saving ? "⏳ Saving…" : <><span>✓</span> Save Config</>}
-    </button>
+      <span>✓</span> Save Config
+    </Button>
   );
 
   return (
     <>
-      <div className="flex min-h-screen bg-[var(--bg)]">
-        {/* ── Sidebar: only render on desktop ─────────────────────────── */}
-        {!isMobile && (
-          <Sidebar
-            activeNav={activeNav}
-            setActiveNav={setActiveNavFromTab}
-            dark={dark}
-            setDark={setDark}
-          />
-        )}
-
-        {/* ── Mobile slide-in drawer: only render on mobile ───────────── */}
-        {isMobile && (
-          <MobileNavDrawer
-            isOpen={mobileMenuOpen}
-            onClose={() => setMobileMenuOpen(false)}
-            activeNav={activeNav}
-            setActiveNav={setActiveNavFromTab}
-            navItems={navItems}
-            dark={dark}
-            setDark={setDark}
-          />
-        )}
-
-        {/* ── Main content ─────────────────────────────────────────────── */}
-        <main className="flex flex-1 flex-col overflow-y-auto">
-          {/* Mobile top bar: hamburger + current section label */}
-          {isMobile && (
-            <MobileTopBar
-              activeNav={activeNav}
-              navItems={navItems}
-              onOpenMenu={() => setMobileMenuOpen(true)}
-            />
-          )}
-
-          {/* Page body */}
-          <div
-            className={`flex-1 w-full min-w-0 max-w-[1920px] 3xl:max-w-[2560px] 4xl:max-w-[3200px] mx-auto ${
-              isMobile ? "px-4 py-5 pb-[88px]" : "px-6 lg:px-8 2xl:px-10 py-9"
-            }`}
-          >
-            {/* Header row */}
-            <div
-              className={`flex justify-between gap-3 sm:gap-4 mb-5 lg:mb-8 ${
+      <AdminLayout activeNav={activeNav} setActiveNav={setActiveNavFromTab} wide>
+        {/* Header row */}
+        <div
+          className={`flex justify-between gap-3 sm:gap-4 mb-5 lg:mb-8 ${
                 isMobile ? "flex-col items-stretch" : "flex-row items-start"
               }`}
             >
@@ -292,9 +245,7 @@ function Dashboard() {
               logoRadius={logoRadius}           setLogoRadius={setLogoRadius}
               headerTemplate={headerTemplate}   setHeaderTemplate={setHeaderTemplate}
             />
-          </div>
-        </main>
-      </div>
+          </AdminLayout>
 
       {/* Sticky mobile save bar — always reachable, never overlapped */}
       {isMobile && (
@@ -306,21 +257,20 @@ function Dashboard() {
       {/* Toast */}
       {toast && (
         <div
-          className={`save-toast ${toast.type === "error" ? "bg-[#be123c]" : ""} ${
-            isMobile ? "bottom-[76px]" : ""
-          }`}
+          className={`save-toast ${toast.type === "error" ? "bg-[#be123c]" : ""}`}
         >
           <span>{toast.type === "error" ? "✗" : "✓"}</span> {toast.msg}
         </div>
       )}
 
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteModal}
         title="Reset System Data?"
         message="DANGER: This will permanently delete all contestants, criteria, and scores. This action cannot be undone."
+        confirmLabel="Confirm Reset"
         onConfirm={onDelete}
         onCancel={() => setShowDeleteModal(false)}
-        type="danger"
+        danger
       />
     </>
   );

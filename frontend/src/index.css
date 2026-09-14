@@ -297,6 +297,19 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
   z-index: 1000;
 }
 
+/* On small screens the sticky mobile save bar sits at the bottom — keep the
+   toast clear of it. */
+@media (max-width: 1023px) {
+  .save-toast {
+    left: 12px;
+    right: 12px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    justify-content: center;
+    text-align: center;
+    flex-wrap: wrap;
+  }
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

@@ -6,7 +6,7 @@ import {
   UserX, X
 } from 'lucide-react';
 
-import { USALoader } from '../../components/index';
+import { USALoader } from '../../components/ui';
 
 const BG_IMAGE_SRC = '/img/right-panel.png';
 
