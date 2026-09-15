@@ -28,6 +28,12 @@ exports.generate = async (req, res) => {
     });
   }
 
+  // No cache and no AI generation worker available → hand the judge a fully
+  // working deterministic table right away instead of a stuck "Building…"
+  // spinner. Dropdowns are already capped to each criterion's percentage.
+  const { buildScoreTableHtml } = judgeService;
+  const fallback = buildScoreTableHtml({ contestants, criteria });
+
   // Create the DB record (source of truth) and enqueue a SMALL job.
   const generation = await genService.createGeneration({ schoolId: school_id, prompt: aiPrompt });
   console.log(`📦 [ai] generation queued id=${generation.id} school=${school_id}`);
@@ -35,10 +41,32 @@ exports.generate = async (req, res) => {
   try {
     await enqueueGeneration(generation.id, school_id);
   } catch (err) {
-    // Queue upstream unavailable → do NOT pretend the job was queued.
+    // Queue upstream unavailable → do NOT pretend the job was queued, but also
+    // never leave the judge stuck: return the deterministic fallback table.
     await genService.markFailed(generation.id, 'Generation service is temporarily unavailable.');
     console.error('❌ [ai] failed to enqueue generation:', err.message);
+    if (fallback) {
+      return res.status(200).json({
+        success:     true,
+        status:      'COMPLETED',
+        fallback:    true,
+        result:      fallback,
+        error:       'Real-time interface preview is unavailable — showing the standard scoring table instead.',
+      });
+    }
     throw new HttpError(503, 'AI generation is not available right now. Please try again later.');
+  }
+
+  if (fallback) {
+    // Don't block the judge on the queue: show the deterministic table now,
+    // the worker upgrades it to the AI version in the background.
+    return res.status(200).json({
+      success:     true,
+      status:      'COMPLETED',
+      fallback:    true,
+      result:      fallback,
+      generationId: generation.id,
+    });
   }
 
   return res.status(202).json({

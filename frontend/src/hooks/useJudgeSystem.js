@@ -111,7 +111,7 @@ async function judgeGet(path) {
 
 /* ── AI UI generation (async job queue) ─────────────────────────── */
 const AI_POLL_INTERVAL_MS  = 2000;
-const AI_POLL_MAX_ATTEMPTS = 100;
+const AI_POLL_MAX_ATTEMPTS = 15; // ~30s — never keep the judge blocked longer.
 
 // Polls a queued AI generation job until it COMPLETES, FAILS, or gives up.
 // Returns { html } on success or { error } otherwise.
@@ -129,7 +129,35 @@ async function pollJobUntilDone(jobId, schoolId, cancelledRef) {
     if (status?.status === 'FAILED') return { error: status.error || 'AI generation failed.' };
     await new Promise(r => setTimeout(r, AI_POLL_INTERVAL_MS));
   }
-  return { error: 'AI generation is taking too long. Please try again.' };
+  return { error: 'AI generation took too long — showing the standard table instead.' };
+}
+
+// Deterministic, dependency-free judge table. Guaranteed to render with
+// dropdowns capped to each criterion's percentage (a 25% criterion offers
+// only 0-25) so scoring never blocks on AI.
+function buildStaticJudgeTable(contestants, criteria) {
+  if (!Array.isArray(contestants) || !Array.isArray(criteria)) return '';
+  if (!contestants.length || !criteria.length) return '';
+
+  const maxBy = {};
+  criteria.forEach(c => {
+    if (c && c.id !== undefined && c.id !== null) maxBy[String(c.id)] = Number(c.percentage) || 0;
+  });
+
+  const head = criteria.map(c =>
+    `<th class="px-3 py-2 text-xs sm:text-sm font-semibold">${String(c.name || '')}<br/><span class="text-[10px] opacity-70">${Number(c.percentage) || 0}%</span></th>`
+  ).join('');
+
+  const rows = contestants.map(c => {
+    const cells = criteria.map(cr => {
+      const max = maxBy[String(cr.id)] ?? 100;
+      const options = '<option value="">-</option>' + Array.from({ length: max + 1 }, (_, i) => `<option value="${i}">${i}</option>`).join('');
+      return `<td class="px-2 py-1.5 text-center"><select class="score-dropdown w-20 rounded border border-slate-300 bg-slate-50 px-1 py-1 text-center text-xs text-slate-800" id="score-${c.id}-${cr.id}">${options}</select></td>`;
+    }).join('');
+    return `<tr class="border-b border-slate-100"><td class="px-2 py-1.5 text-center text-sm text-slate-500">${Number(c.entry_number) || ''}</td><td class="px-3 py-1.5 text-sm font-medium text-slate-800">${String(c.name || '')}</td>${cells}<td class="px-3 py-1.5 text-center font-semibold text-slate-800" id="total-${c.id}">0.00</td><td class="px-3 py-1.5 text-center font-semibold text-slate-800" id="rank-${c.id}">-</td></tr>`;
+  }).join('');
+
+  return `<div class="overflow-x-auto"><table class="w-full border-collapse bg-white text-left"><thead><tr class="bg-slate-100 text-slate-700"><th class="px-3 py-2 text-xs sm:text-sm font-semibold">No.</th><th class="px-3 py-2 text-xs sm:text-sm font-semibold">Name</th>${head}<th class="px-3 py-2 text-xs sm:text-sm font-semibold">Total</th><th class="px-3 py-2 text-xs sm:text-sm font-semibold">Rank</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 /* ── Hook ────────────────────────────────────────────────────────── */
@@ -347,30 +375,30 @@ export const useJudgeSystem = () => {
         setLoading(false);
 
         // Background refresh — hits cache-only endpoint, NEVER triggers AI here.
+        // When nothing is cached the backend hands back a ready-to-use
+        // standard table (dropdowns already 0..percentage), so we never need
+        // to kick off an AI job just to show something.
         judgeGet(
           `/judge/render-ui-cached?school_id=${school_id}` +
           `&criteria_signature=${encodeURIComponent(criteriaSignature)}`
         )
           .then(data => {
-            if (!data.fromCache) {
-              // Admin changed the config — no DB cache for the new signature yet.
-              // Generate (and cache) the new table in the background so the
-              // judge page self-updates without requiring a manual reload.
-              setUiRefreshing(true);
-              return ensureCachedUi(contestants, criteria, settings, school_id, true)
-                .then(ui => {
-                  if (ui?.html) {
-                    saveUiToLocalStorage(school_id, criteria, ui, aiPrompt);
-                    setDynamicUI(prev => (prev?.html === ui.html ? prev : ui));
-                  }
-                })
-                .finally(() => setUiRefreshing(false));
-            }
-            if (data.html && data.html !== localCached.html) {
+            if (data.html) {
               const cleanHtml = sanitizeAiHtml(data.html, criteria);
               saveUiToLocalStorage(school_id, criteria, { html: cleanHtml }, aiPrompt);
-              setDynamicUI({ html: cleanHtml });
+              if (cleanHtml !== localCached.html) setDynamicUI({ html: cleanHtml });
+              return;
             }
+            // No html at all — last resort, generate in the background.
+            setUiRefreshing(true);
+            return ensureCachedUi(contestants, criteria, settings, school_id, true)
+              .then(ui => {
+                if (ui?.html) {
+                  saveUiToLocalStorage(school_id, criteria, ui, aiPrompt);
+                  setDynamicUI(prev => (prev?.html === ui.html ? prev : ui));
+                }
+              })
+              .finally(() => setUiRefreshing(false));
           })
           .catch(() => {
             // Offline — local cache is already showing, nothing to do
@@ -419,36 +447,62 @@ export const useJudgeSystem = () => {
   // Generate-or-fetch the AI table for the given config, caching locally.
   // When `silent` is true the caller already manages the loading indication
   // (e.g. the refresh overlay), so this never flips the full-screen loader.
+  // Every branch returns usable HTML — the AI result if available, otherwise a
+  // deterministic standard table — so the judge is never stuck on a spinner.
   const ensureCachedUi = async (contestants, criteria, settings, school_id, silent = false) => {
+    const staticTable = buildStaticJudgeTable(contestants, criteria);
+
+    const settle = (html) => {
+      setDynamicUI(prev => (prev?.html === html ? prev : { html }));
+      setLoading(false);
+      setUiRefreshing(false);
+      return { html };
+    };
+
     if (!silent) setLoading(true);
     try {
-      const submitResp = await judgePost('/ai/generate', {
-        contestants,
-        criteria,
-        school_id,
-        aiPrompt: settings?.ai_prompt || 'Modern and Professional',
-      });
-
-      // Cached fast-path returns the html directly.
-      if (submitResp.result) {
-        return { html: sanitizeAiHtml(submitResp.result, criteria) };
+      let submitResp;
+      try {
+        submitResp = await judgePost('/ai/generate', {
+          contestants,
+          criteria,
+          school_id,
+          aiPrompt: settings?.ai_prompt || 'Modern and Professional',
+        });
+      } catch (postErr) {
+        // Backend unreachable — use the deterministic table immediately.
+        return settle(staticTable);
       }
 
-      // Queued path: poll until the job ends.
+      // Cached fast-path returns the html directly (also the on-screen
+      // fallback the backend sends when the AI queue is unavailable).
+      if (submitResp.result) {
+        const html = sanitizeAiHtml(submitResp.result, criteria);
+        if (!submitResp.fallback) {
+          try { saveUiToLocalStorage(school_id, criteria, { html }, settings?.ai_prompt || ''); } catch { /* ignore */ }
+        }
+        return settle(html);
+      }
+
+      // Queued path: poll until the job ends, but never block forever — on
+      // timeout/error we fall back to the standard table.
       if (submitResp.generationId) {
         const result = await pollJobUntilDone(submitResp.generationId, school_id);
-        if (result.html) return { html: sanitizeAiHtml(result.html, criteria) };
-        showStatus('Error', result.error || 'UI generation failed.', 'error');
-        return null;
+        if (result.html) {
+          const html = sanitizeAiHtml(result.html, criteria);
+          try { saveUiToLocalStorage(school_id, criteria, { html }, settings?.ai_prompt || ''); } catch { /* ignore */ }
+          return settle(html);
+        }
+        if (staticTable) {
+          showStatus('Notice', result.error || 'Showing the standard scoring table.', 'warning');
+        }
+        return settle(staticTable);
       }
 
-      showStatus('Error', submitResp.error || 'UI generation failed.', 'error');
-      return null;
+      // No html and no job (shouldn't happen) — show the standard table.
+      return settle(staticTable);
     } catch (err) {
-      showStatus('Error', err.message || 'Failed to generate judge interface.', 'error');
-      return null;
-    } finally {
-      if (!silent) setLoading(false);
+      return settle(staticTable || '');
     }
   };
 

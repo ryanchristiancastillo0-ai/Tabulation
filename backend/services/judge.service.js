@@ -4,9 +4,120 @@ const HttpError = require('../utils/http-error');
 const { rankValues, numeric } = require('../utils/ranks');
 const { generateWithFallback } = require('../config/ai');
 
+// ONLY selects whose id matches a real criterion get normalised.
+const SCORE_SELECT_RE = /<select([^>]*?\bid=['"]score[\w-]*['"])([\s\S]*?)<\/select>/gi;
+
+function buildOptions(max) {
+  let opts = '<option value="">-</option>';
+  for (let i = 0; i <= max; i++) opts += `<option value="${i}">${i}</option>`;
+  return opts;
+}
+
+// ── Deterministic dropdown repair ────────────────────────────────────────────
+// LLMs routinely emit dropdowns with a hard-coded 0-100 (or 1-100) range no
+// matter what the prompt says. After every cached / generated read we rebuild
+// every .score-dropdown so the options ALWAYS run 0..criterion.percentage
+// (e.g. a 25% criterion gets 0-25, never 0-100). This guarantees the judge UI
+// is correct even when the AI output is garbage, and is what the frontend's
+// hydrator already does on top.
+function normalizeDropdownRanges(html, criteria) {
+  if (!html || !Array.isArray(criteria) || !html.includes('select')) return html;
+  const maxByCriterion = {};
+  criteria.forEach((c) => {
+    if (c && c.id !== undefined && c.id !== null) {
+      maxByCriterion[String(c.id)] = Number(c.percentage) || 0;
+    }
+  });
+  return html.replace(SCORE_SELECT_RE, (match, attrs, inner) => {
+    const attrsCs = String(attrs);
+    const idMatch = attrsCs.match(/\bid=['"]score([\w-]*)['"]/);
+    if (!idMatch) return match;
+    const critId = `score${idMatch[1]}`.split('-')[2] || null;
+    const max = critId && maxByCriterion[critId] !== undefined ? maxByCriterion[critId] : null;
+    if (max === null) return match;
+    return `<select${attrsCs}>${buildOptions(max)}</select>`;
+  });
+}
+
+// ── Deterministic fallback table (no AI required) ───────────────────────────
+// Plain, self-styled scoring table that is ALWAYS available. Used whenever
+// the AI pipeline is unavailable / slow so the judge can start scoring right
+// away instead of sitting on a spinner forever. Dropdowns are 0..percentage.
+function buildScoreTableHtml({ contestants, criteria }) {
+  if (!Array.isArray(contestants) || !Array.isArray(criteria)) return '';
+  if (!contestants.length || !criteria.length) return '';
+
+  const maxByCriterion = {};
+  criteria.forEach((c) => {
+    if (c.id !== undefined && c.id !== null) {
+      maxByCriterion[String(c.id)] = Number(c.percentage) || 0;
+    }
+  });
+
+  const head = criteria
+    .map((c) => `<th class="px-3 py-2 text-xs sm:text-sm font-semibold">${String(c.name || '')}<br/><span class="text-[10px] opacity-70">${Number(c.percentage) || 0}%</span></th>`)
+    .join('');
+  const rows = contestants
+    .map((c) => {
+      const cells = criteria
+        .map((cr) => {
+          const max = maxByCriterion[String(cr.id)] ?? 100;
+          return `<td class="px-2 py-1.5 text-center"><select class="score-dropdown w-20 rounded border border-slate-300 bg-slate-50 px-1 py-1 text-center text-xs text-slate-800" id="score-${c.id}-${cr.id}">${buildOptions(max)}</select></td>`;
+        })
+        .join('');
+      return `<tr class="border-b border-slate-100"><td class="px-2 py-1.5 text-center text-sm text-slate-500">${Number(c.entry_number) || ''}</td><td class="px-3 py-1.5 text-sm font-medium text-slate-800">${String(c.name || '')}</td>${cells}<td class="px-3 py-1.5 text-center font-semibold text-slate-800" id="total-${c.id}">0.00</td><td class="px-3 py-1.5 text-center font-semibold text-slate-800" id="rank-${c.id}">-</td></tr>`;
+    })
+    .join('');
+
+  return `<div class="overflow-x-auto"><table class="w-full border-collapse bg-white text-left"><thead><tr class="bg-slate-100 text-slate-700">${head}<th class="px-3 py-2 text-xs sm:text-sm font-semibold">Total</th><th class="px-3 py-2 text-xs sm:text-sm font-semibold">Rank</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ── Strip anything that is not part of the scoring grid ─────────────────────
+// Judges already have their own Submit button + status UI, so any <form>,
+// <button>, or <input> an LLM sneaks into the table is removed (balanced
+// open/close removal so rows containing them aren't mangled). It also forces
+// the number cell to show the literal entry number: if the LLM writes
+// "Candidate 1" / "#1 / name" etc., it is rewritten to exactly "1".
+function purgeNonScoringElements(html, contestants) {
+  if (!html) return html;
+  const str = String(html);
+  const hasForm    = str.includes('<form');
+  const hasButton  = str.includes('<button');
+  const hasInput   = str.includes('<input');
+  const hasCand    = /[Cc]andidate/.test(str);
+  if (!hasForm && !hasButton && !hasInput && !hasCand) return str;
+  let out = str;
+
+  // Remove forms/inputs/buttons. A button's label is ALWAYS dropped (the judge
+  // page already has its own submit button); inner content is kept only when it
+  // carries real structure (e.g. a table element wrapped in a stray <button>).
+  out = out.replace(/<form\b[^>]*>/gi, '');
+  out = out.replace(/<\/form>/gi, '');
+  out = out.replace(/<input\b[^>]*\/?>/gi, '');
+  const buttonRe = /<button\b([^>]*)>([\s\S]*?)(?:<\/button>|$)/gi;
+  out = out.replace(buttonRe, (m, attrs, inner) => {
+    if (/<table\b|<select|<\/button/i.test(inner)) return inner;
+    return '';
+  });
+
+  // Fix placeholder number cells rendered beyond the entry number.
+  out = out.replace(
+    />Candidate\s+#?(\d+)</gi,
+    (m, num) => `>${num}<`
+  );
+  out = out.replace(
+    />#(\d+)\s*<\/t[dh]>/gi,
+    (m, num) => `>${num}</t${m.includes('/td') ? 'd' : 'h'}>`
+  );
+
+  // If a "No."-style cell contains "Candidate <n>" as text, exact the number.
+  const candidateCell = /(No[.,]?\s*[:|-]?\s*Candidates?\s*)(#?\d+)/gi;
+  out = out.replace(candidateCell, (m, prefixVal, num) => num.replace('#', ''));
+
+  return out;
+}
+
 // ── Prepare: validate input + check ui_cache, one source of hash logic ──────
-// Returns the settings, resolved design goal, config hash, and the cached html
-// (or null). Shared by the real-time path (renderUI) and the async queue path.
 async function prepareRender({ contestants, criteria, aiPrompt, school_id }) {
   if (!school_id) throw new HttpError(400, 'school_id is required.');
   if (!contestants?.length || !criteria?.length) {
@@ -42,7 +153,9 @@ async function prepareRender({ contestants, criteria, aiPrompt, school_id }) {
     settings,
     finalDesignGoal,
     configHash,
-    html: cache.length > 0 ? cache[0].html_content : null,
+    html: cache.length > 0
+      ? normalizeDropdownRanges(purgeNonScoringElements(cache[0].html_content, contestants), criteria)
+      : null,
   };
 }
 
@@ -86,26 +199,36 @@ async function renderUI({ contestants, criteria, aiPrompt, school_id }) {
     [MANDATORY]:
     - Render EXACTLY ${contestants.length} rows.
     - Columns: No., Name, ${criteria.map(c => `${c.name} (${c.percentage}%)`).join(', ')}, Total, Rank.
+    - The No. column MUST show ONLY the literal entry number (1, 2, 3, …). Never prefix it with "Candidate", "#", "No." etc. If the contestant is number 1, that cell must contain exactly "1".
     - Each criteria column header MUST show name AND percentage: "Performance (60%)"
-    - Dropdowns must have options from the criterion's percentage down to 0 in DESCENDING order (e.g. a 25% criterion gets 25, 24, ... 0; 100% gets 100, 99, ... 0). class="score-dropdown" id="score-{cId}-{crId}"
+    - Dropdowns must have options from the criterion's percentage down to 0 in DESCENDING order (e.g. a 25% criterion gets exactly 25, 24, 23, ... 1, 0; a 100% criterion gets 100, 99, ... 1, 0). NEVER use a hard-coded 0-100 or 1-100 range. class="score-dropdown" id="score-{cId}-{crId}"
+    - Every <option> MUST have a numeric value attribute matching its text: <option value="25">25</option>. No empty or duplicate values.
     - Totals: id="total-{cId}"
     - Ranks: id="rank-{cId}"
 
-    [OUTPUT]: Return ONLY a <div> with a Tailwind <table>. No markdown.
+    [OUTPUT]: Return ONLY a <div> with a Tailwind <table>. No markdown. Do NOT include any <button>, <form>, or <input> elements — the scoring page already provides its own Submit button.
   `;
 
   const tableHTML = await generateWithFallback(aiInstruction);
   const cleanTable = tableHTML.replace(/```html/g, '').replace(/```/g, '').trim();
+
+  // Never trust the LLM's option ranges or stray elements — repair every
+  // dropdown to 0..percentage, drop buttons/forms/inputs, and pin the No.
+  // column to the exact entry number before the result is cached and shown.
+  const finalTable = normalizeDropdownRanges(
+    purgeNonScoringElements(cleanTable, contestants),
+    criteria
+  );
 
   await pool.execute(
     `INSERT INTO ui_cache (prompt_hash, school_id, html_content)
      VALUES (?, ?, ?)
      ON DUPLICATE KEY UPDATE
        html_content = VALUES(html_content)`,
-    [prep.configHash, school_id, cleanTable]
+    [prep.configHash, school_id, finalTable]
   );
 
-  return { html: cleanTable, promptHash: prep.configHash };
+  return { html: finalTable, promptHash: prep.configHash };
 }
 
 // ── SUBMIT SCORES (transaction) ──
@@ -186,14 +309,16 @@ async function getMyScoresRaw(schoolId, judgeId) {
 }
 
 // ── CACHED UI (no AI, safe for background refresh) ──
+// Returns a deterministic table when nothing is cached so the judge UI is
+// never blocked waiting for AI — the config just has to exist in the DB.
 async function getCachedUI(schoolId, criteriaSignature) {
   if (!schoolId) throw new HttpError(400, 'school_id is required.');
 
-  const [rows] = await pool.execute(
+  const [settings] = await pool.execute(
     'SELECT ai_prompt FROM settings WHERE school_id = ? LIMIT 1',
     [schoolId]
   );
-  const aiPrompt = rows[0]?.ai_prompt || 'Modern and Professional';
+  const aiPrompt = settings[0]?.ai_prompt || 'Modern and Professional';
 
   const configHash = crypto.createHash('md5')
     .update(aiPrompt + criteriaSignature + String(schoolId))
@@ -205,11 +330,36 @@ async function getCachedUI(schoolId, criteriaSignature) {
   );
 
   if (cache.length > 0) {
-    return { html: cache[0].html_content, fromCache: true };
+    const [criteriaRows] = await pool.execute(
+      'SELECT * FROM criteria WHERE school_id = ?',
+      [schoolId]
+    );
+    const [contestants] = await pool.execute(
+      'SELECT * FROM contestants WHERE school_id = ? ORDER BY entry_number ASC',
+      [schoolId]
+    );
+    return {
+      html: normalizeDropdownRanges(
+        purgeNonScoringElements(cache[0].html_content, contestants),
+        criteriaRows
+      ),
+      fromCache: true,
+    };
   }
 
-  // Nothing in DB — tell the client to do a full POST instead
-  return { fromCache: false };
+  const [contestants] = await pool.execute(
+    'SELECT * FROM contestants WHERE school_id = ? ORDER BY entry_number ASC',
+    [schoolId]
+  );
+  const [criteria] = await pool.execute(
+    'SELECT * FROM criteria WHERE school_id = ?',
+    [schoolId]
+  );
+
+  return {
+    html:      buildScoreTableHtml({ contestants, criteria }) || '',
+    fromCache: false,
+  };
 }
 
 module.exports = {
@@ -219,4 +369,7 @@ module.exports = {
   getMyScores,
   getMyScoresRaw,
   getCachedUI,
+  buildScoreTableHtml,
+  normalizeDropdownRanges,
+  purgeNonScoringElements,
 };

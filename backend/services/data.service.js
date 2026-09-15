@@ -258,6 +258,34 @@ async function saveConfig(schoolId, body) {
     custom_base, tie_break_method,
   } = body;
 
+  // Diff helpers — skip delete/re-insert (and the score wipe + judge UI
+  // refresh that follows) when the incoming row set already matches the DB
+  // exactly. Saving the same config repeatedly must be a true no-op.
+  const rowsEqual = (dbRows, incoming) => {
+    if (incoming.length !== dbRows.length) return false;
+    return incoming.every((row, i) => {
+      const db = dbRows[i];
+      const a = String(row.name || '').trim();
+      const b = String(db.name || '').trim();
+      if (a !== b) return false;
+      const av = row.entry_number !== undefined ? Number(row.entry_number) : 0;
+      const bv = db.entry_number !== undefined ? Number(db.entry_number) : db.entry_number;
+      return av === Number(bv) || Number.isNaN(bv);
+    });
+  };
+  const criteriaEqual = (dbRows, incoming) => {
+    if (incoming.length !== dbRows.length) return false;
+    return incoming.every((row, i) => {
+      const db = dbRows[i];
+      const a = String(row.name || '').trim();
+      const b = String(db.name || '').trim();
+      if (a !== b) return false;
+      const av = row.percentage !== undefined ? Number(row.percentage) : 0;
+      const bv = Number(db.percentage) || 0;
+      return av === bv;
+    });
+  };
+
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -319,36 +347,77 @@ async function saveConfig(schoolId, body) {
       );
     }
 
-    if (contestants !== undefined || criteria !== undefined) {
-      // Contestants/criteria are deleted and re-inserted below with NEW ids,
-      // so any existing scores (which reference the old ids) must be wiped
-      // first or the foreign keys fk_scores_contestant / fk_scores_criteria
-      // will reject fresh submissions with "Cannot add or update a child row".
-      await connection.execute('DELETE FROM scores WHERE school_id = ?', [schoolId]);
-    }
+    const waiting = [];
 
-    if (contestants !== undefined) {
-      await connection.execute('DELETE FROM contestants WHERE school_id = ?', [schoolId]);
-      if (contestants.length > 0) {
+    if (contestants !== undefined && criteria !== undefined) {
+      const [existingContestants] = await connection.execute(
+        'SELECT id, name, entry_number FROM contestants WHERE school_id = ? ORDER BY entry_number ASC, id ASC',
+        [schoolId]
+      );
+      const [existingCriteria] = await connection.execute(
+        'SELECT id, name, percentage FROM criteria WHERE school_id = ? ORDER BY id ASC',
+        [schoolId]
+      );
+      const contestantsChanged = !rowsEqual(existingContestants, contestants);
+      const criteriaChanged    = !criteriaEqual(existingCriteria, criteria);
+
+      if (contestantsChanged || criteriaChanged) {
+        // Contestants/criteria are deleted and re-inserted below with NEW ids,
+        // so any existing scores (which reference the old ids) must be wiped
+        // first or the foreign keys fk_scores_contestant / fk_scores_criteria
+        // will reject fresh submissions with "Cannot add or update a child row".
+        await connection.execute('DELETE FROM scores WHERE school_id = ?', [schoolId]);
+      }
+
+      if (contestantsChanged) {
+        await connection.execute('DELETE FROM contestants WHERE school_id = ?', [schoolId]);
         for (const c of contestants) {
-          await connection.execute(
+          waiting.push([
             'INSERT INTO contestants (school_id, name, entry_number) VALUES (?, ?, ?)',
-            [schoolId, c.name || 'Unnamed', c.entry_number || 0]
-          );
+            [schoolId, c.name || 'Unnamed', c.entry_number || 0],
+          ]);
+        }
+      }
+
+      if (criteriaChanged) {
+        await connection.execute('DELETE FROM criteria WHERE school_id = ?', [schoolId]);
+        for (const cr of criteria) {
+          waiting.push([
+            'INSERT INTO criteria (school_id, name, percentage) VALUES (?, ?, ?)',
+            [schoolId, cr.name || 'New Criteria', cr.percentage || 0],
+          ]);
+        }
+      }
+    } else {
+      // Single-list saves (e.g. partial payloads) — keep legacy behavior:
+      // clear scores and rebuild whichever list was supplied.
+      if (contestants !== undefined || criteria !== undefined) {
+        await connection.execute('DELETE FROM scores WHERE school_id = ?', [schoolId]);
+      }
+
+      if (contestants !== undefined) {
+        await connection.execute('DELETE FROM contestants WHERE school_id = ?', [schoolId]);
+        for (const c of contestants) {
+          waiting.push([
+            'INSERT INTO contestants (school_id, name, entry_number) VALUES (?, ?, ?)',
+            [schoolId, c.name || 'Unnamed', c.entry_number || 0],
+          ]);
+        }
+      }
+
+      if (criteria !== undefined) {
+        await connection.execute('DELETE FROM criteria WHERE school_id = ?', [schoolId]);
+        for (const cr of criteria) {
+          waiting.push([
+            'INSERT INTO criteria (school_id, name, percentage) VALUES (?, ?, ?)',
+            [schoolId, cr.name || 'New Criteria', cr.percentage || 0],
+          ]);
         }
       }
     }
 
-    if (criteria !== undefined) {
-      await connection.execute('DELETE FROM criteria WHERE school_id = ?', [schoolId]);
-      if (criteria.length > 0) {
-        for (const cr of criteria) {
-          await connection.execute(
-            'INSERT INTO criteria (school_id, name, percentage) VALUES (?, ?, ?)',
-            [schoolId, cr.name || 'New Criteria', cr.percentage || 0]
-          );
-        }
-      }
+    for (const [sql, vals] of waiting) {
+      await connection.execute(sql, vals);
     }
 
     await connection.commit();
