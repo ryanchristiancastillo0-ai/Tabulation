@@ -1,4 +1,8 @@
-const MODEL_CHAIN = ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash"];
+const MODEL_CHAIN = [
+  "gemini-3.6-flash",
+  "gemini-3.1-flash-lite-preview",
+  "gemini-2.5-flash",
+];
 
 async function generateWithFallback(prompt) {
     const API_KEY = process.env.GEMINI_API_KEY;

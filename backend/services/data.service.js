@@ -319,6 +319,14 @@ async function saveConfig(schoolId, body) {
       );
     }
 
+    if (contestants !== undefined || criteria !== undefined) {
+      // Contestants/criteria are deleted and re-inserted below with NEW ids,
+      // so any existing scores (which reference the old ids) must be wiped
+      // first or the foreign keys fk_scores_contestant / fk_scores_criteria
+      // will reject fresh submissions with "Cannot add or update a child row".
+      await connection.execute('DELETE FROM scores WHERE school_id = ?', [schoolId]);
+    }
+
     if (contestants !== undefined) {
       await connection.execute('DELETE FROM contestants WHERE school_id = ?', [schoolId]);
       if (contestants.length > 0) {
