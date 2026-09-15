@@ -91,27 +91,48 @@ function judgeAuthHeader() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function judgePost(path, body) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json', ...judgeAuthHeader() },
-    body:    JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
+async function judgePost(path, body, timeoutMs, cancelledRef) {
+  const controller = new AbortController();
+  const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', ...judgeAuthHeader() },
+      body:    JSON.stringify(body),
+      signal:  cancelledRef?.current ? controller.signal : controller.signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  } catch (err) {
+    if (timer) clearTimeout(timer);
+    if (timer && controller.signal.aborted) throw new Error('Request timed out — showing the standard table.');
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
-async function judgeGet(path) {
-  const res  = await fetch(`${API_BASE}${path}`, { headers: judgeAuthHeader() });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
+async function judgeGet(path, timeoutMs) {
+  const controller = new AbortController();
+  const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    const res  = await fetch(`${API_BASE}${path}`, { headers: judgeAuthHeader(), signal: controller.signal });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  } catch (err) {
+    if (timer && controller.signal.aborted) throw new Error('Request timed out — showing the standard table.');
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 /* ── AI UI generation (async job queue) ─────────────────────────── */
 const AI_POLL_INTERVAL_MS  = 2000;
 const AI_POLL_MAX_ATTEMPTS = 15; // ~30s — never keep the judge blocked longer.
+const AI_POLL_TIMEOUT_MS   = 5000; // each status check is bounded too
 
 // Polls a queued AI generation job until it COMPLETES, FAILS, or gives up.
 // Returns { html } on success or { error } otherwise.
@@ -121,7 +142,7 @@ async function pollJobUntilDone(jobId, schoolId, cancelledRef) {
     if (cancelledRef?.current) return { error: 'Generation cancelled.' };
     let status;
     try {
-      status = await judgeGet(url);
+      status = await judgeGet(url, AI_POLL_TIMEOUT_MS);
     } catch (err) {
       return { error: err.message || 'Failed to check generation status.' };
     }
@@ -259,7 +280,7 @@ export const useJudgeSystem = () => {
       // Show the loader ONLY when we have nothing cached to render.
       if (!cached) setLoading(true);
       try {
-        const data = await judgeGet(`/public/get-all-data?school_id=${school_id}`);
+        const data = await judgeGet(`/public/get-all-data?school_id=${school_id}`, 12000);
 
         if (data && !data.error) {
           const contestants = data.contestants || [];
@@ -281,7 +302,7 @@ export const useJudgeSystem = () => {
           if (!settings.contest_name && !settings.judge_count) {
             setTimeout(async () => {
               try {
-                const d2 = await judgeGet(`/public/get-all-data?school_id=${school_id}`);
+                const d2 = await judgeGet(`/public/get-all-data?school_id=${school_id}`, 12000);
                 if (d2 && !d2.error) {
                   const contestants2 = d2.contestants || [];
                   const criteria2    = d2.criteria    || [];
@@ -329,7 +350,10 @@ export const useJudgeSystem = () => {
     uiRendered.current = '';
 
     // Re-fetch config from server to get the latest settings/contestants/criteria
-    judgeGet(`/public/get-all-data?school_id=${schoolId}`)
+    withTimeout(
+      judgeGet(`/public/get-all-data?school_id=${schoolId}`),
+      12000
+    )
       .then(data => {
         if (data && !data.error) {
           const fresh = {
@@ -342,12 +366,24 @@ export const useJudgeSystem = () => {
         }
       })
       .catch(() => {
-        // Even if the fetch fails, STEP 2 will still run with the current config
+        // Timeout/network failure — never leave the judge on a loader. STEP 2
+        // will still run with the current config and render the static table.
         setLoading(false);
+        setUiRefreshing(false);
       });
   }, [configChangeCount, schoolId]);
 
-  // ── STEP 2: Render AI UI — localStorage first, cache-only bg sync ─
+  // Fetch with a hard timeout so a slow/stuck display endpoint can NEVER keep
+  // the judge on a spinner — the static table always takes over.
+  const withTimeout = (promise, ms = 12000) =>
+    Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out — showing the standard table.')), ms)
+      ),
+    ]);
+
+  // ── STEP 2: Render judge table — static first, AI upgrades in background ─
   useEffect(() => {
     const { contestants, criteria, settings } = config;
 
@@ -365,78 +401,79 @@ export const useJudgeSystem = () => {
     if (uiRendered.current === renderSignature) return;
     uiRendered.current = renderSignature;
 
+    // Static table = what the judge sees INSTANTLY on load, no network, no AI.
+    // It's derived from the config itself (dropdowns 0..percentage) so the page
+    // can never be stuck on "Building interface…" waiting for a generation job.
+    const staticTable = buildStaticJudgeTable(contestants, criteria);
+
     const renderUI = async () => {
-      // 1. localStorage hit → show instantly, sync DB cache in background
+      // Show the deterministic table right away and let the AI version fill in
+      // behind it. Keeps a previous good table on screen while refreshing.
+      const hasPrevious = !!dynamicUIRef.current;
+      if (!hasPrevious && staticTable) {
+        setDynamicUI(prev => (prev?.html === staticTable ? prev : { html: staticTable }));
+      }
+      setLoading(false);
+
+      // 1. localStorage hit → use it, sync DB cache in background
       const localCached = loadUiFromLocalStorage(school_id, criteria, aiPrompt);
       if (localCached?.html) {
-        // Only re-render if the incoming UI differs from what's on screen now,
-        // so unchanged configs don't flash the table.
         setDynamicUI(prev => (prev?.html === localCached.html ? prev : localCached));
-        setLoading(false);
 
         // Background refresh — hits cache-only endpoint, NEVER triggers AI here.
         // When nothing is cached the backend hands back a ready-to-use
         // standard table (dropdowns already 0..percentage), so we never need
         // to kick off an AI job just to show something.
-        judgeGet(
-          `/judge/render-ui-cached?school_id=${school_id}` +
-          `&criteria_signature=${encodeURIComponent(criteriaSignature)}`
+        withTimeout(
+          judgeGet(
+            `/judge/render-ui-cached?school_id=${school_id}` +
+            `&criteria_signature=${encodeURIComponent(criteriaSignature)}`
+          ),
+          12000
         )
           .then(data => {
-            if (data.html) {
+            if (data.html && data.html !== localCached.html) {
               const cleanHtml = sanitizeAiHtml(data.html, criteria);
               saveUiToLocalStorage(school_id, criteria, { html: cleanHtml }, aiPrompt);
               if (cleanHtml !== localCached.html) setDynamicUI({ html: cleanHtml });
-              return;
             }
-            // No html at all — last resort, generate in the background.
-            setUiRefreshing(true);
-            return ensureCachedUi(contestants, criteria, settings, school_id, true)
-              .then(ui => {
-                if (ui?.html) {
-                  saveUiToLocalStorage(school_id, criteria, ui, aiPrompt);
-                  setDynamicUI(prev => (prev?.html === ui.html ? prev : ui));
-                }
-              })
-              .finally(() => setUiRefreshing(false));
           })
           .catch(() => {
-            // Offline — local cache is already showing, nothing to do
+            // Offline or timeout — local cache is already showing, nothing to do
           });
 
         return;
       }
 
-      // 2. No local cache → ensure a server render exists for this config.
-      const hasTable = !!dynamicUIRef.current;
-      if (hasTable) {
-        // Keep the current table on screen and generate in the background,
-        // so the judge never sits on a blank "Building interface…" screen
-        // while the AI job runs (its previous table is still useful).
-        setUiRefreshing(true);
-        try {
-          const ui = await ensureCachedUi(contestants, criteria, settings, school_id, true);
-          if (ui?.html) {
-            saveUiToLocalStorage(school_id, criteria, ui, aiPrompt);
-            setDynamicUI(ui);
-          }
-        } finally {
-          setUiRefreshing(false);
-        }
-        return;
-      }
-
-      setLoading(true);
+      // 2. No local cache → refresh from the DB-backed endpoint (fast) or, as a
+      //    last resort, ask the AI — but always with a hard timeout.
+      if (hasPrevious) setUiRefreshing(true);
       try {
-        const ui = await ensureCachedUi(contestants, criteria, settings, school_id);
+        const cached = await withTimeout(
+          judgeGet(
+            `/judge/render-ui-cached?school_id=${school_id}` +
+            `&criteria_signature=${encodeURIComponent(criteriaSignature)}`
+          ),
+          12000
+        );
+        if (cached.html && cached.html !== staticTable) {
+          const html = sanitizeAiHtml(cached.html, criteria);
+          saveUiToLocalStorage(school_id, criteria, { html }, aiPrompt);
+          setDynamicUI(prev => (prev?.html === html ? prev : { html }));
+          return;
+        }
+        // Nothing cached yet → generate in the background (may be the AI or
+        // the backend's standard fallback, both return usable HTML fast).
+        const ui = await ensureCachedUi(contestants, criteria, settings, school_id, true);
         if (ui?.html) {
           saveUiToLocalStorage(school_id, criteria, ui, aiPrompt);
-          setDynamicUI(ui);
+          setDynamicUI(prev => (prev?.html === ui.html ? prev : ui));
         }
       } catch (err) {
-        showStatus('Error', err.message || 'Failed to generate judge interface.', 'error');
+        // Timeout/failure — the static table is already on screen, keep it.
       } finally {
         setLoading(false);
+        setUiRefreshing(false);
       }
     };
 
@@ -468,9 +505,9 @@ export const useJudgeSystem = () => {
           criteria,
           school_id,
           aiPrompt: settings?.ai_prompt || 'Modern and Professional',
-        });
+        }, 15000); // hard cap — a stuck AI call can never freeze the judge page
       } catch (postErr) {
-        // Backend unreachable — use the deterministic table immediately.
+        // Backend unreachable / timed out — use the deterministic table immediately.
         return settle(staticTable);
       }
 
