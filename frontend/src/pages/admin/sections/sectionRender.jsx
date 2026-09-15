@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   X, ChevronRight, LogOut, TrophyIcon, Moon, Sun, Settings
@@ -157,6 +157,8 @@ const SectionRender = ({
   contestName, setContestName,
   contestType, setContestType,
   aiPrompt, setAiPrompt,
+  aiModel, setAiModel,
+  uiMode, setUiMode,
   judgeCount, setJudgeCount,
   calculationType, setCalculationType,
   customBase, setCustomBase,
@@ -210,7 +212,12 @@ const SectionRender = ({
         <ContestInfoSection contestName={contestName} setContestName={setContestName} contestType={contestType} setContestType={setContestType} />
       )}
       {activeNav === 'ai' && (
-        <AIConfigSection aiPrompt={aiPrompt} setAiPrompt={setAiPrompt} />
+        <AIConfigSection
+          aiPrompt={aiPrompt} setAiPrompt={setAiPrompt}
+          aiModel={aiModel} setAiModel={setAiModel}
+          uiMode={uiMode} setUiMode={setUiMode}
+          contestants={contestants} criteria={criteria} contestName={contestName}
+        />
       )}
       {activeNav === 'criteria' && (
         <CriteriaManager criteria={criteria} setCriteria={setCriteria} newCrit={newCrit} setNewCrit={setNewCrit} addCriterion={addCriterion} />

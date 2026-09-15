@@ -17,6 +17,8 @@ function Dashboard() {
   const [contestName,     setContestName]     = useState("");
   const [contestType,     setContestType]     = useState("pageant");
   const [aiPrompt,        setAiPrompt]        = useState("");
+  const [aiModel,         setAiModel]         = useState("qwen3.8-flash");
+  const [uiMode,          setUiMode]          = useState("ai");
   const [judgeCount,      setJudgeCount]      = useState(3);
   const [calculationType, setCalculationType] = useState("average");
   const [customBase,      setCustomBase]      = useState("average");
@@ -86,6 +88,8 @@ function Dashboard() {
       setContestName(settings.contest_name ?? "");
       setContestType(settings.contest_type ?? "pageant");
       setAiPrompt(settings.ai_prompt ?? "");
+      setAiModel(settings.ai_model ?? "qwen3.8-flash");
+      setUiMode(settings.ui_mode ?? "ai");
       setJudgeCount(Number(settings.judge_count ?? 3));
       setCalculationType(settings.computation_type ?? "average");
       setCustomBase(settings.custom_base ?? "average");
@@ -127,6 +131,8 @@ function Dashboard() {
         contest_name:     contestName,
         contest_type:     contestType,
         ai_prompt:        aiPrompt,
+        ai_model:         aiModel,
+        ui_mode:          uiMode,
         judge_count:      judgeCount,
         computation_type: calculationType,
         custom_base:      customBase,
@@ -223,6 +229,8 @@ function Dashboard() {
               contestName={contestName}         setContestName={setContestName}
               contestType={contestType}         setContestType={setContestType}
               aiPrompt={aiPrompt}               setAiPrompt={setAiPrompt}
+              aiModel={aiModel}                  setAiModel={setAiModel}
+              uiMode={uiMode}                    setUiMode={setUiMode}
               judgeCount={judgeCount}           setJudgeCount={setJudgeCount}
               calculationType={calculationType} setCalculationType={setCalculationType}
               customBase={customBase}           setCustomBase={setCustomBase}

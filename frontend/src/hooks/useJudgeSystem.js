@@ -432,7 +432,9 @@ export const useJudgeSystem = () => {
       .map(c => `${c.id}:${c.percentage}`)
       .join(',');
     const aiPrompt = settings?.ai_prompt || '';
-    const renderSignature = `${criteriaSignature}::${aiPrompt}`;
+    const aiModel = settings?.ai_model || 'qwen3.8-flash';
+    const uiMode = settings?.ui_mode || 'ai';
+    const renderSignature = `${criteriaSignature}::${aiPrompt}::${aiModel}::${uiMode}`;
 
     // Re-run only when the actual config signature changes (admin edits, etc.),
     // so unchanged configs don't cause redundant regenerations.
@@ -543,6 +545,8 @@ export const useJudgeSystem = () => {
           criteria,
           school_id,
           aiPrompt: settings?.ai_prompt || 'Modern and Professional',
+          aiModel: settings?.ai_model || 'qwen3.8-flash',
+          uiMode: settings?.ui_mode || 'ai',
         }, 15000); // hard cap — a stuck AI call can never freeze the judge page
       } catch (postErr) {
         // Backend unreachable / timed out — use the deterministic table immediately.

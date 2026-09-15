@@ -75,14 +75,15 @@ async function processJob(job) {
       console.warn(`🔁 [ai-worker] retryable failure (attempt ${attempt}/${job.opts?.attempts ?? '?'}) generation=${generationId}:`, err.message);
       throw err; // → BullMQ retries with exponential backoff
     }
-    await genService.markFailed(generationId, 'AI generation failed. Please try again.');
+    await genService.markFailed(generationId, (err && err.safe) ? err.message : 'AI generation failed. Please try again.');
     console.error(`❌ [ai-worker] job failed generation=${generationId}:`, err.message);
   }
 }
 
 async function buildPayload(generationId, schoolId) {
-  const [rows] = await pool.execute('SELECT prompt FROM generations WHERE id = ?', [generationId]);
+  const [rows] = await pool.execute('SELECT prompt, model FROM generations WHERE id = ?', [generationId]);
   const prompt = rows[0]?.prompt;
+  const model = rows[0]?.model;
   if (!prompt) throw new HttpError(400, 'Generation not found.');
 
   const all = await dataService.getAllData(schoolId);
@@ -90,6 +91,7 @@ async function buildPayload(generationId, schoolId) {
     contestants: all.contestants || [],
     criteria:    all.criteria    || [],
     aiPrompt:    prompt,
+    model:       model || undefined,
     school_id:   schoolId,
   };
 }
@@ -111,11 +113,11 @@ function startWorker() {
     lockDuration: Math.max(JOB_TIMEOUT_MS + 30000, 120000),
   });
 
-  worker.on('failed', async (job, _err) => {
+  worker.on('failed', async (job, err) => {
     const generationId = typeof job === 'string' ? job : job?.data?.generationId;
     console.error(`❌ [ai-worker] job permanently failed after retries generation=${generationId}`);
     if (generationId) {
-      await genService.markFailed(generationId, 'AI generation failed. Please try again.');
+      await genService.markFailed(generationId, (err && err.safe) ? err.message : 'AI generation failed. Please try again.');
     }
   });
 

@@ -1,9 +1,25 @@
 require('dotenv').config();
 const pool = require('../config/db');
 
-// Adds the `generations` table — MySQL is the source of truth for AI generation
-// job status (QUEUED / PROCESSING / COMPLETED / FAILED).
-async function main() {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Managed MySQL (Aiven) can drop a connect attempt intermittently. These
+// migrations are idempotent, so just retry the whole run with backoff.
+async function withRetry(fn, attempts = 6) {
+  let lastErr;
+  for (let i = 1; i <= attempts; i += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      console.warn(`⚠️  Connection attempt ${i}/${attempts} failed (${err.code || err.message}) — retrying in ${i * 2000}ms…`);
+      await sleep(i * 2000);
+    }
+  }
+  throw lastErr;
+}
+
+async function migrate() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS \`generations\` (
       \`id\` VARCHAR(64) NOT NULL PRIMARY KEY,
@@ -21,6 +37,10 @@ async function main() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
   console.log('✅ generations table ready.');
+}
+
+async function main() {
+  await withRetry(migrate);
   await pool.end();
 }
 

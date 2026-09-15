@@ -14,12 +14,12 @@ const STATUS = {
   FAILED:     'FAILED',
 };
 
-async function createGeneration({ schoolId, prompt }) {
+async function createGeneration({ schoolId, prompt, model }) {
   const generationId = crypto.randomUUID();
   await pool.execute(
-    `INSERT INTO generations (id, school_id, prompt, status)
-     VALUES (?, ?, ?, ?)`,
-    [generationId, schoolId, prompt, STATUS.QUEUED]
+    `INSERT INTO generations (id, school_id, prompt, model, status)
+     VALUES (?, ?, ?, ?, ?)`,
+    [generationId, schoolId, prompt, model || null, STATUS.QUEUED]
   );
   return { id: generationId, status: STATUS.QUEUED };
 }

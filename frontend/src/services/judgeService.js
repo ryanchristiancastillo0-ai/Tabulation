@@ -21,6 +21,8 @@ export const getJudgeDataFetch = async (setLoading, setConfig, setDynamicUI, sho
     const uiData = await apiClient.post('/judge/render-ui', {
       school_id,
       aiPrompt:    data.settings?.ai_prompt || 'Modern and Professional',
+      aiModel:     data.settings?.ai_model || 'qwen3.8-flash',
+      uiMode:      data.settings?.ui_mode  || 'ai',
       contestants: data.contestants  || [],
       criteria:    data.criteria     || [],
     });

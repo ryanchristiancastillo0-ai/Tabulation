@@ -10,7 +10,7 @@ exports.generate = async (req, res) => {
   const school_id = req.school_id;
   touchSchoolActivity(school_id);
 
-  const { contestants, criteria, aiPrompt } = req.body || {};
+  const { contestants, criteria, aiPrompt, aiModel, uiMode } = req.body || {};
 
   if (!aiPrompt)   throw new HttpError(400, 'Prompt is required.');
   if (!contestants?.length || !criteria?.length) {
@@ -19,7 +19,7 @@ exports.generate = async (req, res) => {
 
   // Fast path: this exact config is already generated → return it immediately
   // so the judge table does not wait on a job for work that is already cached.
-  const cached = await judgeService.prepareRender({ contestants, criteria, aiPrompt, school_id });
+  const cached = await judgeService.prepareRender({ contestants, criteria, aiPrompt, model: aiModel, uiMode, school_id });
   if (cached.html) {
     return res.status(200).json({
       success: true,
@@ -34,9 +34,23 @@ exports.generate = async (req, res) => {
   const { buildScoreTableHtml } = judgeService;
   const fallback = buildScoreTableHtml({ contestants, criteria });
 
+  // Default UI mode → the deterministic table IS the end result; never touch
+  // the AI queue. Use renderUI (not the bare fallback) so the table is
+  // persisted in ui_cache and the next judge load hits the fast path.
+  if (cached.finalUiMode === 'default') {
+    const { html } = await judgeService.renderUI({
+      contestants, criteria, aiPrompt, model: aiModel, uiMode, school_id,
+    });
+    return res.status(200).json({
+      success: true,
+      status:  'COMPLETED',
+      result:  html,
+    });
+  }
+
   // Create the DB record (source of truth) and enqueue a SMALL job.
-  const generation = await genService.createGeneration({ schoolId: school_id, prompt: aiPrompt });
-  console.log(`📦 [ai] generation queued id=${generation.id} school=${school_id}`);
+  const generation = await genService.createGeneration({ schoolId: school_id, prompt: aiPrompt, model: aiModel });
+  console.log(`📦 [ai] generation queued id=${generation.id} school=${school_id} model=${aiModel || 'default'}`);
 
   try {
     await enqueueGeneration(generation.id, school_id);

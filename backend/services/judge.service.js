@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const pool = require('../config/db');
 const HttpError = require('../utils/http-error');
 const { rankValues, numeric } = require('../utils/ranks');
-const { generateWithFallback } = require('../config/ai');
+const { generateWithFallback, DEFAULT_MODEL } = require('../config/ai');
 
 // ONLY selects whose id matches a real criterion get normalised.
 const SCORE_SELECT_RE = /<select([^>]*?\bid=['"]score[\w-]*['"])([\s\S]*?)<\/select>/gi;
@@ -149,30 +149,39 @@ function purgeNonScoringElements(html, contestants) {
 }
 
 // ── Prepare: validate input + check ui_cache, one source of hash logic ──────
-async function prepareRender({ contestants, criteria, aiPrompt, school_id }) {
+async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, school_id }) {
   if (!school_id) throw new HttpError(400, 'school_id is required.');
   if (!contestants?.length || !criteria?.length) {
     throw new HttpError(400, 'contestants and criteria are required.');
   }
 
   const [rows] = await pool.execute(
-    'SELECT contest_name, ai_prompt FROM settings WHERE school_id = ? LIMIT 1',
+    'SELECT contest_name, ai_prompt, ai_model, ui_mode FROM settings WHERE school_id = ? LIMIT 1',
     [school_id]
   );
-  const settings = rows[0] || { contest_name: 'Event', ai_prompt: 'Modern and Professional' };
+  const settings = rows[0] || {
+    contest_name: 'Event',
+    ai_prompt: 'Modern and Professional',
+    ai_model: DEFAULT_MODEL,
+    ui_mode: 'ai',
+  };
   const finalDesignGoal = aiPrompt || settings.ai_prompt || 'Modern and Professional';
+  const finalModel = model || settings.ai_model || DEFAULT_MODEL;
+  const finalUiMode = uiMode || settings.ui_mode || 'ai';
 
   // Deterministic, EXACTLY the same "id:percentage" signature the frontend
   // sends to /judge/render-ui-cached and getCachedUI() hashes with. Keeping
   // this identical is what lets the background cache refresh actually hit the
   // rows renderUI() saved — otherwise every load misses the cache and
-  // re-triggers an expensive AI generation.
+  // re-triggers an expensive AI generation. The model and ui_mode are part of
+  // the key so switching models or modes regenerates instead of serving a
+  // stale hash.
   const criteriaSignature = criteria
     .map((c) => `${c.id}:${c.percentage || 0}`)
     .join(',');
 
   const configHash = crypto.createHash('md5')
-    .update(finalDesignGoal + criteriaSignature + String(school_id))
+    .update(finalDesignGoal + criteriaSignature + String(finalModel) + String(finalUiMode) + String(school_id))
     .digest('hex');
 
   const [cache] = await pool.execute(
@@ -183,6 +192,8 @@ async function prepareRender({ contestants, criteria, aiPrompt, school_id }) {
   return {
     settings,
     finalDesignGoal,
+    finalModel,
+    finalUiMode,
     configHash,
     html: cache.length > 0
       ? normalizeDropdownRanges(purgeNonScoringElements(cache[0].html_content, contestants), criteria)
@@ -191,11 +202,25 @@ async function prepareRender({ contestants, criteria, aiPrompt, school_id }) {
 }
 
 // ── RENDER JUDGE SCORING TABLE (AI-generated) ──
-async function renderUI({ contestants, criteria, aiPrompt, school_id }) {
-  const prep = await prepareRender({ contestants, criteria, aiPrompt, school_id });
+async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, school_id }) {
+  const prep = await prepareRender({ contestants, criteria, aiPrompt, model, uiMode, school_id });
 
   if (prep.html) {
     return { html: prep.html, promptHash: prep.configHash };
+  }
+
+  // Default UI mode → skip the LLM entirely and serve the deterministic
+  // scoring table. Same shape the AI path ultimately produces, no AI needed.
+  if (prep.finalUiMode === 'default') {
+    const table = buildScoreTableHtml({ contestants, criteria });
+    await pool.execute(
+      `INSERT INTO ui_cache (prompt_hash, school_id, html_content)
+       VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         html_content = VALUES(html_content)`,
+      [prep.configHash, school_id, table]
+    );
+    return { html: table, promptHash: prep.configHash };
   }
 
   const aiInstruction = `
@@ -240,7 +265,7 @@ async function renderUI({ contestants, criteria, aiPrompt, school_id }) {
     [OUTPUT]: Return ONLY a <div> with a Tailwind <table>. No markdown. Do NOT include any <button>, <form>, or <input> elements — the scoring page already provides its own Submit button.
   `;
 
-  const tableHTML = await generateWithFallback(aiInstruction);
+  const tableHTML = await generateWithFallback(aiInstruction, prep.finalModel);
   const cleanTable = tableHTML.replace(/```html/g, '').replace(/```/g, '').trim();
 
   // Never trust the LLM's option ranges or stray elements — repair every
@@ -346,13 +371,15 @@ async function getCachedUI(schoolId, criteriaSignature) {
   if (!schoolId) throw new HttpError(400, 'school_id is required.');
 
   const [settings] = await pool.execute(
-    'SELECT ai_prompt FROM settings WHERE school_id = ? LIMIT 1',
+    'SELECT ai_prompt, ai_model, ui_mode FROM settings WHERE school_id = ? LIMIT 1',
     [schoolId]
   );
   const aiPrompt = settings[0]?.ai_prompt || 'Modern and Professional';
+  const aiModel = settings[0]?.ai_model || DEFAULT_MODEL;
+  const uiMode = settings[0]?.ui_mode || 'ai';
 
   const configHash = crypto.createHash('md5')
-    .update(aiPrompt + criteriaSignature + String(schoolId))
+    .update(aiPrompt + criteriaSignature + String(aiModel) + String(uiMode) + String(schoolId))
     .digest('hex');
 
   const [cache] = await pool.execute(
