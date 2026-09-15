@@ -18,27 +18,9 @@ export function GlobalStyles() {
         animation: ci-bar-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
       }
 
-      /* ── Force-reset ALL rogue AI wrapper styles ── */
-      .ai-rendered-content,
-      .ai-rendered-content *:not(table):not(thead):not(tbody):not(tr):not(td):not(th):not(select):not(option) {
-        min-height: unset !important;
-        height: auto !important;
-        max-height: none !important;
-        position: static !important;
-      }
-
-      .ai-rendered-content div {
-        width: 100% !important;
-        min-width: 100% !important;
-        max-width: none !important;
-        min-height: unset !important;
-        height: auto !important;
-        max-height: none !important;
-        position: static !important;
-        overflow: visible !important;
-        box-sizing: border-box !important;
-      }
-
+      /* ── AI-rendered content: let the scoring table define its own layout ──
+         The table ships with its own fixed, aligned design (.sts-table), so we
+         only guard the scroll wrapper and force sensible overflow behaviour. */
       .ai-scroll-container {
         width: 100%;
         overflow-x: auto;
@@ -52,31 +34,30 @@ export function GlobalStyles() {
 
       .ai-rendered-content {
         font-size: clamp(11px, 1.8vw, 14px);
-        display: inline-block;
+        display: block;
         min-width: 100%;
       }
       .ai-rendered-content table {
-        min-width: 540px;
-        width: max-content;
-        border-collapse: collapse;
-        table-layout: auto;
+        max-width: 100%;
       }
       .ai-rendered-content td,
       .ai-rendered-content th {
         white-space: nowrap;
-        word-break: normal;
+        overflow-wrap: normal;
         box-sizing: border-box;
       }
-      .ai-rendered-content select,
-      .ai-rendered-content .score-dropdown {
-        min-width: 58px;
-        max-width: 100px;
-      }
-      .ai-rendered-content > div > table,
-      .ai-rendered-content table {
+      .ai-rendered-content .sts-table {
         width: 100% !important;
-        min-width: 100% !important;
-        box-sizing: border-box !important;
+        min-width: 0 !important;
+        table-layout: fixed !important;
+      }
+      .ai-rendered-content .sts-wrap {
+        width: auto !important;
+        min-width: 0 !important;
+      }
+      .ai-rendered-content .sts-table td,
+      .ai-rendered-content .sts-table th {
+        height: auto !important;
       }
 
       .scroll-hint { display: none; }

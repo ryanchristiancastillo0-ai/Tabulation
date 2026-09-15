@@ -290,10 +290,14 @@ async function saveConfig(schoolId, body) {
   try {
     await connection.beginTransaction();
 
+    // Track whether anything the judge table renders on actually changed, so we
+    // can reset the persisted AI UI cache (ui_cache) on exactly those saves.
+    let promptChanged = false;
+
     // Use explicit UPDATE instead of INSERT ... ON DUPLICATE KEY UPDATE VALUES()
     // VALUES() is deprecated in MySQL 8+ and causes unpredictable multi-row updates
     const [existing] = await connection.execute(
-      'SELECT id FROM settings WHERE school_id = ? LIMIT 1',
+      'SELECT id, ai_prompt FROM settings WHERE school_id = ? LIMIT 1',
       [schoolId]
     );
 
@@ -322,12 +326,17 @@ async function saveConfig(schoolId, body) {
         throw new HttpError(400, 'No settings fields provided.');
       }
 
+      if (updates.includes('ai_prompt')) {
+        promptChanged = (ai_prompt ?? '') !== (existing[0]?.ai_prompt ?? '');
+      }
+
       await connection.execute(
         `UPDATE settings SET ${assignments} WHERE school_id = ?`,
         [...updates.map((field) => scalarFields[field]()), schoolId]
       );
     } else {
       // No row yet — INSERT a fresh one
+      if (ai_prompt) promptChanged = true;
       await connection.execute(
         `INSERT INTO settings
            (school_id, contest_name, contest_type, judge_count, ai_prompt, computation_type,
@@ -348,6 +357,7 @@ async function saveConfig(schoolId, body) {
     }
 
     const waiting = [];
+    let renderDataChanged = false;
 
     if (contestants !== undefined && criteria !== undefined) {
       const [existingContestants] = await connection.execute(
@@ -361,12 +371,22 @@ async function saveConfig(schoolId, body) {
       const contestantsChanged = !rowsEqual(existingContestants, contestants);
       const criteriaChanged    = !criteriaEqual(existingCriteria, criteria);
 
-      if (contestantsChanged || criteriaChanged) {
+      if (contestantsChanged || criteriaChanged || promptChanged) {
         // Contestants/criteria are deleted and re-inserted below with NEW ids,
         // so any existing scores (which reference the old ids) must be wiped
         // first or the foreign keys fk_scores_contestant / fk_scores_criteria
         // will reject fresh submissions with "Cannot add or update a child row".
         await connection.execute('DELETE FROM scores WHERE school_id = ?', [schoolId]);
+      }
+
+      if (contestantsChanged || criteriaChanged || promptChanged) {
+        // The judge's rendered table depends on the prompt, the criteria and
+        // the contestant list — when any of those change, the persisted AI UI
+        // is stale (old layout, missing/reordered rows, old percentages).
+        // Wipe it here so the next judge load builds fresh instead of serving
+        // the previous generation.
+        renderDataChanged = true;
+        await connection.execute('DELETE FROM ui_cache WHERE school_id = ?', [schoolId]);
       }
 
       if (contestantsChanged) {
@@ -393,6 +413,7 @@ async function saveConfig(schoolId, body) {
       // clear scores and rebuild whichever list was supplied.
       if (contestants !== undefined || criteria !== undefined) {
         await connection.execute('DELETE FROM scores WHERE school_id = ?', [schoolId]);
+        renderDataChanged = true;
       }
 
       if (contestants !== undefined) {
@@ -414,6 +435,14 @@ async function saveConfig(schoolId, body) {
           ]);
         }
       }
+    }
+
+    // Any save that touched the rendered table (prompt, contestants or
+    // criteria changed) invalidates the persisted AI UI, so the judge never
+    // sees a stale generation from a previous configuration. A true no-op save
+    // (identical prompt + lineup) keeps the cache untouched.
+    if (renderDataChanged) {
+      await connection.execute('DELETE FROM ui_cache WHERE school_id = ?', [schoolId]);
     }
 
     for (const [sql, vals] of waiting) {
