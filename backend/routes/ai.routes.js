@@ -3,7 +3,7 @@ const router = express.Router();
 const ctrl = require('../controllers/ai.controller');
 const { requireJudge } = require('../middleware/auth');
 
-// ── AI UI GENERATION (ASYNC JOB QUEUE) ──
+// ── AI UI GENERATION (in-process) ──
 // Authenticated: requires the judge JWT, and the school_id always comes from
 // the token (req.school_id) instead of the request body / query string.
 router.use(requireJudge);

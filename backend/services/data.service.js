@@ -2,7 +2,7 @@ const pool = require('../config/db');
 const HttpError = require('../utils/http-error');
 const { rankValues, numeric } = require('../utils/ranks');
 const { ACTIVE_WINDOW_MINUTES } = require('../utils/activity');
-const { cacheGetJson, cacheSetJson, cacheDel, cacheDelPattern, CACHE_TTL_SECONDS } = require('../utils/redis-cache');
+const { cacheGetJson, cacheSetJson, cacheDel, cacheDelPattern, CACHE_TTL_SECONDS } = require('../utils/mem-cache');
 
 const allDataKey      = (schoolId) => `public:get-all-data:${schoolId}`;
 const systemConfigKey = (schoolId) => `public:system-config:${schoolId}`;

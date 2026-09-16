@@ -1,7 +1,7 @@
 const HttpError = require('../utils/http-error');
 const judgeService = require('../services/judge.service');
 const genService = require('../services/ai-generation.service');
-const { enqueueGeneration } = require('../config/ai-queue');
+const { startGeneration } = require('../services/ai-generator.service');
 const { touchSchoolActivity } = require('../utils/activity');
 
 const WAIT_POLL_MS = 2500;
@@ -24,7 +24,7 @@ async function waitForGeneration(generationId, schoolId, maxWaitMs) {
   return last || {};
 }
 
-// ── POST /api/ai/generate — enqueue; optionally wait for the LLM ────────────
+// ── POST /api/ai/generate — start in-process generation; optionally wait ────
 exports.generate = async (req, res) => {
   const school_id = req.school_id;
   touchSchoolActivity(school_id);
@@ -86,11 +86,17 @@ exports.generate = async (req, res) => {
   console.log(`📦 [ai.generate] generation created id=${generation.id} school=${school_id} model=${aiModel || 'default'} wait=${wait}`);
 
   try {
-    await enqueueGeneration(generation.id, school_id);
-    console.log(`✅ [ai.generate] enqueueGeneration success id=${generation.id}`);
+    startGeneration({
+      generationId: generation.id,
+      schoolId:     school_id,
+      prompt:       aiPrompt,
+      model:        aiModel,
+      configHash:   cached.configHash,
+    });
+    console.log(`✅ [ai.generate] startGeneration (in-process) id=${generation.id}`);
   } catch (err) {
     await genService.markFailed(generation.id, 'Generation service is temporarily unavailable.');
-    console.error('❌ [ai.generate] failed to enqueue generation:', err.message);
+    console.error('❌ [ai.generate] failed to start generation:', err.message);
     if (fallback) {
       return res.status(200).json({
         success:     true,
