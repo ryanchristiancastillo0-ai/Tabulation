@@ -4,7 +4,23 @@ const genService = require('../services/ai-generation.service');
 const { enqueueGeneration } = require('../config/ai-queue');
 const { touchSchoolActivity } = require('../utils/activity');
 
-// ── POST /api/ai/generate — enqueue, never wait for the LLM ────────────────
+// When the judge asks for a live design (`wait: true`) we hold the request
+// open until the queued worker finishes — bounded by AI_WAIT_TIMEOUT_MS so a
+// stuck provider can never pin the judge on a spinner forever.
+const WAIT_POLL_MS = 2500;
+async function waitForGeneration(generationId, schoolId, maxWaitMs) {
+  const inFlight = new Set(['QUEUED', 'PROCESSING']);
+  const deadline = Date.now() + maxWaitMs;
+  let last;
+  while (Date.now() < deadline) {
+    last = await genService.getGeneration(generationId, schoolId);
+    if (!inFlight.has(last.status)) return last; // COMPLETED | FAILED
+    await new Promise((r) => setTimeout(r, WAIT_POLL_MS));
+  }
+  return last || {};
+}
+
+// ── POST /api/ai/generate — enqueue; optionally wait for the LLM ────────────
 // Protected by requireJudge: school_id comes from the token (req.school_id).
 exports.generate = async (req, res) => {
   const school_id = req.school_id;
@@ -69,6 +85,39 @@ exports.generate = async (req, res) => {
       });
     }
     throw new HttpError(503, 'AI generation is not available right now. Please try again later.');
+  }
+
+  const wait = req.body.wait === true;
+
+  if (fallback && wait) {
+    // The judge asked for a LIVE design: hold the request until our own worker
+    // finishes so the AI UI arrives on the very first save — no reload needed.
+    const maxWaitMs = Number(process.env.AI_WAIT_TIMEOUT_MS) || 80000;
+    const done = await waitForGeneration(generation.id, school_id, maxWaitMs);
+
+    if (done.status === 'COMPLETED' && done.result) {
+      return res.status(200).json({ success: true, status: 'COMPLETED', result: done.result });
+    }
+    if (done.status === 'FAILED') {
+      return res.status(200).json({
+        success:      true,
+        status:       'FAILED',
+        fallback:     true,
+        result:       fallback,
+        generationId: generation.id,
+        error:        done.error || 'AI generation failed. Showing the standard scoring table instead.',
+      });
+    }
+    // Still processing after the cap → hand back the fallback plus the live id
+    // so the frontend can keep polling; the worker completes in the background
+    // and the next judge load picks it up from ui_cache automatically.
+    return res.status(200).json({
+      success:      true,
+      status:       'PROCESSING',
+      fallback:     true,
+      result:       fallback,
+      generationId: generation.id,
+    });
   }
 
   if (fallback) {
