@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { USALoader } from '../../../components/ui/Loading';
 
 // Terminal that shows the AI generating the judge UI in real time.
 // used in two places: as a centered modal while a save is in progress, and as
@@ -89,8 +90,10 @@ export default function AiGenerationTerminal({
         {status === 'error' && (
           <div style={{ color: '#fca5a5', fontWeight: 700, marginBottom: 8 }}>✗ {error || 'AI generation failed.'}</div>
         )}
-        {!text && status === 'streaming' && (
-          <span style={{ color: '#64748b' }}>Waiting for the AI to stream the code…</span>
+        {status === 'streaming' && !text && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 4px' }}>
+            <USALoader fullScreen={false} dark prompt="Generating judge UI…" background="transparent" />
+          </div>
         )}
         {text}
         {status === 'streaming' && text && <span style={{ color: dotColor }}>▍</span>}

@@ -4,6 +4,7 @@ const HttpError = require('../utils/http-error');
 const { rankValues, numeric } = require('../utils/ranks');
 const aiModels = require('../ai/ai-models');
 const aiService = require('../ai/ai-service');
+const { buildStaticJudgeTable } = require('./static-judge-table');
 const { DEFAULT_MODEL } = aiModels;
 
 // Dedupes concurrent LLM rendering for the SAME config (prompt + criteria +
@@ -279,7 +280,7 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, provid
 
   if (prep.finalUiMode === 'default') {
     console.log(`📋 [renderUI] uiMode=default — building static table`);
-    const table = buildScoreTableHtml({ contestants, criteria });
+    const table = buildStaticJudgeTable(contestants, criteria);
     await pool.execute(
       `INSERT INTO ui_cache (prompt_hash, school_id, html_content)
        VALUES (?, ?, ?)

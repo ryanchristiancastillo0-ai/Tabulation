@@ -451,13 +451,16 @@ export const useJudgeSystem = () => {
   }, [config, renderSignature]);
 
   // Poll the admin-generated ui_cache until a design matching our
-  // prompt/model/criteria signature is available. Pure consumer — on an empty
-  // cache the placeholder stays up and this keeps retrying every few seconds.
+  // provider/prompt/model/criteria signature is available. Pure consumer — the
+  // admin writes BOTH AI designs and the static Default UI into ui_cache on
+  // save, so this polls for both modes. Default mode keeps its instant
+  // client-side table as the fallback while the cache is empty; AI mode shows
+  // the placeholder and keeps retrying every few seconds.
   useEffect(() => {
     const { contestants, criteria, settings } = configRef.current;
     if (!contestants?.length || !criteria?.length) return;
     const uiMode = settings?.ui_mode || 'ai';
-    if (uiMode !== 'ai') return;
+    if (uiMode !== 'ai' && uiMode !== 'default') return;
 
     const school_id = getSchoolId();
     const criteriaSignature = criteria
@@ -487,16 +490,18 @@ export const useJudgeSystem = () => {
           setDynamicUI(prev => (prev?.html === html ? prev : { html }));
           setUiPending(false);
           setUiRefreshing(false);
-          console.log(`🎨 [judge-poll] cached AI UI ready school=${school_id} len=${html.length}`);
+          console.log(`🎨 [judge-poll] cached ${uiMode} UI ready school=${school_id} len=${html.length}`);
           return; // design received — stop polling
         }
-        setUiPending(true);
+        // UI pending overlay is AI-mode only; default mode already shows the
+        // instant client-built table, so never hide it behind the placeholder.
+        if (uiMode === 'ai') setUiPending(true);
         console.log(`⏳ [judge-poll] ui_cache still generating school=${school_id} — retrying…`);
         timer = setTimeout(poll, 4000);
       } catch (err) {
         if (cancelled) return;
         console.warn(`⏳ [judge-poll] fetch error (${err.message}) — retrying school=${school_id}`);
-        setUiPending(true);
+        if (uiMode === 'ai') setUiPending(true);
         timer = setTimeout(poll, 6000);
       }
     };

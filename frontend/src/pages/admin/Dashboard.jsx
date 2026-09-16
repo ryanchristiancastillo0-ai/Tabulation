@@ -219,6 +219,23 @@ function Dashboard() {
           genAbortRef.current = null;
         }
       } else {
+        // Default mode: STILL persist the design into ui_cache so the judge
+        // fetches the exact same table (no LLM call — the backend builds and
+        // stores it instantly). The judge falls back to building it locally
+        // only if this write failed.
+        if (contestants.length && criteria.length) {
+          try {
+            await streamUiUi({
+              aiPrompt: aiPrompt || 'Modern and Professional',
+              aiModel,
+              uiMode,
+              contestants,
+              criteria,
+            });
+          } catch (cacheErr) {
+            showToast("error", "Config saved, but the Default UI cache write failed: " + cacheErr.message);
+          }
+        }
         showToast("success", "Configuration saved!");
       }
 
