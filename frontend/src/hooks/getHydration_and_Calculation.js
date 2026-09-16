@@ -9,6 +9,7 @@ let activeChangeHandler = null;
 function sanitizeAiHtml(html, criteria) {
   const div = document.createElement('div');
   div.innerHTML = html;
+  stripDuplicateSelects(div);
   const wrapper = div.firstElementChild;
   if (wrapper) {
     wrapper.style.minHeight = '';
@@ -38,6 +39,44 @@ function sanitizeAiHtml(html, criteria) {
   return div.innerHTML;
 }
 
+// ── One-dropdown-per-cell rule ───────────────────────────────────────
+// Any <select> sharing a cell with a .score-dropdown that ISN'T the score
+// select is a stray/duplicate dropdown (AIs love emitting a "percentage"
+// select next to each score). Replace it with plain static text so every
+// criterion cell has exactly one control. The main .score-dropdown is left
+// untouched, and the displayed value is preserved as text.
+function stripDuplicateSelects(root) {
+  root.querySelectorAll('.score-dropdown').forEach(keep => {
+    const cell = keep.closest('td, th');
+    if (!cell) return;
+    cell.querySelectorAll('select').forEach(extra => {
+      if (extra === keep || extra.classList.contains('score-dropdown')) return;
+      const opt  = extra.selectedOptions && extra.selectedOptions[0];
+      const text = (opt ? opt.textContent : '').trim();
+      const span = document.createElement('span');
+      span.textContent = text === '' ? '–' : text;
+      span.style.display  = 'inline-block';
+      span.style.fontWeight = '600';
+      span.style.padding   = '0 4px';
+      span.style.color     = 'inherit';
+      extra.replaceWith(span);
+    });
+  });
+}
+
+// Keeps the static percentage label beside the rich dropdown's trigger in sync
+// with the selected score (plain text, e.g. "21%"; "–" when nothing selected).
+function syncRichDisplay(select, dbVal) {
+  const wrap = select.closest('.sts-dd-wrap');
+  if (!wrap) return;
+  const v = dbVal !== undefined && dbVal !== null ? String(dbVal) : select.value;
+  const hasValue = v !== '' && v !== null && v !== undefined;
+  const val = wrap.querySelector('.sts-dd-value');
+  const pct = wrap.querySelector('.sts-dd-pct');
+  if (val) val.textContent = hasValue ? v.replace('%', '') : '–';
+  if (pct) pct.textContent = hasValue ? v.replace('%', '') + '%' : '–';
+}
+
 export const getHydra_and_Calcu = (
   dynamicUI,
   config,
@@ -65,6 +104,7 @@ export const getHydra_and_Calcu = (
   }
 
   const applyData = () => {
+    stripDuplicateSelects(document);
     const dropdowns = document.querySelectorAll('.score-dropdown');
     if (dropdowns.length === 0) return false;
 
@@ -121,6 +161,7 @@ export const getHydra_and_Calcu = (
       } else {
         select.value = '';
       }
+      syncRichDisplay(select);
     });
 
     // Sanitize the top-level AI wrapper too
@@ -161,6 +202,7 @@ export const getHydra_and_Calcu = (
     const conId = e.target.id.split('-')[1];
     localStorage.setItem(`${scoreKeyPrefix}${e.target.id}`, e.target.value);
     if (saveToCache) saveToCache(e.target.id, e.target.value);
+    syncRichDisplay(e.target);
     recalculateRow(conId);
     updateRankings();
   };

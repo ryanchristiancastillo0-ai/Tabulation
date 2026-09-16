@@ -2,12 +2,11 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useConnectivity } from './useConnectivity';
 import { useJudgePersistence } from './useJudgePersistence';
 import { useConfigChange } from '../context/ConfigChangeContext';
-import { getHydra_and_Calcu } from './getHydration_and_Calculation';
+import { getHydra_and_Calcu, sanitizeAiHtml } from './getHydration_and_Calculation';
+import { buildStaticJudgeTable as buildRichStaticTable } from '../utils/judgeTable';
 import { getSchoolId, getJudgeToken } from '../utils/judge';
 import { rankValues, formatRank } from '../utils/ranks';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-
-import { sanitizeAiHtml } from './getHydration_and_Calculation';
 
 /* ── Client-side config cache helpers ────────────────────────────── */
 // DISABLED FOR TESTING — always treat as different, no localStorage
@@ -98,72 +97,6 @@ async function judgeGet(path, timeoutMs) {
   } finally {
     if (timer) clearTimeout(timer);
   }
-}
-
-// Deterministic, dependency-free judge table. Guaranteed to render with
-// dropdowns capped to each criterion's percentage (a 25% criterion offers
-// only 0-25) so scoring never blocks on AI. Carries its OWN inline CSS so the
-// layout is fixed (no wrapping, aligned numbers, clean dropdowns) regardless
-// of what Tailwind utilities are/aren't available.
-function buildStaticJudgeTable(contestants, criteria) {
-  if (!Array.isArray(contestants) || !Array.isArray(criteria)) return '';
-  if (!contestants.length || !criteria.length) return '';
-
-  const maxBy = {};
-  criteria.forEach(c => {
-    if (c && c.id !== undefined && c.id !== null) maxBy[String(c.id)] = Number(c.percentage) || 0;
-  });
-
-  const head = criteria.map(c =>
-    `<th class="sts-th">${String(c.name || '')} <span class="sts-pct">${Number(c.percentage) || 0}%</span></th>`
-  ).join('');
-
-  const optionString = (max) => {
-    let out = '<option value="">-</option>';
-    for (let i = 0; i <= max; i++) out += `<option value="${i}">${i}</option>`;
-    return out;
-  };
-
-  const rows = contestants.map(c => {
-    const cells = criteria.map(cr => {
-      const max = maxBy[String(cr.id)] ?? 100;
-      return `<td class="sts-td-stc"><div class="sts-wrap"><select class="score-dropdown" id="score-${c.id}-${cr.id}">${optionString(max)}</select></div></td>`;
-    }).join('');
-    return `<tr class="sts-tr">` +
-      `<td class="sts-td-num">${Number(c.entry_number) || ''}</td>` +
-      `<td class="sts-td-name">${String(c.name || '')}</td>` +
-      cells +
-      `<td class="sts-td-tot" id="total-${c.id}">0.00</td>` +
-      `<td class="sts-td-rank" id="rank-${c.id}">-</td>` +
-      `</tr>`;
-  }).join('');
-
-  const css = `
-    .sts-table{width:100%;border-collapse:separate;border-spacing:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;font-size:13px;background:#fff;table-layout:fixed}
-    .sts-table thead th.sts-th{background:repeating-linear-gradient(45deg,#f8fafc,#f8fafc 6px,#f4f6f9 6px,#f4f6f9 12px);border-bottom:2px solid #cbd5d9;padding:9px 8px;text-align:center;font-weight:600;font-size:12px;letter-spacing:.02em;color:#334155}
-    .sts-table .sts-pct{display:inline-block;margin-left:3px;padding:1px 5px;border-radius:6px;background:#e2e8f0;color:#475569;font-size:10px;font-weight:700}
-    .sts-table td{padding:1px 8px;vertical-align:middle;border-bottom:1px solid #eef1f4;text-align:center}
-    .sts-table tr:hover td{background:#fafcfd}
-    .sts-td-num{width:44px;font-weight:700;color:#334155}
-    .sts-td-name{width:170px;text-align:left;font-weight:600;color:#1e293b;padding-left:10px}
-    .sts-td-stc{width:96px}
-    .sts-td-tot{width:82px;font-weight:700;color:#0f766e}
-    .sts-td-rank{width:60px;font-weight:700;color:#155e75}
-    .sts-table .sts-wrap{display:flex;align-items:center;justify-content:center;padding:4px 0}
-    .sts-table select.score-dropdown{width:74px;height:30px;background:#fff url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E") no-repeat right 8px center;border:1px solid #c4ccd3;border-radius:8px;padding:0 10px;font-size:13px;color:#0f172a;text-align:center;font-weight:600;appearance:none;-webkit-appearance:none;cursor:pointer;transition:border-color .15s,box-shadow .15s}
-    .sts-table select.score-dropdown:focus{outline:none;border-color:#0f766e;box-shadow:0 0 0 3px rgba(15,118,110,.12)}
-    .sts-table select.score-dropdown option{font-weight:400;color:#0f172a}
-    .sts-table tr:hover select.score-dropdown{border-color:#94a3b8}
-  `;
-
-  return `<style>${css}</style><div class="overflow-x-auto"><table class="sts-table">` +
-    `<thead><tr>` +
-    `<th style="width:44px" class="sts-th">No.</th>` +
-    `<th style="width:170px;text-align:left" class="sts-th">Name</th>` +
-    head +
-    `<th style="width:82px" class="sts-th">Total</th>` +
-    `<th style="width:60px" class="sts-th">Rank</th>` +
-    `</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 /* ── Hook ────────────────────────────────────────────────────────── */
@@ -427,9 +360,14 @@ export const useJudgeSystem = () => {
     const uiMode = settings?.ui_mode || 'ai';
 
     // Default mode: the built-in table IS the design. Rendered instantly on
-    // the client, never touches the AI pipeline, never shows a placeholder.
+    // the client (same rich builder the admin previews), never waits for the
+    // AI pipeline, never shows a placeholder.
     if (uiMode === 'default') {
-      const staticTable = buildStaticJudgeTable(contestants, criteria);
+      const staticTable = buildRichStaticTable(
+        contestants,
+        criteria,
+        selectedJudgeRef.current ? `Judge ${selectedJudgeRef.current}` : undefined
+      );
       if (staticTable) {
         setDynamicUI(prev => (prev?.html === staticTable ? prev : { html: staticTable }));
       }
@@ -486,7 +424,18 @@ export const useJudgeSystem = () => {
         const cached = await withTimeout(judgeGet(cachedUrl, 12000), 12000);
         if (cancelled) return;
         if (cached.fromCache === true && cached.html) {
-          const html = sanitizeAiHtml(cached.html, criteria);
+          let html = sanitizeAiHtml(cached.html, criteria);
+          // The AI sometimes returns a decorative "GUI" with no scoring inputs
+          // at all. Never let the judge end up dropdown-less — fall back to the
+          // exact same built-in table used by Default mode so AI designs always
+          // render the standard scoring layout (dropdowns per criterion).
+          if (!html.includes('score-dropdown')) {
+            html = buildRichStaticTable(
+              contestants,
+              criteria,
+              selectedJudgeRef.current ? `Judge ${selectedJudgeRef.current}` : undefined
+            );
+          }
           setDynamicUI(prev => (prev?.html === html ? prev : { html }));
           setUiPending(false);
           setUiRefreshing(false);

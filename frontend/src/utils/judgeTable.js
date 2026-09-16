@@ -70,29 +70,37 @@ export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 
   const pnlReset = `['position','left','top','width','minWidth','maxHeight','bottom','right','transform','margin','zIndex']`;
 
   // Constrain the open panel to the viewport so it can never overlap neighbouring
-  // columns or rows. On open the panel is pinned position:fixed at the trigger's
-  // co-ordinates, centred AND clamped to the screen edges, and flipped above the
-  // row when there isn't enough room below. Scrolling or resizing closes it and
-  // clears the pinned styles, so it adapts to any screen size.
+  // columns, rows, or the screen edges. On open the panel is pinned
+  // position:fixed at the trigger's co-ordinates, centred AND clamped to the
+  // screen, and flipped above the row when there isn't enough room below (or
+  // when above has more room than below). Its height is always constrained so
+  // it never gets cut off top or bottom. While the dropdown is open, scrolling
+  // or resizing re-measures and re-positions it (it stays open and follows the
+  // trigger), and it is cleared on close.
   const panelOpenJS =
     `(function(){var d=this.closest('details');var p=d.querySelector('.sts-dd-panel');if(!d||!p)return;` +
-    `if(d.open){` +
-      `var s0=p.style;var rk=${pnlReset};rk.forEach(function(k){s0[k]='';});` +
-      `if(this.__h){window.removeEventListener('scroll',this.__h,true);window.removeEventListener('resize',this.__h);this.__h=null;}` +
-      `return;` +
-    `}` +
-    `var r=this.getBoundingClientRect();var vw=window.innerWidth||document.documentElement.clientWidth;var vh=window.innerHeight||document.documentElement.clientHeight;` +
-    `var w=Math.max(84,Math.min(r.width+16,200));var pad=10;` +
-    `var left=Math.max(pad,Math.min(r.left+(r.width-w)/2,Math.max(pad,vw-w-pad)));` +
-    `var maxH=Math.max(96,Math.min(224,vh-r.bottom-6-pad));` +
-    `var top=r.bottom+6;` +
-    `if(r.bottom+6+maxH>vh-pad){maxH=Math.max(96,Math.min(224,r.top-pad-6));top=Math.max(pad,r.top-maxH-6);}` +
-    `p.style.position='fixed';p.style.left=left+'px';p.style.top=top+'px';p.style.width=w+'px';p.style.minWidth='0';p.style.maxHeight=maxH+'px';p.style.zIndex='60';p.style.margin='0';p.style.right='auto';p.style.bottom='auto';p.style.transform='none';` +
     `var s=this;var dd=d;var pnl=p;` +
-    `setTimeout(function(){if(s.__h)return;` +
-      `s.__h=function(){if(dd.open)dd.removeAttribute('open');var s1=pnl.style;var rk2=${pnlReset};rk2.forEach(function(k2){s1[k2]='';});};` +
-      `window.addEventListener('scroll',s.__h,true);window.addEventListener('resize',s.__h);` +
-    `},0);` +
+    `var rrk=${pnlReset};` +
+    `var off=function(){rrk.forEach(function(k){pnl.style[k]='';});if(s.__m){window.removeEventListener('scroll',s.__m,true);s.__m=null;}if(s.__r){window.removeEventListener('resize',s.__r);s.__r=null;}};` +
+    `s.__off=off;` +
+    `if(d.open){off();return;}` +
+    `var pos=function(){` +
+      `var vw=window.innerWidth||document.documentElement.clientWidth;var vh=window.innerHeight||document.documentElement.clientHeight;` +
+      `var r=s.getBoundingClientRect();var pad=10;` +
+      `var w=Math.max(84,Math.min(r.width+16,200));` +
+      `var left=Math.max(pad,Math.min(r.left+(r.width-w)/2,Math.max(pad,vw-w-pad)));` +
+      `var below=vh-(r.bottom+6)-pad;var above=r.top-pad-6;` +
+      `var flip=below<100&&above>below;` +
+      `var maxH=Math.max(40,Math.min(224,flip?above:below));` +
+      `var top=flip?r.top-maxH-6:r.bottom+6;` +
+      `top=Math.max(pad,Math.min(top,vh-maxH-pad));` +
+      `pnl.style.position='fixed';pnl.style.left=left+'px';pnl.style.top=top+'px';pnl.style.width=w+'px';pnl.style.minWidth='0';pnl.style.maxHeight=maxH+'px';pnl.style.zIndex='60';pnl.style.margin='0';pnl.style.right='auto';pnl.style.bottom='auto';pnl.style.transform='none';` +
+    `};` +
+    `pos();` +
+    `s.__m=function(){if(dd.open)pos();};` +
+    `s.__r=function(){if(dd.open)pos();};` +
+    `window.addEventListener('scroll',s.__m,true);window.addEventListener('resize',s.__r);` +
+    `setTimeout(function(){if(dd.open)pos();},0);` +
     `})();`;
 
   // One shared inline handler (per panel, not per option) — keeps markup light even
@@ -102,15 +110,16 @@ export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 
     `var d=this.closest('details');var sel=d.nextElementSibling;` +
     `sel.value=t.getAttribute('data-value');` +
     `sel.dispatchEvent(new Event('change',{bubbles:true}));` +
-    `d.querySelector('.sts-dd-value').textContent=t.textContent;` +
+    `var v=t.getAttribute('data-value');var disp=(v===''||v==null)?'–':v.replace('%','');` +
+    `d.querySelector('.sts-dd-value').textContent=disp;` +
+    `var pc=d.querySelector('.sts-dd-pct');if(pc)pc.textContent=(v===''||v==null)?'–':disp+'%';` +
     `d.querySelectorAll('.sts-dd-option').forEach(function(o){o.classList.remove('is-selected')});` +
     `t.classList.add('is-selected');` +
     `d.removeAttribute('open');` +
-    `var sg=d.querySelector('summary');if(sg)if(sg.__h){window.removeEventListener('scroll',sg.__h,true);window.removeEventListener('resize',sg.__h);sg.__h=null;}`;
+    `var sg=d.querySelector('summary');if(sg)if(sg.__off)sg.__off();`;
 
   const scrimClickHandler =
-    `var d=this.closest('details');var sg=d.querySelector('summary');if(sg)if(sg.__h){window.removeEventListener('scroll',sg.__h,true);window.removeEventListener('resize',sg.__h);sg.__h=null;}` +
-    `var p=d.querySelector('.sts-dd-panel');if(p){var s0=p.style;var rk=${pnlReset};rk.forEach(function(k){s0[k]='';});}` +
+    `var d=this.closest('details');var sg=d.querySelector('summary');if(sg)if(sg.__off)sg.__off();` +
     `d.removeAttribute('open');`;
 
   const buildDropdown = (id, ariaLabel, max) => {
@@ -125,6 +134,7 @@ export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 
         `</div>` +
         `<div class="sts-dd-scrim" onclick="${escAttr(scrimClickHandler)}"></div>` +
       `</details>` +
+      `<span class="sts-dd-pct">–</span>` +
       `<select class="score-dropdown" id="${id}" aria-hidden="true" tabindex="-1" style="display:none">` +
         nativeOptionString(max) +
       `</select>` +
@@ -306,10 +316,13 @@ export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 
       white-space: nowrap;
     }
 
-    /* ---------- table scroll ---------- */
+    /* ---------- table scroll ----------
+       Horizontal only. The table grows to its natural height and the PAGE
+       scrolls vertically — no inner scrollbar — so judges never fight a
+       nested Y-scroll while scoring. */
     .sts-scroll {
-      max-height: 70vh;
-      overflow: auto;
+      overflow-x: auto;
+      overflow-y: hidden;
       position: relative;
     }
     .sts-scroll::-webkit-scrollbar { width: 9px; height: 9px; }
@@ -540,6 +553,15 @@ export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 
     .sts-dd-value {
       font-variant-numeric: tabular-nums;
       line-height: 1;
+    }
+    .sts-dd-pct {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--c-primary);
+      letter-spacing: 0.02em;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      margin-left: 6px;
     }
     .sts-dd-caret {
       color: var(--c-text-muted);
