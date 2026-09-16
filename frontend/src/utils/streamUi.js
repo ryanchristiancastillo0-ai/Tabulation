@@ -73,7 +73,9 @@ export async function streamUiUi({ aiPrompt, aiModel, uiMode, contestants, crite
     }
 
     if (errorMsg) throw new Error(errorMsg);
-    if (html === null) throw new Error('AI generation was interrupted. Please try again.');
+    if (html === null) throw new Error(
+      'AI generation was interrupted. Please try again — if it keeps failing, the model may be rate-limited or offline.'
+    );
     return { html, fromCache, generationId };
   } finally {
     clearTimeout(timer);
