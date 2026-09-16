@@ -70,6 +70,7 @@ async function processJob(job) {
     await genService.markCompleted(generationId, promptHash);
 
     console.log(`✅ [ai-worker] job completed generation=${generationId} duration=${Date.now() - startedAt}ms promptHash=${promptHash?.slice(0,8)}`);
+    console.log(`🎬 [ai-worker] JUDGE WILL NOW RENDER — generation=${generationId} school=${schoolId} htmlLength=${html.length} HTML_PREVIEW="${html.slice(0, 300).replace(/\s+/g, ' ')}"`);
   } catch (err) {
     if (isRetryable(err)) {
       const attempt = (job.attemptsMade || 0) + 1;

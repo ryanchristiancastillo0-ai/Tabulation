@@ -254,7 +254,7 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, school
 
   console.log(`🤖 [renderUI] calling generateWithFallback model=${prep.finalModel} promptLength=${aiInstruction.length}`);
   const tableHTML = await generateWithFallback(aiInstruction, prep.finalModel);
-  console.log(`📥 [renderUI] generateWithFallback returned length=${tableHTML.length}`);
+  console.log(`📥 [renderUI] generateWithFallback returned length=${tableHTML.length} RESPONSE_PREVIEW="${tableHTML.slice(0, 300).replace(/\s+/g, ' ')}"`);
   const cleanTable = tableHTML.replace(/```html/g, '').replace(/```/g, '').trim();
 
   const finalTable = normalizeDropdownRanges(

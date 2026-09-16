@@ -85,10 +85,10 @@ async function callChatCompletion({ provider, url, apiKey, model, prompt, timeou
     });
   } catch (err) {
     if (err && err.name === 'AbortError') {
-      console.log(`⏱️ [${provider}] request timed out after ${timeoutMs}ms`);
+      console.log(`⏱️ [${provider}] request timed out after ${timeoutMs}ms — this is why the judge shows the plain table`);
       throw safeError('The AI request timed out. Please try again.', 504);
     }
-    console.error(`🌐 [${provider}] network error:`, err.message);
+    console.error(`🌐 [${provider}] network error — this is why the judge shows the plain table:`, err.message);
     throw safeError('Could not reach the AI provider. Please try again.', 503);
   } finally {
     clearTimeout(timer);
@@ -99,7 +99,7 @@ async function callChatCompletion({ provider, url, apiKey, model, prompt, timeou
   if (!response.ok) {
     const status = response.status;
     const detail = data?.error?.message || `Request failed with status ${status}`;
-    console.warn(`⚠️ [${provider}] failed (${status}): ${detail}`);
+    console.warn(`⚠️ [${provider}] ERROR RESPONSE — this is why the judge shows the plain table. status=${status} detail="${detail}" FULL_BODY=${JSON.stringify(data)?.slice(0, 500)}`);
 
     if (status === 400 || status === 422) {
       throw safeError('The AI request was rejected. Please check the prompt and try again.', status);
@@ -122,8 +122,9 @@ async function callChatCompletion({ provider, url, apiKey, model, prompt, timeou
     throw safeError('The AI returned an empty response. Please try again.');
   }
 
-  console.log(`✅ [${provider}] success contentLength=${content.length}`);
-  return String(content).trim();
+  const text = String(content).trim();
+  console.log(`✅ [${provider}] success contentLength=${text.length} RESPONSE_PREVIEW="${text.slice(0, 300).replace(/\s+/g, ' ')}"`);
+  return text;
 }
 
 // ── Entry point: B.AI first, OpenRouter only when B.AI fails ──────────────────

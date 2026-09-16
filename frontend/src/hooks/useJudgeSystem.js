@@ -604,7 +604,10 @@ export const useJudgeSystem = () => {
           setDynamicUI(prev => (prev?.html === ui.html ? prev : ui));
         }
       } catch (err) {
-        // Timeout/failure — the static table is already on screen, keep it.
+        console.error(`❌ [renderUI] STEP2 failed school=${school_id}:`, err.message, err);
+        if (err && err.message && err.message !== 'Request timed out — showing the standard table.') {
+          showStatus('AI Generation Failed', `${err.message} — showing the standard table instead.`, 'warning');
+        }
       } finally {
         setLoading(false);
         setUiRefreshing(false);
@@ -672,7 +675,11 @@ export const useJudgeSystem = () => {
       }, 120000);
     } catch (postErr) {
       console.error(`❌ [ensureCachedUi] judgePost error genSeq=${genSeq}:`, postErr.message);
-      return settleFallback();
+      settleFallback();
+      showStatus('AI Generation Failed',
+        `Could not reach the AI service (${postErr.message}). Showing the standard table instead.`,
+        'warning');
+      return { html: null };
     }
 
     console.log(`📥 [ensureCachedUi] submitResp genSeq=${genSeq} status=${submitResp.status} fallback=${submitResp.fallback} hasResult=${!!submitResp.result} generationId=${submitResp.generationId}`);
@@ -691,9 +698,18 @@ export const useJudgeSystem = () => {
       console.log(`❌ [ensureCachedUi] FAILED genSeq=${genSeq} error=${submitResp.error}`);
       settleFallback();
       if (staticTable) {
-        showStatus('Notice', submitResp.error || 'AI generation failed — showing the standard scoring table.', 'warning');
+        showStatus('AI Generation Failed', submitResp.error || 'AI generation failed — showing the standard scoring table.', 'warning');
       }
       return { html: null };
+    }
+
+    // If backend returned COMPLETED-with-result but marked fallback, it means
+    // the backend skipped the LLM (e.g. it thought uiMode was default or the
+    // request was malformed). Surface that so we can see it instead of silently
+    // switching to the plain table.
+    if (submitResp.result && submitResp.fallback) {
+      console.warn(`⚠️ [ensureCachedUi] backend returned fallback result (LLM skipped) genSeq=${genSeq} status=${submitResp.status}`);
+      settleFallback();
     }
 
     // ✅ FIX: always poll in the background when there is a live generation id —
@@ -704,7 +720,10 @@ export const useJudgeSystem = () => {
       const cancelRef = { current: liveGenRef.current !== genSeq };
       pollJobUntilDone(submitResp.generationId, school_id, cancelRef).then(result => {
         if (!result.html) {
-          console.log(`⚠️ [ensureCachedUi] poll result no html genSeq=${genSeq}`);
+          console.warn(`⚠️ [ensureCachedUi] background poll ended without result genSeq=${genSeq} — ${result.error || 'no error'}`);
+          if (result.error) {
+            showStatus('AI Generation Failed', result.error, 'warning');
+          }
           return;
         }
         if (liveGenRef.current !== genSeq) {
