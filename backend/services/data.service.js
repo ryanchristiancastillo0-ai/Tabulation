@@ -259,6 +259,8 @@ async function saveConfig(schoolId, body) {
     custom_base, tie_break_method, ai_model, ui_mode,
   } = body;
 
+  console.log(`💾 [saveConfig] school=${schoolId} prompt="${ai_prompt?.slice(0,60)}..." model=${ai_model} ui_mode=${ui_mode} contestants=${contestants?.length} criteria=${criteria?.length}`);
+
   // Diff helpers — skip delete/re-insert (and the score wipe + judge UI
   // refresh that follows) when the incoming row set already matches the DB
   // exactly. Saving the same config repeatedly must be a true no-op.
@@ -341,6 +343,8 @@ async function saveConfig(schoolId, body) {
         modeChanged = (ui_mode ?? 'ai') !== (existing[0]?.ui_mode || 'ai');
       }
 
+      console.log(`📝 [saveConfig] UPDATE fields=${updates.join(',')} promptChanged=${promptChanged} modelChanged=${modelChanged} modeChanged=${modeChanged}`);
+
       await connection.execute(
         `UPDATE settings SET ${assignments} WHERE school_id = ?`,
         [...updates.map((field) => scalarFields[field]()), schoolId]
@@ -350,6 +354,7 @@ async function saveConfig(schoolId, body) {
       if (ai_prompt) promptChanged = true;
       if (ai_model)  modelChanged = true;
       if (ui_mode)   modeChanged = true;
+      console.log(`📝 [saveConfig] INSERT new row promptChanged=${promptChanged} modelChanged=${modelChanged} modeChanged=${modeChanged}`);
       await connection.execute(
         `INSERT INTO settings
            (school_id, contest_name, contest_type, judge_count, ai_prompt, ai_model, ui_mode,

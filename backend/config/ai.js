@@ -70,7 +70,7 @@ async function callChatCompletion({ provider, url, apiKey, model, prompt, timeou
 
   let response;
   try {
-    console.log(`🔵 ${provider} request started (model: ${model})`);
+    console.log(`🔵 [${provider}] request started model=${model} timeout=${timeoutMs}ms promptLength=${prompt.length}`);
     response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -85,8 +85,10 @@ async function callChatCompletion({ provider, url, apiKey, model, prompt, timeou
     });
   } catch (err) {
     if (err && err.name === 'AbortError') {
+      console.log(`⏱️ [${provider}] request timed out after ${timeoutMs}ms`);
       throw safeError('The AI request timed out. Please try again.', 504);
     }
+    console.error(`🌐 [${provider}] network error:`, err.message);
     throw safeError('Could not reach the AI provider. Please try again.', 503);
   } finally {
     clearTimeout(timer);
@@ -97,7 +99,7 @@ async function callChatCompletion({ provider, url, apiKey, model, prompt, timeou
   if (!response.ok) {
     const status = response.status;
     const detail = data?.error?.message || `Request failed with status ${status}`;
-    console.warn(`⚠️ ${provider} failed (${status}): ${detail}`);
+    console.warn(`⚠️ [${provider}] failed (${status}): ${detail}`);
 
     if (status === 400 || status === 422) {
       throw safeError('The AI request was rejected. Please check the prompt and try again.', status);
@@ -116,9 +118,11 @@ async function callChatCompletion({ provider, url, apiKey, model, prompt, timeou
 
   const content = data?.choices?.[0]?.message?.content;
   if (!content || !String(content).trim()) {
+    console.warn(`📭 [${provider}] returned empty content`);
     throw safeError('The AI returned an empty response. Please try again.');
   }
 
+  console.log(`✅ [${provider}] success contentLength=${content.length}`);
   return String(content).trim();
 }
 
@@ -127,6 +131,7 @@ async function callChatCompletion({ provider, url, apiKey, model, prompt, timeou
 // which provider produced the result.
 async function generateWithFallback(prompt, model) {
     const modelName = normalizeModel(model);
+    console.log(`🤖 [generateWithFallback] starting model=${modelName} promptLength=${prompt.length}`);
 
     // 1. B.AI (primary) — Admin-selected model.
     try {
@@ -138,14 +143,14 @@ async function generateWithFallback(prompt, model) {
             prompt,
             timeoutMs: PROVIDER_TIMEOUT_MS,
         });
-        console.log('✅ B.AI request succeeded');
+        console.log('✅ [generateWithFallback] B.AI succeeded');
         return content;
     } catch (err) {
-        console.error('❌ B.AI request failed:', err.message);
+        console.error('❌ [generateWithFallback] B.AI failed:', err.message);
         if (!shouldFallback(err)) {
             throw (err.safe ? err : safeError('AI generation failed. Please try again.'));
         }
-        console.log('🔄 Switching to OpenRouter fallback');
+        console.log('🔄 [generateWithFallback] Switching to OpenRouter fallback');
     }
 
     // 2. OpenRouter (fallback) — fixed free model, invisible to the Admin.
@@ -158,10 +163,10 @@ async function generateWithFallback(prompt, model) {
             prompt,
             timeoutMs: PROVIDER_TIMEOUT_MS,
         });
-        console.log('✅ OpenRouter request succeeded');
+        console.log('✅ [generateWithFallback] OpenRouter succeeded');
         return content;
     } catch (err) {
-        console.error('❌ OpenRouter request failed:', err.message);
+        console.error('❌ [generateWithFallback] OpenRouter failed:', err.message);
     }
 
     // Both providers failed — clean, user-friendly message. The real per-provider

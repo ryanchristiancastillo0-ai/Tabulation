@@ -21,6 +21,7 @@ async function createGeneration({ schoolId, prompt, model }) {
      VALUES (?, ?, ?, ?, ?)`,
     [generationId, schoolId, prompt, model || null, STATUS.QUEUED]
   );
+  console.log(`📝 [genService] createGeneration id=${generationId} school=${schoolId} prompt="${prompt?.slice(0,60)}..." model=${model}`);
   return { id: generationId, status: STATUS.QUEUED };
 }
 
@@ -42,10 +43,12 @@ async function getGeneration(id, schoolId) {
   const out = { id: gen.id, status: gen.status };
   if (gen.status === STATUS.COMPLETED) out.result = gen.result_html || null;
   if (gen.status === STATUS.FAILED)     out.error   = gen.error || 'AI generation failed.';
+  console.log(`🔍 [genService] getGeneration id=${id} status=${gen.status} hasResultHtml=${!!gen.result_html} promptHash=${gen.prompt_hash?.slice(0,8)}`);
   return out;
 }
 
 async function markProcessing(id) {
+  console.log(`🔄 [genService] markProcessing id=${id}`);
   await pool.execute(
     `UPDATE generations SET status = ?, started_at = NOW()
       WHERE id = ? AND status = ?`,
@@ -54,6 +57,7 @@ async function markProcessing(id) {
 }
 
 async function markCompleted(id, promptHash) {
+  console.log(`✅ [genService] markCompleted id=${id} promptHash=${promptHash?.slice(0,8)}`);
   await pool.execute(
     `UPDATE generations
         SET status = ?, prompt_hash = ?, error = NULL, completed_at = NOW()
@@ -63,6 +67,7 @@ async function markCompleted(id, promptHash) {
 }
 
 async function markFailed(id, safeError) {
+  console.log(`❌ [genService] markFailed id=${id} error="${safeError}"`);
   await pool.execute(
     `UPDATE generations
         SET status = ?, error = ?, completed_at = NOW()

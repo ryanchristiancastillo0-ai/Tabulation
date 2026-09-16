@@ -46,7 +46,7 @@ function withTimeout(fn, ms) {
 async function processJob(job) {
   const { generationId, schoolId } = job.data || {};
   const startedAt = Date.now();
-  console.log(`🎨 [ai-worker] job started generation=${generationId} school=${schoolId}`);
+  console.log(`🎨 [ai-worker] job started generation=${generationId} school=${schoolId} attempt=${job.attemptsMade + 1}/${job.opts?.attempts ?? '?'}`);
 
   try {
     await genService.markProcessing(generationId);
@@ -58,6 +58,7 @@ async function processJob(job) {
     // Re-read contestants/criteria/prompt from MySQL (source of truth) and run
     // the existing LLM service + ui_cache storage exactly as before.
     const payload = await buildPayload(generationId, schoolId);
+    console.log(`📋 [ai-worker] payload built generation=${generationId} contestants=${payload.contestants?.length} criteria=${payload.criteria?.length} prompt="${payload.aiPrompt?.slice(0,60)}..."`);
     const { html, promptHash } = await withTimeout(
       () => judgeService.renderUI(payload),
       JOB_TIMEOUT_MS
@@ -68,7 +69,7 @@ async function processJob(job) {
 
     await genService.markCompleted(generationId, promptHash);
 
-    console.log(`✅ [ai-worker] job completed generation=${generationId} duration=${Date.now() - startedAt}ms`);
+    console.log(`✅ [ai-worker] job completed generation=${generationId} duration=${Date.now() - startedAt}ms promptHash=${promptHash?.slice(0,8)}`);
   } catch (err) {
     if (isRetryable(err)) {
       const attempt = (job.attemptsMade || 0) + 1;
@@ -87,6 +88,7 @@ async function buildPayload(generationId, schoolId) {
   if (!prompt) throw new HttpError(400, 'Generation not found.');
 
   const all = await dataService.getAllData(schoolId);
+  console.log(`📦 [ai-worker] buildPayload generation=${generationId} school=${schoolId} contestants=${all.contestants?.length} criteria=${all.criteria?.length}`);
   return {
     contestants: all.contestants || [],
     criteria:    all.criteria    || [],

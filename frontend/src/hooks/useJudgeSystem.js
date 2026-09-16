@@ -10,64 +10,40 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 import { sanitizeAiHtml } from './getHydration_and_Calculation';
 
 /* ── Client-side HTML cache helpers ─────────────────────────────── */
-
-// ✅ FIX: the cache key now folds in aiModel AND uiMode, not just aiPrompt.
-// Before, changing the model in the admin panel kept showing the old design
-// because the prompt slug was unchanged and localStorage hit.
+// DISABLED FOR TESTING — always return null so no localStorage caching
 function getUiCacheKey(schoolId, criteria, aiPrompt, aiModel, uiMode) {
-  const criteriaSignature = criteria.map(c => `${c.id}:${c.percentage}`).join(',');
-  const promptSlug = (aiPrompt || 'default').slice(0, 64);
-  const modelSlug  = (aiModel  || 'default').slice(0, 32);
-  const modeSlug   =  uiMode   || 'ai';
-  return `ui_html_cache_${schoolId}_${criteriaSignature}_${promptSlug}_${modelSlug}_${modeSlug}`;
+  return '';
 }
 
 function saveUiToLocalStorage(schoolId, criteria, ui, aiPrompt, aiModel, uiMode) {
-  try {
-    const key = getUiCacheKey(schoolId, criteria, aiPrompt, aiModel, uiMode);
-    localStorage.setItem(key, JSON.stringify({ html: sanitizeAiHtml(ui.html, criteria) }));
-  } catch (e) {
-    console.warn('[UICache] could not save HTML cache:', e.message);
-  }
+  // no-op
 }
 
 function loadUiFromLocalStorage(schoolId, criteria, aiPrompt, aiModel, uiMode) {
-  try {
-    const key = getUiCacheKey(schoolId, criteria, aiPrompt, aiModel, uiMode);
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed?.html) {
-      parsed.html = sanitizeAiHtml(parsed.html, criteria);
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 // Clear ALL ui_html_cache_* entries for a school (used on config change)
 function clearUiCacheForSchool(schoolId) {
-  try {
-    const prefix = `ui_html_cache_${schoolId}_`;
-    Object.keys(localStorage).forEach(k => {
-      if (k.startsWith(prefix)) localStorage.removeItem(k);
-    });
-  } catch (e) {
-    console.warn('[UICache] could not clear cache:', e.message);
-  }
+  // no-op
 }
 
 /* ── Client-side config cache helpers ────────────────────────────── */
+// DISABLED FOR TESTING — always treat as different, no localStorage
 function configsMatch(a, b) {
-  if (!a || !b) return false;
-  const sig = (c) =>
-    JSON.stringify({
-      contestants: c.contestants || [],
-      criteria:    c.criteria    || [],
-      settings:    c.settings    || {},
-    });
-  return sig(a) === sig(b);
+  return false;
+}
+
+function getConfigCacheKey(schoolId) {
+  return `judge_config_cache_${schoolId}`;
+}
+
+function saveConfigToLocalStorage(schoolId, config) {
+  // no-op
+}
+
+function loadConfigFromLocalStorage(schoolId) {
+  return null;
 }
 
 // Only the fields below drive the judge's rendered table. Ignoring the rest
@@ -85,34 +61,6 @@ function renderRelevantChanged(a, b) {
       },
     });
   return sig(a) !== sig(b);
-}
-
-function getConfigCacheKey(schoolId) {
-  return `judge_config_cache_${schoolId}`;
-}
-
-function saveConfigToLocalStorage(schoolId, config) {
-  try {
-    localStorage.setItem(getConfigCacheKey(schoolId), JSON.stringify(config));
-  } catch (e) {
-    console.warn('[ConfigCache] could not save config cache:', e.message);
-  }
-}
-
-function loadConfigFromLocalStorage(schoolId) {
-  try {
-    const raw = localStorage.getItem(getConfigCacheKey(schoolId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.criteria)) return null;
-    return {
-      contestants: Array.isArray(parsed.contestants) ? parsed.contestants : [],
-      criteria:    parsed.criteria,
-      settings:    parsed.settings || {},
-    };
-  } catch {
-    return null;
-  }
 }
 
 /* ── Plain fetch helpers with the judge JWT ─────────────────────── */
@@ -191,18 +139,31 @@ const AI_POLL_TIMEOUT_MS   = 5000;
 
 async function pollJobUntilDone(jobId, schoolId, cancelledRef) {
   const url = `/ai/generations/${jobId}`;
+  console.log(`🔄 [pollJobUntilDone] started jobId=${jobId} school=${schoolId} maxAttempts=${AI_POLL_MAX_ATTEMPTS}`);
   for (let attempt = 0; attempt < AI_POLL_MAX_ATTEMPTS; attempt++) {
-    if (cancelledRef?.current) return { error: 'Generation cancelled.' };
+    if (cancelledRef?.current) {
+      console.log(`🛑 [pollJobUntilDone] cancelled jobId=${jobId}`);
+      return { error: 'Generation cancelled.' };
+    }
     let status;
     try {
       status = await judgeGet(url, AI_POLL_TIMEOUT_MS);
     } catch (err) {
+      console.error(`❌ [pollJobUntilDone] judgeGet error jobId=${jobId}:`, err.message);
       return { error: err.message || 'Failed to check generation status.' };
     }
-    if (status?.status === 'COMPLETED' && status.result) return { html: status.result };
-    if (status?.status === 'FAILED') return { error: status.error || 'AI generation failed.' };
+    console.log(`📡 [pollJobUntilDone] attempt=${attempt+1}/${AI_POLL_MAX_ATTEMPTS} jobId=${jobId} status=${status?.status} hasResult=${!!status?.result}`);
+    if (status?.status === 'COMPLETED' && status.result) {
+      console.log(`✅ [pollJobUntilDone] COMPLETED jobId=${jobId} resultLength=${status.result.length}`);
+      return { html: status.result };
+    }
+    if (status?.status === 'FAILED') {
+      console.log(`❌ [pollJobUntilDone] FAILED jobId=${jobId} error=${status.error}`);
+      return { error: status.error || 'AI generation failed.' };
+    }
     await new Promise(r => setTimeout(r, AI_POLL_INTERVAL_MS));
   }
+  console.log(`⏰ [pollJobUntilDone] TIMEOUT jobId=${jobId} after ${AI_POLL_MAX_ATTEMPTS} attempts`);
   return { error: 'AI generation took too long — showing the standard table instead.' };
 }
 
@@ -474,37 +435,51 @@ export const useJudgeSystem = () => {
       if (configSyncBusyRef.current) return;
       configSyncBusyRef.current = true;
       try {
+        console.log(`🔄 [syncNow] fetching config school=${schoolId} trigger=configChangeCount:${configChangeCount}`);
         const data = await withTimeout(
           judgeGet(`/public/get-all-data?school_id=${schoolId}`),
           12000
         );
-        if (!data || data.error) return;
+        if (!data || data.error) {
+          console.log(`⚠️ [syncNow] no data or error school=${schoolId}`);
+          return;
+        }
 
         const fresh = {
           contestants: data.contestants || [],
           criteria:    data.criteria    || [],
           settings:    data.settings    || {},
         };
+        console.log(`📥 [syncNow] fresh config school=${schoolId} uiMode=${fresh.settings?.ui_mode} prompt="${fresh.settings?.ai_prompt?.slice(0,40)}..." model=${fresh.settings?.ai_model} contestants=${fresh.contestants.length} criteria=${fresh.criteria.length}`);
         saveConfigToLocalStorage(schoolId, fresh);
 
-        if (configsMatch(configRef.current, fresh)) return;
+        if (configsMatch(configRef.current, fresh)) {
+          console.log(`⏭️ [syncNow] configsMatch=true — no change school=${schoolId}`);
+          return;
+        }
 
         if (renderRelevantChanged(configRef.current, fresh)) {
+          console.log(`🎨 [syncNow] renderRelevantChanged=true — clearing cache, showing overlay school=${schoolId}`);
           clearUiCacheForSchool(schoolId);
           const hasTable = !!dynamicUIRef.current;
           uiRendered.current = '';
           setLoading(!hasTable);
           setUiRefreshing(hasTable);
+        } else {
+          console.log(`📝 [syncNow] config changed but not render-relevant (e.g. lock toggle) school=${schoolId}`);
         }
         setConfig(fresh);
-      } catch {
-        // timeout/offline — keep the current UI, the next tick retries
+      } catch (err) {
+        console.error(`❌ [syncNow] error school=${schoolId}:`, err.message);
       } finally {
         configSyncBusyRef.current = false;
       }
     };
 
-    if (configChangeCount > 0) syncNow();
+    if (configChangeCount > 0) {
+      console.log(`🔔 [syncNow] triggered by configChangeCount=${configChangeCount}`);
+      syncNow();
+    }
 
     const id = setInterval(syncNow, 5000);
     return () => clearInterval(id);
@@ -647,6 +622,7 @@ export const useJudgeSystem = () => {
     // Default mode: the built-in table IS the design — never call the backend,
     // never show a loader, never wait on an AI job.
     if (settings?.ui_mode === 'default') {
+      console.log(`📋 [ensureCachedUi] uiMode=default — returning static table`);
       if (staticTable) {
         setDynamicUI(prev => (prev?.html === staticTable ? prev : { html: staticTable }));
         try {
@@ -677,6 +653,7 @@ export const useJudgeSystem = () => {
     const genSeq = ++liveGenRef.current;
 
     if (!silent) setLoading(true);
+    console.log(`🚀 [ensureCachedUi] starting genSeq=${genSeq} school=${school_id} prompt="${settings?.ai_prompt?.slice(0,60)}..." model=${settings?.ai_model} uiMode=${settings?.ui_mode}`);
     let submitResp;
     try {
       submitResp = await judgePost('/ai/generate', {
@@ -694,8 +671,11 @@ export const useJudgeSystem = () => {
       // default) with comfortable slack even if the env var is tuned upward.
       }, 120000);
     } catch (postErr) {
+      console.error(`❌ [ensureCachedUi] judgePost error genSeq=${genSeq}:`, postErr.message);
       return settleFallback();
     }
+
+    console.log(`📥 [ensureCachedUi] submitResp genSeq=${genSeq} status=${submitResp.status} fallback=${submitResp.fallback} hasResult=${!!submitResp.result} generationId=${submitResp.generationId}`);
 
     if (submitResp.result && !submitResp.fallback) {
       const html = sanitizeAiHtml(submitResp.result, criteria);
@@ -703,10 +683,12 @@ export const useJudgeSystem = () => {
         saveUiToLocalStorage(school_id, criteria, { html },
           settings?.ai_prompt || '', settings?.ai_model || '', settings?.ui_mode || 'ai');
       } catch { /* ignore */ }
+      console.log(`✅ [ensureCachedUi] COMPLETED immediately genSeq=${genSeq} htmlLength=${html.length}`);
       return settle(html);
     }
 
     if (submitResp.status === 'FAILED') {
+      console.log(`❌ [ensureCachedUi] FAILED genSeq=${genSeq} error=${submitResp.error}`);
       settleFallback();
       if (staticTable) {
         showStatus('Notice', submitResp.error || 'AI generation failed — showing the standard scoring table.', 'warning');
@@ -718,20 +700,29 @@ export const useJudgeSystem = () => {
     // even when the backend answered PROCESSING/fallback, the worker may still
     // finish seconds later and the AI design should swap in without a reload.
     if (submitResp.generationId) {
+      console.log(`⏳ [ensureCachedUi] starting background poll genSeq=${genSeq} generationId=${submitResp.generationId}`);
       const cancelRef = { current: liveGenRef.current !== genSeq };
       pollJobUntilDone(submitResp.generationId, school_id, cancelRef).then(result => {
-        if (!result.html) return;
-        if (liveGenRef.current !== genSeq) return;
+        if (!result.html) {
+          console.log(`⚠️ [ensureCachedUi] poll result no html genSeq=${genSeq}`);
+          return;
+        }
+        if (liveGenRef.current !== genSeq) {
+          console.log(`🛑 [ensureCachedUi] stale generation genSeq=${genSeq} current=${liveGenRef.current}`);
+          return;
+        }
         const aiHtml = sanitizeAiHtml(result.html, criteria);
         try {
           saveUiToLocalStorage(school_id, criteria, { html: aiHtml },
             settings?.ai_prompt || '', settings?.ai_model || '', settings?.ui_mode || 'ai');
         } catch { /* ignore */ }
+        console.log(`✅ [ensureCachedUi] background poll COMPLETED genSeq=${genSeq} htmlLength=${aiHtml.length}`);
         setDynamicUI(prev => (prev?.html === aiHtml ? prev : { html: aiHtml }));
       });
       return settleFallback();
     }
 
+    console.log(`⚠️ [ensureCachedUi] no generationId, returning fallback genSeq=${genSeq}`);
     return settleFallback();
   };
 

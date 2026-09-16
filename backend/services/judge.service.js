@@ -156,6 +156,8 @@ async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, s
   const finalModel = model || settings.ai_model || DEFAULT_MODEL;
   const finalUiMode = uiMode || settings.ui_mode || 'ai';
 
+  console.log(`🔧 [prepareRender] school=${school_id} uiMode=${finalUiMode} model=${finalModel} prompt="${finalDesignGoal?.slice(0,60)}..." contestants=${contestants.length} criteria=${criteria.length}`);
+
   const criteriaSignature = criteria
     .map((c) => `${c.id}:${c.percentage || 0}`)
     .join(',');
@@ -164,10 +166,14 @@ async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, s
     .update(finalDesignGoal + criteriaSignature + String(finalModel) + String(finalUiMode) + String(school_id))
     .digest('hex');
 
+  console.log(`🔐 [prepareRender] configHash=${configHash.slice(0,16)} criteriaSig=${criteriaSignature}`);
+
   const [cache] = await pool.execute(
     'SELECT html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ?',
     [configHash, school_id]
   );
+
+  console.log(`💾 [prepareRender] ui_cache hit=${cache.length > 0} hash=${configHash.slice(0,8)}`);
 
   return {
     settings,
@@ -186,10 +192,12 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, school
   const prep = await prepareRender({ contestants, criteria, aiPrompt, model, uiMode, school_id });
 
   if (prep.html) {
+    console.log(`⚡ [renderUI] returning cached HTML hash=${prep.configHash.slice(0,8)}`);
     return { html: prep.html, promptHash: prep.configHash };
   }
 
   if (prep.finalUiMode === 'default') {
+    console.log(`📋 [renderUI] uiMode=default — building static table`);
     const table = buildScoreTableHtml({ contestants, criteria });
     await pool.execute(
       `INSERT INTO ui_cache (prompt_hash, school_id, html_content)
@@ -198,6 +206,7 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, school
          html_content = VALUES(html_content)`,
       [prep.configHash, school_id, table]
     );
+    console.log(`✅ [renderUI] static table cached hash=${prep.configHash.slice(0,8)}`);
     return { html: table, promptHash: prep.configHash };
   }
 
@@ -243,7 +252,9 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, school
     [OUTPUT]: Return ONLY a <div> with a Tailwind <table>. No markdown. Do NOT include any <button>, <form>, or <input> elements — the scoring page already provides its own Submit button.
   `;
 
+  console.log(`🤖 [renderUI] calling generateWithFallback model=${prep.finalModel} promptLength=${aiInstruction.length}`);
   const tableHTML = await generateWithFallback(aiInstruction, prep.finalModel);
+  console.log(`📥 [renderUI] generateWithFallback returned length=${tableHTML.length}`);
   const cleanTable = tableHTML.replace(/```html/g, '').replace(/```/g, '').trim();
 
   const finalTable = normalizeDropdownRanges(
@@ -259,6 +270,7 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, school
     [prep.configHash, school_id, finalTable]
   );
 
+  console.log(`✅ [renderUI] AI table cached hash=${prep.configHash.slice(0,8)} finalLength=${finalTable.length}`);
   return { html: finalTable, promptHash: prep.configHash };
 }
 
