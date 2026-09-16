@@ -4,6 +4,12 @@ const HttpError = require('../utils/http-error');
 const { rankValues, numeric } = require('../utils/ranks');
 const { generateWithFallback, DEFAULT_MODEL } = require('../config/ai');
 
+// Dedupes concurrent LLM rendering for the SAME config (prompt + criteria +
+// model + ui_mode + school). Both the admin's save-time prewarm and a judge
+// page that opens while it's still running call renderUI(); without this they
+// would fire two identical (and slow/expensive) B.AI requests at once.
+const renderInflight = new Map(); // configHash → Promise<{ html, promptHash }>
+
 // ONLY selects whose id matches a real criterion get normalised.
 const SCORE_SELECT_RE = /<select([^>]*?\bid=['"]score[\w-]*['"])([\s\S]*?)<\/select>/gi;
 
@@ -252,26 +258,38 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, school
     [OUTPUT]: Return ONLY a <div> with a Tailwind <table>. No markdown. Do NOT include any <button>, <form>, or <input> elements — the scoring page already provides its own Submit button.
   `;
 
+  const hash = prep.configHash;
+  const inflight = renderInflight.get(hash);
+  if (inflight) {
+    console.log(`♻️ [renderUI] reusing in-flight AI generation hash=${hash.slice(0, 8)}`);
+    return inflight;
+  }
+
   console.log(`🤖 [renderUI] calling generateWithFallback model=${prep.finalModel} promptLength=${aiInstruction.length}`);
-  const tableHTML = await generateWithFallback(aiInstruction, prep.finalModel);
-  console.log(`📥 [renderUI] generateWithFallback returned length=${tableHTML.length} RESPONSE_PREVIEW="${tableHTML.slice(0, 300).replace(/\s+/g, ' ')}"`);
-  const cleanTable = tableHTML.replace(/```html/g, '').replace(/```/g, '').trim();
+  const job = (async () => {
+    const tableHTML = await generateWithFallback(aiInstruction, prep.finalModel);
+    console.log(`📥 [renderUI] generateWithFallback returned length=${tableHTML.length} RESPONSE_PREVIEW="${tableHTML.slice(0, 300).replace(/\s+/g, ' ')}"`);
+    const cleanTable = tableHTML.replace(/```html/g, '').replace(/```/g, '').trim();
 
-  const finalTable = normalizeDropdownRanges(
-    purgeNonScoringElements(cleanTable, contestants),
-    criteria
-  );
+    const finalTable = normalizeDropdownRanges(
+      purgeNonScoringElements(cleanTable, contestants),
+      criteria
+    );
 
-  await pool.execute(
-    `INSERT INTO ui_cache (prompt_hash, school_id, html_content)
-     VALUES (?, ?, ?)
-     ON DUPLICATE KEY UPDATE
-       html_content = VALUES(html_content)`,
-    [prep.configHash, school_id, finalTable]
-  );
+    await pool.execute(
+      `INSERT INTO ui_cache (prompt_hash, school_id, html_content)
+       VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         html_content = VALUES(html_content)`,
+      [hash, school_id, finalTable]
+    );
 
-  console.log(`✅ [renderUI] AI table cached hash=${prep.configHash.slice(0,8)} finalLength=${finalTable.length}`);
-  return { html: finalTable, promptHash: prep.configHash };
+    console.log(`✅ [renderUI] AI table cached hash=${hash.slice(0, 8)} finalLength=${finalTable.length}`);
+    return { html: finalTable, promptHash: hash };
+  })();
+  job.finally(() => renderInflight.delete(hash)).catch(() => {});
+  renderInflight.set(hash, job);
+  return job;
 }
 
 // ── SUBMIT SCORES (transaction) ──

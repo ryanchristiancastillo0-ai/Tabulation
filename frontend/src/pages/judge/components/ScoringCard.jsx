@@ -6,7 +6,7 @@ import { USALoader } from '../../../components/ui'
 const ScoringCard = memo(function ScoringCard({ tableHtml, loading, refreshing, waitSeconds = 0 }) {
   const hasTable = !!tableHtml;
   const timeLabel = waitSeconds > 0 ? ` (${waitSeconds}s)` : '';
-
+  console.log('hahhaha',tableHtml)
   return (
     <>
       {!loading && tableHtml && <ScrollHint />}

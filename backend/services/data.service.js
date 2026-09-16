@@ -3,6 +3,7 @@ const HttpError = require('../utils/http-error');
 const { rankValues, numeric } = require('../utils/ranks');
 const { ACTIVE_WINDOW_MINUTES } = require('../utils/activity');
 const { cacheGetJson, cacheSetJson, cacheDel, cacheDelPattern, CACHE_TTL_SECONDS } = require('../utils/mem-cache');
+const judgeService = require('./judge.service');
 
 const allDataKey      = (schoolId) => `public:get-all-data:${schoolId}`;
 const systemConfigKey = (schoolId) => `public:system-config:${schoolId}`;
@@ -71,6 +72,47 @@ async function invalidateSchoolCaches(schoolId, { system = false, ui = true } = 
   await cacheDel(allDataKey(schoolId));
   if (system) await cacheDel(systemConfigKey(schoolId));
   if (ui)     await cacheDelPattern(schoolUiKey(schoolId));
+}
+
+// ── AI Judge UI prewarm (fire-and-forget) ─────────────────────────────────
+// When the admin saves the contest config we generate the Judge UI right away
+// (in the background, without blocking the save response) and store it in the
+// ui_cache table. This makes "save a new design prompt → open the judge →
+// instantly see the new design" actually work: the judge page fetches the fresh
+// cached HTML from ui_cache instead of finding it empty and showing the plain
+// template table while B.AI thinks for a minute.
+const prewarming = new Set(); // schoolId → in-flight guard
+function prewarmJudgeUi(schoolId) {
+  (async () => {
+    const key = String(schoolId);
+    if (prewarming.has(key)) {
+      console.log(`♻️ [prewarm] already running school=${key}`);
+      return;
+    }
+    prewarming.add(key);
+    try {
+      const all         = await getAllData(schoolId);
+      const contestants = all.contestants || [];
+      const criteria    = all.criteria    || [];
+      if (!contestants.length || !criteria.length) {
+        console.log(`⏭️ [prewarm] nothing to render school=${schoolId}`);
+        return;
+      }
+      const result = await judgeService.renderUI({
+        contestants,
+        criteria,
+        aiPrompt: all.settings?.ai_prompt || undefined,
+        model:    all.settings?.ai_model  || undefined,
+        uiMode:   all.settings?.ui_mode   || undefined,
+        school_id: schoolId,
+      });
+      console.log(`🔆 [prewarm] cached judge UI school=${schoolId} hash=${String(result?.promptHash || '').slice(0, 8)} len=${result?.html?.length || 0}`);
+    } catch (err) {
+      console.error(`❌ [prewarm] failed school=${schoolId}:`, err.message);
+    } finally {
+      prewarming.delete(key);
+    }
+  })();
 }
 
 // ── LEADERBOARD (average or rank-sum) ──
@@ -467,6 +509,18 @@ async function saveConfig(schoolId, body) {
 
     await connection.commit();
     await invalidateSchoolCaches(schoolId);
+
+    // ✅ FIX: save-config now also kicks off the AI Judge UI generation in the
+    // background and caches the result in ui_cache. Without this the cache was
+    // only ever filled lazily when a judge loaded the page — and if that
+    // generation was slow/failed the judge was stuck on the default template
+    // table. Now the save response returns instantly, B.AI works in the
+    // background, and the next judge fetch reads the fresh design from
+    // ui_cache.
+    if (contestants?.length && criteria?.length) {
+      prewarmJudgeUi(schoolId);
+    }
+
     return { success: true, message: 'Configuration saved!' };
   } catch (error) {
     await connection.rollback();

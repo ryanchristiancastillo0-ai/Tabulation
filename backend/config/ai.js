@@ -137,6 +137,7 @@ async function generateWithFallback(prompt, model) {
     console.log(`🤖 [generateWithFallback] starting model=${modelName} promptLength=${prompt.length}`);
 
     // 1. B.AI (primary) — Admin-selected model.
+    let primaryErr;
     try {
         const content = await callChatCompletion({
             provider: 'B.AI',
@@ -149,6 +150,7 @@ async function generateWithFallback(prompt, model) {
         console.log('✅ [generateWithFallback] B.AI succeeded');
         return content;
     } catch (err) {
+        primaryErr = err;
         console.error('❌ [generateWithFallback] B.AI failed:', err.message);
         if (!shouldFallback(err)) {
             throw (err.safe ? err : safeError('AI generation failed. Please try again.'));
@@ -172,8 +174,16 @@ async function generateWithFallback(prompt, model) {
         console.error('❌ [generateWithFallback] OpenRouter failed:', err.message);
     }
 
-    // Both providers failed — clean, user-friendly message. The real per-provider
-    // errors above are logged on the backend for diagnosis.
+    // Both providers failed. If the root cause was a missing/invalid backend
+    // key, say exactly that — it's an admin-setup problem, not a transient
+    // outage, and the judge's debug console should tell them which env var to
+    // fix instead of the generic "try again shortly" message.
+    if (primaryErr && /not configured|BAI_API_KEY|OPENROUTER_API_KEY/i.test(String(primaryErr.message))) {
+        throw safeError(primaryErr.message);
+    }
+
+    // Clean, user-friendly message. The real per-provider errors above are
+    // logged on the backend for diagnosis.
     throw safeError('AI generation is temporarily unavailable. Please try again shortly.');
 }
 

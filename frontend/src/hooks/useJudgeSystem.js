@@ -690,14 +690,16 @@ export const useJudgeSystem = () => {
         aiPrompt: settings?.ai_prompt || 'Modern and Professional',
         aiModel:  settings?.ai_model  || 'qwen3.8-flash',
         uiMode:   settings?.ui_mode   || 'ai',
-        // ✅ FIX: send the boolean `true`, not the number `1`. The server does
-        // `req.body.wait === true`, so `1` silently fell through and the judge
-        // always got the deterministic fallback instead of waiting for the LLM.
-        wait: true,
-      // ✅ FIX: time the request to the server's AI_GENERATION_WAIT. The b.ai
-      // model is slow (minutes for real prompts), so give the live-wait enough
-      // room before the background poll takes over.
-      }, 180000);
+        // ✅ FIX: fire-and-forget (`wait: false`) — the backend returns a
+        // generation id immediately and runs the LLM in the background. The
+        // old code kept this POST open for 180s waiting inline for the LLM,
+        // but Render terminates requests living past ~100s, so slow B.AI
+        // generations (50s–2min+) were killed mid-flight and the judge was
+        // stuck on the standard template table forever (no result, no poll,
+        // no retry). The short POST below always succeeds, and the background
+        // poll drains the job without ever holding a request open.
+        wait: false,
+      }, 30000);
     } catch (postErr) {
       console.error(`❌ [ensureCachedUi] judgePost error genSeq=${genSeq}:`, postErr.message);
       setAiDebug(prev => ({
@@ -750,25 +752,11 @@ export const useJudgeSystem = () => {
       return { html: null };
     }
 
-    // If backend returned COMPLETED-with-result but marked fallback, it means
-    // the backend skipped the LLM (e.g. it thought uiMode was default or the
-    // request was malformed). Surface that so we can see it instead of silently
-    // switching to the plain table.
-    if (submitResp.result && submitResp.fallback) {
-      console.warn(`⚠️ [ensureCachedUi] backend returned fallback result (LLM skipped) genSeq=${genSeq} status=${submitResp.status}`);
-      setAiDebug(prev => ({
-        ...prev,
-        state: 'failed',
-        error: 'Backend skipped the LLM (returned fallback directly). Check uiMode/settings.',
-        generationId: submitResp.generationId || null,
-        responseTimeMs: Date.now() - startedRequestAt,
-      }));
-      settleFallback();
-    }
-
     // ✅ FIX: always poll in the background when there is a live generation id —
-    // even when the backend answered PROCESSING/fallback, the worker may still
-    // finish seconds later and the AI design should swap in without a reload.
+    // the LLM may still be finishing and the AI design should swap in without a
+    // reload. This is now the ONLY success path for a fresh generation (the
+    // request is fire-and-forget, so the backend never returns the final result
+    // inline for a slow LLM).
     if (submitResp.generationId) {
       console.log(`⏳ [ensureCachedUi] starting background poll genSeq=${genSeq} generationId=${submitResp.generationId}`);
       setAiDebug(prev => ({
@@ -776,6 +764,7 @@ export const useJudgeSystem = () => {
         state: 'generating',
         generationId: submitResp.generationId,
         httpStatus: submitResp.status || 'PROCESSING',
+        error: '',
       }));
       const cancelRef = { current: liveGenRef.current !== genSeq };
       pollJobUntilDone(submitResp.generationId, school_id, cancelRef).then(result => {
@@ -787,6 +776,7 @@ export const useJudgeSystem = () => {
             error: (result && result.error) || 'Generation ended without a result.',
             responseTimeMs: Date.now() - startedRequestAt,
           }));
+          settleFallback();
           if (result.error) {
             showStatus('AI Generation Failed', result.error, 'warning');
           }
@@ -809,9 +799,33 @@ export const useJudgeSystem = () => {
           resultPreview: aiHtml.slice(0, 400),
           responseTimeMs: Date.now() - startedRequestAt,
         }));
-        setDynamicUI(prev => (prev?.html === aiHtml ? prev : { html: aiHtml }));
+        settle(aiHtml);
       });
-      return settleFallback();
+
+      // Show the standardized table immediately, but leave any "Updating
+      // interface…" overlay running until the poll resolves so the judge sees
+      // that the AI design is on the way instead of a silently ugly table.
+      if (staticTable) {
+        setDynamicUI(prev => (prev?.html === staticTable ? prev : { html: staticTable }));
+      }
+      setLoading(false);
+      return { html: null };
+    }
+
+    // If backend returned COMPLETED-with-result but marked fallback AND gave
+    // no generation id, it means the backend skipped the LLM entirely (e.g. it
+    // failed to start the job or the request was malformed). Surface that so we
+    // can see it instead of silently switching to the plain table.
+    if (submitResp.result && submitResp.fallback) {
+      console.warn(`⚠️ [ensureCachedUi] backend returned fallback result (LLM skipped) genSeq=${genSeq} status=${submitResp.status}`);
+      setAiDebug(prev => ({
+        ...prev,
+        state: 'failed',
+        error: 'Backend skipped the LLM (returned fallback directly). Check uiMode/settings.',
+        generationId: submitResp.generationId || null,
+        responseTimeMs: Date.now() - startedRequestAt,
+      }));
+      settleFallback();
     }
 
     console.log(`⚠️ [ensureCachedUi] no generationId, returning fallback genSeq=${genSeq}`);
