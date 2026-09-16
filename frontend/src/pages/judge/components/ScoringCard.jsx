@@ -3,10 +3,6 @@ import { memo } from 'react';
 import { ScrollHint } from './index'
 import { USALoader } from '../../../components/ui'
 
-// Adjust this to your actual topbar height (px). If your topbar sets a
-// CSS var like --topbar-height globally, this will pick it up automatically.
-const TOPBAR_OFFSET = 'var(--topbar-height, 64px)';
-
 const ScoringCard = memo(function ScoringCard({ tableHtml, loading, refreshing, waitSeconds = 0 }) {
   const hasTable = !!tableHtml;
   const timeLabel = waitSeconds > 0 ? ` (${waitSeconds}s)` : '';
@@ -26,17 +22,14 @@ const ScoringCard = memo(function ScoringCard({ tableHtml, loading, refreshing, 
           {(refreshing || loading) && (
             <div
               style={{
-                position: 'sticky',
-                top: TOPBAR_OFFSET,
-                height: `calc(100vh - ${TOPBAR_OFFSET})`,
-                marginBottom: `calc(-1 * (100vh - ${TOPBAR_OFFSET}))`,
+                position: 'absolute',
+                inset: 0,
                 zIndex: 30,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 background: 'rgba(255,255,255,0.85)',
                 backdropFilter: 'blur(4px)',
-                pointerEvents: 'auto',
               }}
             >
               <USALoader

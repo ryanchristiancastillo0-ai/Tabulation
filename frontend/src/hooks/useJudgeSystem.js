@@ -58,6 +58,23 @@ function configsMatch(a, b) {
   return sig(a) === sig(b);
 }
 
+// Only the fields below drive the judge's rendered table. Ignoring the rest
+// (e.g. is_judge_locked toggles) prevents a pointless overlay flash while a
+// polled config update is still applied.
+function renderRelevantChanged(a, b) {
+  const sig = (c) =>
+    JSON.stringify({
+      contestants: c.contestants || [],
+      criteria:    c.criteria    || [],
+      settings: {
+        ai_prompt: c.settings?.ai_prompt || '',
+        ai_model:  c.settings?.ai_model  || 'qwen3.8-flash',
+        ui_mode:   c.settings?.ui_mode   || 'ai',
+      },
+    });
+  return sig(a) !== sig(b);
+}
+
 function getConfigCacheKey(schoolId) {
   return `judge_config_cache_${schoolId}`;
 }
@@ -423,7 +440,16 @@ export const useJudgeSystem = () => {
     fetchConfig();
   }, []);
 
-  // ── STEP 1b: Config saved in admin tab → show spinner + re-fetch instantly ─
+  // ── STEP 1b: Keep the judge in sync with admin saves ─────────────────────
+  // Two triggers:
+  //   1. The cross-tab signal (BroadcastChannel/localStorage) → instant refresh.
+  //   2. A light poll (every 5s) so a judge open on a DIFFERENT device/tab
+  //      still catches ui_mode / prompt / model / lineup changes without a
+  //      reload — previously the judge refreshed only on the cross-tab signal,
+  //      so an admin save from another computer never reached it.
+  // When a render-relevant change is detected the loading overlay is shown and
+  // the render guard is cleared so STEP 2 actually regenerates the UI.
+  const configSyncBusyRef = useRef(false);
   const uiRendered   = useRef('');
   const dynamicUIRef = useRef('');
   const liveGenRef   = useRef(0);
@@ -432,38 +458,43 @@ export const useJudgeSystem = () => {
   }, [dynamicUI]);
 
   useEffect(() => {
-    if (configChangeCount === 0) return;
+    const syncNow = async () => {
+      if (configSyncBusyRef.current) return;
+      configSyncBusyRef.current = true;
+      try {
+        const data = await withTimeout(
+          judgeGet(`/public/get-all-data?school_id=${schoolId}`),
+          12000
+        );
+        if (!data || data.error) return;
 
-    const hasTable = !!dynamicUIRef.current;
-    setLoading(!hasTable);
-    setUiRefreshing(hasTable);
+        const fresh = {
+          contestants: data.contestants || [],
+          criteria:    data.criteria    || [],
+          settings:    data.settings    || {},
+        };
+        saveConfigToLocalStorage(schoolId, fresh);
 
-    uiRendered.current = '';
+        if (configsMatch(configRef.current, fresh)) return;
 
-    withTimeout(
-      judgeGet(`/public/get-all-data?school_id=${schoolId}`),
-      12000
-    )
-      .then(data => {
-        if (data && !data.error) {
-          const fresh = {
-            contestants: data.contestants || [],
-            criteria:    data.criteria    || [],
-            settings:    data.settings    || {},
-          };
-          saveConfigToLocalStorage(schoolId, fresh);
-          // ✅ FIX: only update state when the config actually differs. The
-          // old code called setConfig(fresh) unconditionally, which gave STEP 2
-          // a brand-new object identity and re-fired renderUI on every
-          // BroadcastChannel ping — that re-entry is one of the reasons the
-          // overlay never settled.
-          setConfig(prev => (configsMatch(prev, fresh) ? prev : fresh));
+        if (renderRelevantChanged(configRef.current, fresh)) {
+          const hasTable = !!dynamicUIRef.current;
+          uiRendered.current = '';
+          setLoading(!hasTable);
+          setUiRefreshing(hasTable);
         }
-      })
-      .catch(() => { /* timeout — STEP 2 will render the static table */ })
-      .finally(() => {
-        setLoading(false);
-      });
+        setConfig(fresh);
+      } catch {
+        // timeout/offline — keep the current UI, the next tick retries
+      } finally {
+        configSyncBusyRef.current = false;
+      }
+    };
+
+    if (configChangeCount > 0) syncNow();
+
+    const id = setInterval(syncNow, 5000);
+    return () => clearInterval(id);
   }, [configChangeCount, schoolId]);
 
   const withTimeout = (promise, ms = 12000) =>

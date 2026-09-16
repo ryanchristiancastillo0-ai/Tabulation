@@ -117,6 +117,7 @@ export default function SchoolInfoSection({ form, setField, errors, setErrors, l
           </Field>
           <Field label="Phone Number" icon={Phone}>
             <input
+            type="number"
               className={inputCls(false)}
               placeholder="+63 912 345 6789"
               value={form.school_phone}
