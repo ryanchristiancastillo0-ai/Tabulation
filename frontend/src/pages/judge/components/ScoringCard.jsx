@@ -3,13 +3,12 @@ import { memo } from 'react';
 import { ScrollHint } from './index'
 import { USALoader } from '../../../components/ui'
 
-const ScoringCard = memo(function ScoringCard({ tableHtml, loading, refreshing, waitSeconds = 0 }) {
+const ScoringCard = memo(function ScoringCard({ tableHtml, loading, refreshing, waitSeconds = 0, showScrollHint = true }) {
   const hasTable = !!tableHtml;
   const timeLabel = waitSeconds > 0 ? ` (${waitSeconds}s)` : '';
-  console.log('hahhaha',tableHtml)
   return (
     <>
-      {!loading && tableHtml && <ScrollHint />}
+      {!loading && tableHtml && showScrollHint && <ScrollHint />}
 
       {loading && !hasTable ? (
         <USALoader
@@ -48,10 +47,11 @@ const ScoringCard = memo(function ScoringCard({ tableHtml, loading, refreshing, 
     </>
   );
 }, (prev, next) =>
-  prev.tableHtml    === next.tableHtml &&
-  prev.loading      === next.loading &&
-  prev.refreshing   === next.refreshing &&
-  prev.waitSeconds  === next.waitSeconds
+  prev.tableHtml      === next.tableHtml &&
+  prev.loading        === next.loading &&
+  prev.refreshing     === next.refreshing &&
+  prev.waitSeconds    === next.waitSeconds &&
+  prev.showScrollHint === next.showScrollHint
 );
 
 export default ScoringCard

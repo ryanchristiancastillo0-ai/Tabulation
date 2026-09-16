@@ -146,4 +146,4 @@ async function readSSE(response, getContent, onDelta) {
   return String(fullText).trim();
 }
 
-module.exports = { safeError, request, readSSE, getApiKey, providerTimeoutMs };
+module.exports = { safeError, request, readSSE, getApiKey, providerTimeoutMs, providerResponseError };

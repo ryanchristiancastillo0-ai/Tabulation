@@ -233,6 +233,7 @@ async function resetData(schoolId) {
     await connection.execute('DELETE FROM ui_cache     WHERE school_id = ?', [schoolId]);
     await connection.execute('DELETE FROM contestants  WHERE school_id = ?', [schoolId]);
     await connection.execute('DELETE FROM criteria     WHERE school_id = ?', [schoolId]);
+    await connection.execute('DELETE FROM generations  WHERE school_id = ?', [schoolId]);
     await connection.execute(
       `UPDATE settings SET contest_name = '', judge_count = 3, ai_prompt = 'Modern and Professional',
        ai_model = 'codestral-latest', ai_provider = 'unorouter',

@@ -34,6 +34,13 @@ function JudgeTable() {
 
   const tableHtml  = typeof dynamicUI === 'string' ? dynamicUI : dynamicUI?.html || '';
 
+  // The rich static table (buildStaticJudgeTable) is fully self-contained — it
+  // already renders the criteria header, total/rank columns, the judging-strip
+  // and its own footer. Wrapping more React chrome around it duplicates the UI,
+  // so suppress CriteriaHeader / CardHeaderStrip / ScrollHint for it. AI-mode
+  // tables vary and keep the normal chrome.
+  const isRichStaticTable = tableHtml.includes('sts-table-wrap');
+
   const primary   = sysConfig.primary_color   || '#1B4332';
   const secondary = sysConfig.secondary_color || '#2D6A4F';
 
@@ -67,6 +74,7 @@ function JudgeTable() {
       loading={loading}
       refreshing={uiRefreshing}
       waitSeconds={waitSeconds}
+      showScrollHint={!isRichStaticTable}
     />
   );
 
@@ -98,7 +106,7 @@ function JudgeTable() {
 
       <main className="flex-1 w-full max-w-screen-xl xl:max-w-[1440px] 2xl:max-w-[1920px] 3xl:max-w-[2560px] 4xl:max-w-[3200px] mx-auto px-3 sm:px-6 lg:px-8 2xl:px-10 py-4 sm:py-8 lg:py-10">
 
-        {!loading && (
+        {!loading && !isRichStaticTable && (
           <CriteriaHeader
             criteria={config.criteria}
             primary={primary}
@@ -113,7 +121,7 @@ function JudgeTable() {
             boxShadow: `0 4px 24px ${primary}15`,
           }}
         >
-          <CardHeaderStrip primary={primary} secondary={secondary} selectedJudge={selectedJudge} />
+          {!isRichStaticTable && <CardHeaderStrip primary={primary} secondary={secondary} selectedJudge={selectedJudge} />}
 
           {body}
         </div>

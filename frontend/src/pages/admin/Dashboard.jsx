@@ -157,6 +157,11 @@ function Dashboard() {
   // knows the design is fully saved before the judges can grab it.
   const onSave = async () => {
     setSaving(true);
+    // Open the terminal immediately with the loading spinner for BOTH modes —
+    // it stays streaming/spinner until the design (AI-generated or the static
+    // Default table) is written into ui_cache, then flips to done.
+    genTextRef.current = '';
+    setAiGen({ active: true, status: 'streaming', text: '', error: '', model: aiModel, startedAt: Date.now(), cached: false, generationId: null });
     try {
       await apiClient.post("/save-config", {
         contest_name:     contestName,
@@ -182,11 +187,8 @@ function Dashboard() {
       });
 
       if (uiMode === "ai") {
-        genTextRef.current = '';
         if (genFlushTimer.current) { clearTimeout(genFlushTimer.current); genFlushTimer.current = null; }
         genAbortRef.current = new AbortController();
-        const startedAt = Date.now();
-        setAiGen({ active: true, status: 'streaming', text: '', error: '', model: aiModel, startedAt, cached: false, generationId: null });
 
         try {
           const result = await streamUiUi({
@@ -221,22 +223,34 @@ function Dashboard() {
       } else {
         // Default mode: STILL persist the design into ui_cache so the judge
         // fetches the exact same table (no LLM call — the backend builds and
-        // stores it instantly). The judge falls back to building it locally
-        // only if this write failed.
+        // stores it instantly). The terminal opened above shows the loading
+        // spinner while the cache write runs, then flips to done.
+        let cacheOk = true;
+        let result = { fromCache: false, generationId: null };
         if (contestants.length && criteria.length) {
           try {
-            await streamUiUi({
+            result = (await streamUiUi({
               aiPrompt: aiPrompt || 'Modern and Professional',
               aiModel,
               uiMode,
               contestants,
               criteria,
-            });
+            })) || { fromCache: false, generationId: null };
           } catch (cacheErr) {
+            cacheOk = false;
+            setAiGen(prev => ({ ...prev, status: 'error', error: cacheErr.message }));
             showToast("error", "Config saved, but the Default UI cache write failed: " + cacheErr.message);
           }
         }
-        showToast("success", "Configuration saved!");
+        if (cacheOk) {
+          setAiGen(prev => ({
+            ...prev,
+            status: 'done',
+            cached: !!result.fromCache,
+            generationId: result.generationId || null,
+          }));
+          showToast("success", "Configuration saved! Default Judge UI ready.");
+        }
       }
 
       await loadAllData();
@@ -244,6 +258,7 @@ function Dashboard() {
       // (cross-tab via BroadcastChannel).
       notifyConfigChanged();
     } catch (err) {
+      setAiGen(prev => ({ ...prev, active: false }));
       showToast("error", "Save failed: " + err.message);
     } finally {
       setSaving(false);
