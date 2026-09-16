@@ -49,20 +49,51 @@ export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 
   // Native <select> options — kept exactly as before, for the hidden compatibility select.
   const nativeOptionString = (max) => {
     let out = '<option value="">–</option>';
-    for (let i = 0; i <= max; i++) out += `<option value="${i}">${i}</option>`;
+    for (let i = max; i >= 0; i--) out += `<option value="${i}">${i}%</option>`;
     return out;
   };
 
   // Custom panel rows for the built dropdown. Every 10th value gets a divider line
-  // so long ranges (e.g. max 100) stay scannable.
+  // so long ranges (e.g. max 100) stay scannable. Listed highest-first and each
+  // labelled with its percentage (25 → "25%"), matching the criterion weight.
   const panelOptionString = (max) => {
     let out = `<div class="sts-dd-option" data-value="" role="option">–</div>`;
-    for (let i = 0; i <= max; i++) {
+    for (let i = max; i >= 0; i--) {
       const decadeClass = (i > 0 && i % 10 === 0) ? ' sts-dd-decade' : '';
-      out += `<div class="sts-dd-option${decadeClass}" data-value="${i}" role="option">${i}</div>`;
+      out += `<div class="sts-dd-option${decadeClass}" data-value="${i}" role="option">${i}%</div>`;
     }
     return out;
   };
+
+  // Inline style keys the adaptive panel overrides while open; cleared on close so
+  // the normal (in-table) layout returns the next time it is opened fresh.
+  const pnlReset = `['position','left','top','width','minWidth','maxHeight','bottom','right','transform','margin','zIndex']`;
+
+  // Constrain the open panel to the viewport so it can never overlap neighbouring
+  // columns or rows. On open the panel is pinned position:fixed at the trigger's
+  // co-ordinates, centred AND clamped to the screen edges, and flipped above the
+  // row when there isn't enough room below. Scrolling or resizing closes it and
+  // clears the pinned styles, so it adapts to any screen size.
+  const panelOpenJS =
+    `(function(){var d=this.closest('details');var p=d.querySelector('.sts-dd-panel');if(!d||!p)return;` +
+    `if(d.open){` +
+      `var s0=p.style;var rk=${pnlReset};rk.forEach(function(k){s0[k]='';});` +
+      `if(this.__h){window.removeEventListener('scroll',this.__h,true);window.removeEventListener('resize',this.__h);this.__h=null;}` +
+      `return;` +
+    `}` +
+    `var r=this.getBoundingClientRect();var vw=window.innerWidth||document.documentElement.clientWidth;var vh=window.innerHeight||document.documentElement.clientHeight;` +
+    `var w=Math.max(84,Math.min(r.width+16,200));var pad=10;` +
+    `var left=Math.max(pad,Math.min(r.left+(r.width-w)/2,Math.max(pad,vw-w-pad)));` +
+    `var maxH=Math.max(96,Math.min(224,vh-r.bottom-6-pad));` +
+    `var top=r.bottom+6;` +
+    `if(r.bottom+6+maxH>vh-pad){maxH=Math.max(96,Math.min(224,r.top-pad-6));top=Math.max(pad,r.top-maxH-6);}` +
+    `p.style.position='fixed';p.style.left=left+'px';p.style.top=top+'px';p.style.width=w+'px';p.style.minWidth='0';p.style.maxHeight=maxH+'px';p.style.zIndex='60';p.style.margin='0';p.style.right='auto';p.style.bottom='auto';p.style.transform='none';` +
+    `var s=this;var dd=d;var pnl=p;` +
+    `setTimeout(function(){if(s.__h)return;` +
+      `s.__h=function(){if(dd.open)dd.removeAttribute('open');var s1=pnl.style;var rk2=${pnlReset};rk2.forEach(function(k2){s1[k2]='';});};` +
+      `window.addEventListener('scroll',s.__h,true);window.addEventListener('resize',s.__h);` +
+    `},0);` +
+    `})();`;
 
   // One shared inline handler (per panel, not per option) — keeps markup light even
   // with 100+ options, and needs no external <script> tag to function.
@@ -74,14 +105,18 @@ export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 
     `d.querySelector('.sts-dd-value').textContent=t.textContent;` +
     `d.querySelectorAll('.sts-dd-option').forEach(function(o){o.classList.remove('is-selected')});` +
     `t.classList.add('is-selected');` +
-    `d.removeAttribute('open');`;
+    `d.removeAttribute('open');` +
+    `var sg=d.querySelector('summary');if(sg)if(sg.__h){window.removeEventListener('scroll',sg.__h,true);window.removeEventListener('resize',sg.__h);sg.__h=null;}`;
 
-  const scrimClickHandler = `this.closest('details').removeAttribute('open');`;
+  const scrimClickHandler =
+    `var d=this.closest('details');var sg=d.querySelector('summary');if(sg)if(sg.__h){window.removeEventListener('scroll',sg.__h,true);window.removeEventListener('resize',sg.__h);sg.__h=null;}` +
+    `var p=d.querySelector('.sts-dd-panel');if(p){var s0=p.style;var rk=${pnlReset};rk.forEach(function(k){s0[k]='';});}` +
+    `d.removeAttribute('open');`;
 
   const buildDropdown = (id, ariaLabel, max) => {
     return `<div class="sts-dd-wrap">` +
       `<details class="sts-dd">` +
-        `<summary class="sts-dd-trigger" aria-label="${escAttr(ariaLabel)}" aria-haspopup="listbox">` +
+        `<summary class="sts-dd-trigger" aria-label="${escAttr(ariaLabel)}" aria-haspopup="listbox" onclick="${escAttr(panelOpenJS)}">` +
           `<span class="sts-dd-value">–</span>` +
           `<svg class="sts-dd-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>` +
         `</summary>` +
@@ -519,9 +554,11 @@ export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 
     .sts-dd-panel {
       position: absolute;
       top: calc(100% + 6px);
-      left: 50%;
-      transform: translateX(-50%);
-      min-width: 92px;
+      left: 0;
+      right: 0;
+      margin: 0 auto;
+      width: 92px;
+      min-width: 0;
       max-height: 216px;
       overflow-y: auto;
       background: var(--c-surface);

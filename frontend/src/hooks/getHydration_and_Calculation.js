@@ -30,7 +30,7 @@ function sanitizeAiHtml(html, criteria) {
     const max = critId && maxByCriterion[critId] !== undefined ? maxByCriterion[critId] : 100;
     let options = '<option value="">-</option>';
     for (let i = max; i >= 0; i--) {
-      options += `<option value="${i}">${i}</option>`;
+      options += `<option value="${i}">${i}%</option>`;
     }
     select.innerHTML = options;
   });
@@ -100,7 +100,7 @@ export const getHydra_and_Calcu = (
         : 100;
       let options = '<option value="">-</option>';
       for (let i = max; i >= 0; i--) {
-        options += `<option value="${i}">${i}</option>`;
+        options += `<option value="${i}">${i}%</option>`;
       }
       select.innerHTML = options;
 

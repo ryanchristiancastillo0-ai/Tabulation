@@ -18,7 +18,7 @@ const SCORE_SELECT_RE = /<select([^>]*?\bid=['"]score[\w-]*['"])([\s\S]*?)<\/sel
 
 function buildOptions(max) {
   let opts = '<option value="">-</option>';
-  for (let i = 0; i <= max; i++) opts += `<option value="${i}">${i}</option>`;
+  for (let i = max; i >= 0; i--) opts += `<option value="${i}">${i}%</option>`;
   return opts;
 }
 

@@ -52,48 +52,48 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
   const portalName = sysConfig.portal_name || "CompPortal";
 
   return (
-    <aside className="w-64 shrink-0 flex flex-col bg-[#1B4332] border-r border-white/10 sticky top-0 h-screen overflow-y-auto transition-colors duration-250">
+    <aside className="w-56 shrink-0 flex flex-col bg-[#1B4332] border-r border-white/10 sticky top-0 h-screen overflow-y-auto transition-colors duration-250">
       {/* ── Logo / Brand ── */}
-      <div className="p-5 flex items-center gap-3 border-b border-white/10">
+      <div className="p-4 flex items-center gap-2.5 border-b border-white/10">
         <img
           src="/img/USAL_LOGO.png"
           alt="Logo"
-          className="w-11 h-11 object-contain rounded-full border border-white/20 shrink-0"
+          className="w-9 h-9 object-contain rounded-full border border-white/20 shrink-0"
           onError={(e) => { e.currentTarget.style.display = "none"; }}
         />
-        <div>
-          <div className="text-[15px] font-bold text-white tracking-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+        <div className="min-w-0">
+          <div className="text-sm font-bold text-white tracking-tight truncate" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
             {portalName}
           </div>
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-[#C9A227]">
+          <div className="text-[9px] font-semibold uppercase tracking-wider text-[#C9A227]">
             Administrator
           </div>
         </div>
       </div>
 
       {/* ── Badge pill ── */}
-      <div className="px-5 py-3">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#C9A227]/15 text-[#C9A227] border border-[#C9A227]/30">
+      <div className="px-4 py-2.5">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-[#C9A227]/15 text-[#C9A227] border border-[#C9A227]/30">
           <span className="w-1.5 h-1.5 rounded-full bg-[#C9A227] animate-pulse" />
           Administrator
         </div>
       </div>
 
       {/* ── Nav items ── */}
-      <nav className="flex-1 px-3 pb-3">
+      <nav className="flex-1 px-2.5 pb-3">
         {navItems.map((item) => {
           const active = activeTab === item.id;
           return (
             <button
               key={item.id}
               onClick={() => { setActiveNav?.(item.id); navigate('/admin/dashboard?tab=' + item.id); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md border mb-0.5 text-sm font-semibold cursor-pointer font-inherit transition-all duration-150 ${
+              className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-md border mb-0.5 text-[13px] font-semibold cursor-pointer font-inherit transition-all duration-150 ${
                 active
                   ? "border-[#C9A227]/30 bg-[#C9A227]/15 text-[#C9A227]"
                   : "border-transparent text-white/70 hover:bg-white/5 hover:text-white"
               }`}
             >
-              <div className={`w-7 h-7 rounded flex items-center justify-center shrink-0 ${
+              <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${
                 active ? "bg-[#C9A227]/20 text-[#C9A227]" : "bg-white/5 text-white/50"
               }`}>
                 {item.icon}
@@ -105,16 +105,16 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
       </nav>
 
       {/* ── Leaderboard ── */}
-      <div className="px-3 pb-2">
+      <div className="px-2.5 pb-2">
         <button
           onClick={() => navigate("/admin/leaderboard")}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md border text-sm font-semibold cursor-pointer font-inherit transition-all duration-150 ${
+          className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-md border text-[13px] font-semibold cursor-pointer font-inherit transition-all duration-150 ${
             isLeaderboardActive
               ? "border-rose-800/40 bg-rose-950/40 text-rose-200"
               : "border-transparent bg-transparent text-white/70 hover:bg-rose-950/30 hover:text-rose-200 hover:border-rose-900/30"
           }`}
         >
-          <div className={`w-7 h-7 rounded flex items-center justify-center shrink-0 ${
+          <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${
             isLeaderboardActive ? "bg-rose-900/40" : "bg-white/5"
           }`}>
             <TrophyIcon size={15} />
@@ -124,16 +124,16 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
       </div>
 
       {/* ── Settings / Profile ── */}
-      <div className="px-3 pb-2">
+      <div className="px-2.5 pb-2">
         <button
           onClick={() => navigate("/admin/settings")}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md border text-sm font-semibold cursor-pointer font-inherit transition-all duration-150 ${
+          className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-md border text-[13px] font-semibold cursor-pointer font-inherit transition-all duration-150 ${
             isSettingsActive
               ? "border-[#C9A227]/30 bg-[#C9A227]/15 text-[#C9A227]"
               : "border-transparent bg-transparent text-white/70 hover:bg-white/5 hover:text-white"
           }`}
         >
-          <div className={`w-7 h-7 rounded flex items-center justify-center shrink-0 ${
+          <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${
             isSettingsActive ? "bg-[#C9A227]/20 text-[#C9A227]" : "bg-white/5"
           }`}>
             <Settings size={15} />
@@ -143,10 +143,10 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
       </div>
 
       {/* ── Dark / Light toggle ── */}
-      <div className="px-3 pb-4">
+      <div className="px-2.5 pb-4">
         <button
           onClick={() => setDark(!dark)}
-          className="w-full flex items-center justify-between px-3 py-2.5 rounded-md border border-white/10 bg-white/5 text-white/80 text-sm font-medium cursor-pointer font-inherit"
+          className="w-full flex items-center justify-between px-2.5 py-2.5 rounded-md border border-white/10 bg-white/5 text-white/80 text-[13px] font-medium cursor-pointer font-inherit"
         >
           <span>{dark ? "Dark Mode" : "Light Mode"}</span>
           {dark ? <Moon size={15} className="text-[#C9A227]" /> : <Sun size={15} className="text-[#C9A227]" />}
@@ -154,12 +154,12 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
       </div>
 
       {/* ── Sign out ── */}
-      <div className="border-t border-white/10 p-3 pb-4">
+      <div className="border-t border-white/10 p-2.5 pb-4">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md border border-rose-900/40 bg-rose-950/30 text-rose-200 text-sm font-semibold cursor-pointer font-inherit transition-all duration-150 hover:bg-rose-950/50 hover:border-rose-800/50"
+          className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-md border border-rose-900/40 bg-rose-950/30 text-rose-200 text-[13px] font-semibold cursor-pointer font-inherit transition-all duration-150 hover:bg-rose-950/50 hover:border-rose-800/50"
         >
-          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0 bg-rose-900/30 text-rose-200">
+          <div className="w-6 h-6 rounded flex items-center justify-center shrink-0 bg-rose-900/30 text-rose-200">
             <LogOut size={15} />
           </div>
           Sign Out
