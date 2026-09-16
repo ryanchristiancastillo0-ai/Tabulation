@@ -64,17 +64,15 @@ function stripDuplicateSelects(root) {
   });
 }
 
-// Keeps the static percentage label beside the rich dropdown's trigger in sync
-// with the selected score (plain text, e.g. "21%"; "–" when nothing selected).
+// Keeps the dropdown's trigger label in sync with the selected score (plain
+// text number; "–" when nothing selected) so restored/saved scores are shown.
 function syncRichDisplay(select, dbVal) {
   const wrap = select.closest('.sts-dd-wrap');
   if (!wrap) return;
   const v = dbVal !== undefined && dbVal !== null ? String(dbVal) : select.value;
   const hasValue = v !== '' && v !== null && v !== undefined;
   const val = wrap.querySelector('.sts-dd-value');
-  const pct = wrap.querySelector('.sts-dd-pct');
   if (val) val.textContent = hasValue ? v.replace('%', '') : '–';
-  if (pct) pct.textContent = hasValue ? v.replace('%', '') + '%' : '–';
 }
 
 export const getHydra_and_Calcu = (

@@ -112,7 +112,6 @@ function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 1') {
     `sel.dispatchEvent(new Event('change',{bubbles:true}));` +
     `var v=t.getAttribute('data-value');var disp=(v===''||v==null)?'–':v.replace('%','');` +
     `d.querySelector('.sts-dd-value').textContent=disp;` +
-    `var pc=d.querySelector('.sts-dd-pct');if(pc)pc.textContent=(v===''||v==null)?'–':disp+'%';` +
     `d.querySelectorAll('.sts-dd-option').forEach(function(o){o.classList.remove('is-selected')});` +
     `t.classList.add('is-selected');` +
     `d.removeAttribute('open');` +
@@ -134,7 +133,6 @@ function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 1') {
         `</div>` +
         `<div class="sts-dd-scrim" onclick="${escAttr(scrimClickHandler)}"></div>` +
       `</details>` +
-      `<span class="sts-dd-pct">–</span>` +
       `<select class="score-dropdown" id="${id}" aria-hidden="true" tabindex="-1" style="display:none">` +
         nativeOptionString(max) +
       `</select>` +
@@ -553,15 +551,6 @@ function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 1') {
     .sts-dd-value {
       font-variant-numeric: tabular-nums;
       line-height: 1;
-    }
-    .sts-dd-pct {
-      font-size: 11px;
-      font-weight: 800;
-      color: var(--c-primary);
-      letter-spacing: 0.02em;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      margin-left: 6px;
     }
     .sts-dd-caret {
       color: var(--c-text-muted);
