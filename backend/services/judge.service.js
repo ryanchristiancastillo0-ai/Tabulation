@@ -40,9 +40,6 @@ function normalizeDropdownRanges(html, criteria) {
 }
 
 // ── Deterministic fallback table (no AI required) ───────────────────────────
-// Plain, self-styled scoring table that is ALWAYS available. Used whenever
-// the AI pipeline is unavailable / slow so the judge can start scoring right
-// away instead of sitting on a spinner forever. Dropdowns are 0..percentage.
 function buildScoreTableHtml({ contestants, criteria }) {
   if (!Array.isArray(contestants) || !Array.isArray(criteria)) return '';
   if (!contestants.length || !criteria.length) return '';
@@ -104,11 +101,6 @@ function buildScoreTableHtml({ contestants, criteria }) {
 }
 
 // ── Strip anything that is not part of the scoring grid ─────────────────────
-// Judges already have their own Submit button + status UI, so any <form>,
-// <button>, or <input> an LLM sneaks into the table is removed (balanced
-// open/close removal so rows containing them aren't mangled). It also forces
-// the number cell to show the literal entry number: if the LLM writes
-// "Candidate 1" / "#1 / name" etc., it is rewritten to exactly "1".
 function purgeNonScoringElements(html, contestants) {
   if (!html) return html;
   const str = String(html);
@@ -119,9 +111,6 @@ function purgeNonScoringElements(html, contestants) {
   if (!hasForm && !hasButton && !hasInput && !hasCand) return str;
   let out = str;
 
-  // Remove forms/inputs/buttons. A button's label is ALWAYS dropped (the judge
-  // page already has its own submit button); inner content is kept only when it
-  // carries real structure (e.g. a table element wrapped in a stray <button>).
   out = out.replace(/<form\b[^>]*>/gi, '');
   out = out.replace(/<\/form>/gi, '');
   out = out.replace(/<input\b[^>]*\/?>/gi, '');
@@ -131,7 +120,6 @@ function purgeNonScoringElements(html, contestants) {
     return '';
   });
 
-  // Fix placeholder number cells rendered beyond the entry number.
   out = out.replace(
     />Candidate\s+#?(\d+)</gi,
     (m, num) => `>${num}<`
@@ -141,7 +129,6 @@ function purgeNonScoringElements(html, contestants) {
     (m, num) => `>${num}</t${m.includes('/td') ? 'd' : 'h'}>`
   );
 
-  // If a "No."-style cell contains "Candidate <n>" as text, exact the number.
   const candidateCell = /(No[.,]?\s*[:|-]?\s*Candidates?\s*)(#?\d+)/gi;
   out = out.replace(candidateCell, (m, prefixVal, num) => num.replace('#', ''));
 
@@ -169,13 +156,6 @@ async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, s
   const finalModel = model || settings.ai_model || DEFAULT_MODEL;
   const finalUiMode = uiMode || settings.ui_mode || 'ai';
 
-  // Deterministic, EXACTLY the same "id:percentage" signature the frontend
-  // sends to /judge/render-ui-cached and getCachedUI() hashes with. Keeping
-  // this identical is what lets the background cache refresh actually hit the
-  // rows renderUI() saved — otherwise every load misses the cache and
-  // re-triggers an expensive AI generation. The model and ui_mode are part of
-  // the key so switching models or modes regenerates instead of serving a
-  // stale hash.
   const criteriaSignature = criteria
     .map((c) => `${c.id}:${c.percentage || 0}`)
     .join(',');
@@ -209,8 +189,6 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, school
     return { html: prep.html, promptHash: prep.configHash };
   }
 
-  // Default UI mode → skip the LLM entirely and serve the deterministic
-  // scoring table. Same shape the AI path ultimately produces, no AI needed.
   if (prep.finalUiMode === 'default') {
     const table = buildScoreTableHtml({ contestants, criteria });
     await pool.execute(
@@ -268,9 +246,6 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, school
   const tableHTML = await generateWithFallback(aiInstruction, prep.finalModel);
   const cleanTable = tableHTML.replace(/```html/g, '').replace(/```/g, '').trim();
 
-  // Never trust the LLM's option ranges or stray elements — repair every
-  // dropdown to 0..percentage, drop buttons/forms/inputs, and pin the No.
-  // column to the exact entry number before the result is cached and shown.
   const finalTable = normalizeDropdownRanges(
     purgeNonScoringElements(cleanTable, contestants),
     criteria
@@ -365,18 +340,41 @@ async function getMyScoresRaw(schoolId, judgeId) {
 }
 
 // ── CACHED UI (no AI, safe for background refresh) ──
-// Returns a deterministic table when nothing is cached so the judge UI is
-// never blocked waiting for AI — the config just has to exist in the DB.
-async function getCachedUI(schoolId, criteriaSignature) {
+//
+// ✅ FIX (this is the bug that was eating your prompt changes):
+//
+// Previously this function accepted ONLY (schoolId, criteriaSignature) and
+// read the prompt/model/ui_mode from the settings row. So the hash it
+// computed was based on whatever the settings table currently held. But the
+// browser tab just re-fetched config via STEP 1b and already had the NEW
+// prompt in memory. If the settings write hadn't propagated yet, the two
+// sides disagreed:
+//
+//     client computes localStorage key from  NEW prompt
+//     server computes cache hash from      OLD prompt  → returns OLD design
+//
+// The client then saved that OLD design into localStorage under the NEW
+// prompt's key — permanently poisoning the cache: every subsequent judge
+// load would read the poisoned local slot and show the old design forever,
+// even after the AI worker generated the correct new one.
+//
+// Now the client sends prompt/model/ui_mode as query params (see
+// judge.controller.js → renderUICached). We prefer those over the settings
+// row so the server computes the hash from the *same* values the browser
+// already has. Even during a settings-write race, the hash matches what the
+// browser expects, and the response is therefore safe to cache.
+async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiModelOverride, uiModeOverride) {
   if (!schoolId) throw new HttpError(400, 'school_id is required.');
 
   const [settings] = await pool.execute(
     'SELECT ai_prompt, ai_model, ui_mode FROM settings WHERE school_id = ? LIMIT 1',
     [schoolId]
   );
-  const aiPrompt = settings[0]?.ai_prompt || 'Modern and Professional';
-  const aiModel = settings[0]?.ai_model || DEFAULT_MODEL;
-  const uiMode = settings[0]?.ui_mode || 'ai';
+  // ✅ prefer the client's explicit values; fall back to settings only when
+  // the caller didn't supply them (e.g. an older client or an internal call).
+  const aiPrompt = aiPromptOverride || settings[0]?.ai_prompt || 'Modern and Professional';
+  const aiModel  = aiModelOverride  || settings[0]?.ai_model  || DEFAULT_MODEL;
+  const uiMode   = uiModeOverride   || settings[0]?.ui_mode   || 'ai';
 
   const configHash = crypto.createHash('md5')
     .update(aiPrompt + criteriaSignature + String(aiModel) + String(uiMode) + String(schoolId))

@@ -24,8 +24,6 @@ async function createGeneration({ schoolId, prompt, model }) {
   return { id: generationId, status: STATUS.QUEUED };
 }
 
-// School-scoped read — the authorization boundary. A caller can only see a
-// generation that belongs to the same school_id it supplies.
 async function getGeneration(id, schoolId) {
   const [rows] = await pool.execute(
     `SELECT g.id, g.school_id, g.status, g.prompt_hash, g.error,

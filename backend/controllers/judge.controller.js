@@ -22,7 +22,17 @@ exports.myScoresRaw = async (req, res) => {
   res.json(await judgeService.getMyScoresRaw(req.school_id, req.params.judgeId));
 };
 
+// ✅ FIX: forward prompt/model/ui_mode from the query string to the service.
+// Without this, getCachedUI had to read them from the settings row, which
+// races with the admin's own save and can serve the previous design (and
+// then poison localStorage under the new prompt's key — see judge.service.js).
 exports.renderUICached = async (req, res) => {
   touchSchoolActivity(req.school_id);
-  res.json(await judgeService.getCachedUI(req.school_id, req.query.criteria_signature));
+  res.json(await judgeService.getCachedUI(
+    req.school_id,
+    req.query.criteria_signature,
+    req.query.prompt,     // NEW
+    req.query.model,      // NEW
+    req.query.ui_mode,    // NEW
+  ));
 };
