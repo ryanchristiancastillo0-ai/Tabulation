@@ -34,5 +34,6 @@ exports.renderUICached = async (req, res) => {
     req.query.prompt,     // NEW
     req.query.model,      // NEW
     req.query.ui_mode,    // NEW
+    req.query.provider,   // NEW
   ));
 };

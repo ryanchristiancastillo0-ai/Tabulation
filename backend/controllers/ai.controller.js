@@ -29,9 +29,9 @@ exports.generate = async (req, res) => {
   const school_id = req.school_id;
   touchSchoolActivity(school_id);
 
-  const { contestants, criteria, aiPrompt, aiModel, uiMode, wait: waitBody } = req.body || {};
+  const { contestants, criteria, aiPrompt, aiModel, aiProvider, uiMode, wait: waitBody } = req.body || {};
 
-  console.log(`📥 [ai.generate] school=${school_id} prompt="${aiPrompt?.slice(0,80)}..." model=${aiModel} uiMode=${uiMode} wait=${waitBody} contestants=${contestants?.length} criteria=${criteria?.length}`);
+  console.log(`📥 [ai.generate] school=${school_id} prompt="${aiPrompt?.slice(0,80)}..." provider=${aiProvider} model=${aiModel} uiMode=${uiMode} wait=${waitBody} contestants=${contestants?.length} criteria=${criteria?.length}`);
 
   if (!aiPrompt)   throw new HttpError(400, 'Prompt is required.');
   if (!contestants?.length || !criteria?.length) {
@@ -52,7 +52,7 @@ exports.generate = async (req, res) => {
   console.log(`🔍 [ai.generate] wait flag evaluated: ${wait} (raw: ${JSON.stringify(req.body.wait)})`);
 
   const cached = await judgeService.prepareRender({
-    contestants, criteria, aiPrompt, model: aiModel, uiMode, school_id,
+    contestants, criteria, aiPrompt, model: aiModel, provider: aiProvider, uiMode, school_id,
   });
   console.log(`📋 [ai.generate] prepareRender cached.html=${!!cached.html} finalUiMode=${cached.finalUiMode} configHash=${cached.configHash?.slice(0,8)}`);
 
@@ -71,7 +71,7 @@ exports.generate = async (req, res) => {
   if (cached.finalUiMode === 'default') {
     console.log(`📋 [ai.generate] uiMode=default — rendering static table`);
     const { html } = await judgeService.renderUI({
-      contestants, criteria, aiPrompt, model: aiModel, uiMode, school_id,
+      contestants, criteria, aiPrompt, model: aiModel, provider: aiProvider, uiMode, school_id,
     });
     return res.status(200).json({
       success: true,

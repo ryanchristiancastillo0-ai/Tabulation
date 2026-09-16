@@ -2,7 +2,9 @@ const crypto = require('crypto');
 const pool = require('../config/db');
 const HttpError = require('../utils/http-error');
 const { rankValues, numeric } = require('../utils/ranks');
-const { generateWithFallback, DEFAULT_MODEL } = require('../config/ai');
+const aiModels = require('../ai/ai-models');
+const aiService = require('../ai/ai-service');
+const { DEFAULT_MODEL } = aiModels;
 
 // Dedupes concurrent LLM rendering for the SAME config (prompt + criteria +
 // model + ui_mode + school). Both the admin's save-time prewarm and a judge
@@ -142,34 +144,47 @@ function purgeNonScoringElements(html, contestants) {
 }
 
 // ── Prepare: validate input + check ui_cache, one source of hash logic ──────
-async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, school_id }) {
+async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, provider, school_id }) {
   if (!school_id) throw new HttpError(400, 'school_id is required.');
   if (!contestants?.length || !criteria?.length) {
     throw new HttpError(400, 'contestants and criteria are required.');
   }
 
   const [rows] = await pool.execute(
-    'SELECT contest_name, ai_prompt, ai_model, ui_mode FROM settings WHERE school_id = ? LIMIT 1',
+    'SELECT contest_name, ai_prompt, ai_model, ai_provider, ui_mode FROM settings WHERE school_id = ? LIMIT 1',
     [school_id]
   );
   const settings = rows[0] || {
     contest_name: 'Event',
     ai_prompt: 'Modern and Professional',
     ai_model: DEFAULT_MODEL,
+    ai_provider: 'unorouter',
     ui_mode: 'ai',
   };
   const finalDesignGoal = aiPrompt || settings.ai_prompt || 'Modern and Professional';
-  const finalModel = model || settings.ai_model || DEFAULT_MODEL;
   const finalUiMode = uiMode || settings.ui_mode || 'ai';
 
-  console.log(`🔧 [prepareRender] school=${school_id} uiMode=${finalUiMode} model=${finalModel} prompt="${finalDesignGoal?.slice(0,60)}..." contestants=${contestants.length} criteria=${criteria.length}`);
+  // Resolve + coerce to a VALID provider/model combination. save-config rejects
+  // invalid pairs strictly; this soft coercion only protects internal/legacy
+  // callers from a stale value in the settings row (e.g. pre-migration data).
+  const providerEntry = aiModels.getProvider(provider || settings.ai_provider);
+  const finalProvider = providerEntry ? providerEntry.name : 'unorouter';
+  const rawModel = String(model || settings.ai_model || DEFAULT_MODEL).toLowerCase();
+  const finalModel = aiModels.hasModel(finalProvider, rawModel)
+    ? rawModel
+    : (aiModels.listModels(finalProvider)[0] || DEFAULT_MODEL);
+
+  console.log(`🔧 [prepareRender] school=${school_id} provider=${finalProvider} uiMode=${finalUiMode} model=${finalModel} prompt="${finalDesignGoal?.slice(0,60)}..." contestants=${contestants.length} criteria=${criteria.length}`);
 
   const criteriaSignature = criteria
     .map((c) => `${c.id}:${c.percentage || 0}`)
     .join(',');
 
+  // The provider is part of the cache key: the same prompt + model can produce
+  // different HTML on different providers, so a UnoRouter design must never be
+  // served when the admin switched to Gemini (or vice versa).
   const configHash = crypto.createHash('md5')
-    .update(finalDesignGoal + criteriaSignature + String(finalModel) + String(finalUiMode) + String(school_id))
+    .update(`${finalProvider}|${finalDesignGoal}|${criteriaSignature}|${finalModel}|${finalUiMode}|${school_id}`)
     .digest('hex');
 
   console.log(`🔐 [prepareRender] configHash=${configHash.slice(0,16)} criteriaSig=${criteriaSignature}`);
@@ -183,6 +198,7 @@ async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, s
 
   return {
     settings,
+    finalProvider,
     finalDesignGoal,
     finalModel,
     finalUiMode,
@@ -193,30 +209,11 @@ async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, s
   };
 }
 
-// ── RENDER JUDGE SCORING TABLE (AI-generated) ──
-async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, school_id }) {
-  const prep = await prepareRender({ contestants, criteria, aiPrompt, model, uiMode, school_id });
-
-  if (prep.html) {
-    console.log(`⚡ [renderUI] returning cached HTML hash=${prep.configHash.slice(0,8)}`);
-    return { html: prep.html, promptHash: prep.configHash };
-  }
-
-  if (prep.finalUiMode === 'default') {
-    console.log(`📋 [renderUI] uiMode=default — building static table`);
-    const table = buildScoreTableHtml({ contestants, criteria });
-    await pool.execute(
-      `INSERT INTO ui_cache (prompt_hash, school_id, html_content)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         html_content = VALUES(html_content)`,
-      [prep.configHash, school_id, table]
-    );
-    console.log(`✅ [renderUI] static table cached hash=${prep.configHash.slice(0,8)}`);
-    return { html: table, promptHash: prep.configHash };
-  }
-
-  const aiInstruction = `
+// ── AI prompt builder (shared by one-shot renderUI and the admin stream) ─────
+// ONE source of truth for the LLM instruction — the streamed admin generation
+// and the (legacy) judge-side generation always send byte-identical prompts.
+function buildAiInstruction(prep) {
+  return `
     Act as a Senior Tailwind Developer.
     [THEME]: "${prep.finalDesignGoal}"
 
@@ -242,12 +239,12 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, school
 
     [CONTEXT]:
     - Contest: ${prep.settings.contest_name}
-    - Data: ${JSON.stringify(contestants.map(c => ({ id: c.id, n: c.name, num: c.entry_number })))}
-    - Criteria: ${JSON.stringify(criteria.map(cr => ({ id: cr.id, name: cr.name, percentage: cr.percentage })))}
+    - Data: ${JSON.stringify((prep.contestants || []).map(c => ({ id: c.id, n: c.name, num: c.entry_number })))}
+    - Criteria: ${JSON.stringify((prep.criteria || []).map(cr => ({ id: cr.id, name: cr.name, percentage: cr.percentage })))}
 
     [MANDATORY]:
-    - Render EXACTLY ${contestants.length} rows.
-    - Columns: No., Name, ${criteria.map(c => `${c.name} (${c.percentage}%)`).join(', ')}, Total, Rank.
+    - Render EXACTLY ${prep.contestants?.length || 0} rows.
+    - Columns: No., Name, ${(prep.criteria || []).map(c => `${c.name} (${c.percentage}%)`).join(', ')}, Total, Rank.
     - The No. column MUST show ONLY the literal entry number (1, 2, 3, …). Never prefix it with "Candidate", "#", "No." etc. If the contestant is number 1, that cell must contain exactly "1".
     - Each criteria column header MUST show name AND percentage: "Performance (60%)"
     - Dropdowns must have options from the criterion's percentage down to 0 in DESCENDING order (e.g. a 25% criterion gets exactly 25, 24, 23, ... 1, 0; a 100% criterion gets 100, 99, ... 1, 0). NEVER use a hard-coded 0-100 or 1-100 range. class="score-dropdown" id="score-{cId}-{crId}"
@@ -257,6 +254,42 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, school
 
     [OUTPUT]: Return ONLY a <div> with a Tailwind <table>. No markdown. Do NOT include any <button>, <form>, or <input> elements — the scoring page already provides its own Submit button.
   `;
+}
+
+// ── Finalize raw LLM text into the exact HTML the judge renders ──────────────
+// strip code fences → purge any stray buttons/forms/inputs → rebuild every
+// dropdown range from the criteria. Shared by the one-shot path and the admin
+// stream so both store byte-identical results in ui_cache.
+function finalizeAiHtml(rawText, contestants, criteria) {
+  const cleanTable = String(rawText || '').replace(/```html/g, '').replace(/```/g, '').trim();
+  return normalizeDropdownRanges(
+    purgeNonScoringElements(cleanTable, contestants),
+    criteria
+  );
+}
+
+// ── RENDER JUDGE SCORING TABLE (AI-generated) ──
+async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, provider, school_id }) {
+  const prep = await prepareRender({ contestants, criteria, aiPrompt, model, uiMode, provider, school_id });
+
+  if (prep.html) {
+    console.log(`⚡ [renderUI] returning cached HTML hash=${prep.configHash.slice(0,8)}`);
+    return { html: prep.html, promptHash: prep.configHash };
+  }
+
+  if (prep.finalUiMode === 'default') {
+    console.log(`📋 [renderUI] uiMode=default — building static table`);
+    const table = buildScoreTableHtml({ contestants, criteria });
+    await pool.execute(
+      `INSERT INTO ui_cache (prompt_hash, school_id, html_content)
+       VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         html_content = VALUES(html_content)`,
+      [prep.configHash, school_id, table]
+    );
+    console.log(`✅ [renderUI] static table cached hash=${prep.configHash.slice(0,8)}`);
+    return { html: table, promptHash: prep.configHash };
+  }
 
   const hash = prep.configHash;
   const inflight = renderInflight.get(hash);
@@ -265,16 +298,17 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, school
     return inflight;
   }
 
-  console.log(`🤖 [renderUI] calling generateWithFallback model=${prep.finalModel} promptLength=${aiInstruction.length}`);
+  const instruction = buildAiInstruction(prep);
+  console.log(`🤖 [renderUI] calling ai-service provider=${prep.finalProvider} model=${prep.finalModel} promptLength=${instruction.length}`);
   const job = (async () => {
-    const tableHTML = await generateWithFallback(aiInstruction, prep.finalModel);
-    console.log(`📥 [renderUI] generateWithFallback returned length=${tableHTML.length} RESPONSE_PREVIEW="${tableHTML.slice(0, 300).replace(/\s+/g, ' ')}"`);
-    const cleanTable = tableHTML.replace(/```html/g, '').replace(/```/g, '').trim();
+    const tableHTML = await aiService.generate({
+      provider: prep.finalProvider,
+      model: prep.finalModel,
+      prompt: instruction,
+    });
+    console.log(`📥 [renderUI] ai response returned length=${tableHTML.length} RESPONSE_PREVIEW="${tableHTML.slice(0, 300).replace(/\s+/g, ' ')}"`);
 
-    const finalTable = normalizeDropdownRanges(
-      purgeNonScoringElements(cleanTable, contestants),
-      criteria
-    );
+    const finalTable = finalizeAiHtml(tableHTML, contestants, criteria);
 
     await pool.execute(
       `INSERT INTO ui_cache (prompt_hash, school_id, html_content)
@@ -393,11 +427,11 @@ async function getMyScoresRaw(schoolId, judgeId) {
 // row so the server computes the hash from the *same* values the browser
 // already has. Even during a settings-write race, the hash matches what the
 // browser expects, and the response is therefore safe to cache.
-async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiModelOverride, uiModeOverride) {
+async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiModelOverride, uiModeOverride, aiProviderOverride) {
   if (!schoolId) throw new HttpError(400, 'school_id is required.');
 
   const [settings] = await pool.execute(
-    'SELECT ai_prompt, ai_model, ui_mode FROM settings WHERE school_id = ? LIMIT 1',
+    'SELECT ai_prompt, ai_model, ai_provider, ui_mode FROM settings WHERE school_id = ? LIMIT 1',
     [schoolId]
   );
   // ✅ prefer the client's explicit values; fall back to settings only when
@@ -405,9 +439,13 @@ async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiMode
   const aiPrompt = aiPromptOverride || settings[0]?.ai_prompt || 'Modern and Professional';
   const aiModel  = aiModelOverride  || settings[0]?.ai_model  || DEFAULT_MODEL;
   const uiMode   = uiModeOverride   || settings[0]?.ui_mode   || 'ai';
+  const providerEntry = aiModels.getProvider(aiProviderOverride || settings[0]?.ai_provider);
+  const provider = providerEntry ? providerEntry.name : 'unorouter';
 
+  // Provider is part of the hash — MUST match prepareRender exactly so the judge
+  // and the admin generator agree on the same cache row for the same provider.
   const configHash = crypto.createHash('md5')
-    .update(aiPrompt + criteriaSignature + String(aiModel) + String(uiMode) + String(schoolId))
+    .update(`${provider}|${aiPrompt}|${criteriaSignature}|${aiModel}|${uiMode}|${schoolId}`)
     .digest('hex');
 
   const [cache] = await pool.execute(
@@ -455,6 +493,8 @@ module.exports = {
   getMyScores,
   getMyScoresRaw,
   getCachedUI,
+  buildAiInstruction,
+  finalizeAiHtml,
   buildScoreTableHtml,
   normalizeDropdownRanges,
   purgeNonScoringElements,

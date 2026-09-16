@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/data.controller');
+const streamCtrl = require('../controllers/ai-stream.controller');
 const { requireAuth } = require('../middleware/auth');
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,11 +20,13 @@ router.get('/public/active-schools', ctrl.publicActiveSchools);
 router.use(requireAuth);
 
 router.get('/get-all-data', ctrl.getAllData);
+router.get('/ai-models', ctrl.aiModels);
 router.get('/leaderboard', ctrl.leaderboard);
 router.get('/judge/ids', ctrl.judgeIds);
 router.get('/judge/my-scores', ctrl.judgeMyScores);
 router.delete('/reset-data', ctrl.resetData);
 router.post('/save-config', ctrl.saveConfig);
+router.post('/stream-ui', streamCtrl.stream);
 router.get('/system-config', ctrl.systemConfig);
 router.post('/save-system-config', ctrl.saveSystemConfig);
 

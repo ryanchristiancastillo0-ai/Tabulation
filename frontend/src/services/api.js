@@ -12,7 +12,7 @@ import { getSchoolId, tokenSchoolId } from '../utils/getSchoolId';
 // school dashboards in different tabs never share/overwrite a single global
 // token. Legacy single 'adminToken' is only used when it belongs to the
 // school this tab is currently showing.
-function getToken() {
+export function getToken() {
   try {
     const sid = String(getSchoolId());
     const scoped = localStorage.getItem(`admin_token_${sid}`);

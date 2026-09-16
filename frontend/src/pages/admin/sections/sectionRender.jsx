@@ -157,6 +157,7 @@ const SectionRender = ({
   contestName, setContestName,
   contestType, setContestType,
   aiPrompt, setAiPrompt,
+  aiProvider, setAiProvider,
   aiModel, setAiModel,
   uiMode, setUiMode,
   judgeCount, setJudgeCount,
@@ -179,6 +180,7 @@ const SectionRender = ({
   footerText, setFooterText,
   logoRadius, setLogoRadius,
   headerTemplate, setHeaderTemplate,
+  aiGen,
 }) => {
   const { isJudgeLocked } = useContestContext();
 
@@ -214,9 +216,11 @@ const SectionRender = ({
       {activeNav === 'ai' && (
         <AIConfigSection
           aiPrompt={aiPrompt} setAiPrompt={setAiPrompt}
+          aiProvider={aiProvider} setAiProvider={setAiProvider}
           aiModel={aiModel} setAiModel={setAiModel}
           uiMode={uiMode} setUiMode={setUiMode}
           contestants={contestants} criteria={criteria} contestName={contestName}
+          aiGen={aiGen}
         />
       )}
       {activeNav === 'criteria' && (

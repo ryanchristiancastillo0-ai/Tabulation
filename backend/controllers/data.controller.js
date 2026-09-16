@@ -1,5 +1,11 @@
 const HttpError = require('../utils/http-error');
 const dataService = require('../services/data.service');
+const aiModels = require('../ai/ai-models');
+
+// ── SAFE AI MODEL METADATA (no credentials — names + ids only) ──
+exports.aiModels = async (req, res) => {
+  res.json({ success: true, providers: aiModels.safeModelMetadata() });
+};
 
 // ── PUBLIC ROUTES ──
 exports.publicSystemConfig = async (req, res) => {

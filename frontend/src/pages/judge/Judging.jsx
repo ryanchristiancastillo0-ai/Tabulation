@@ -6,7 +6,7 @@ import {GlobalStyles} from './components/GlobalStyles'
 import {CriteriaHeader,EncryptedBadge,CardHeaderStrip,
   
   JudgeFooter,JudgeHeader,
-  ScoringCard,StatusModal,SubmitButton,AiDebugConsole
+  ScoringCard,StatusModal,SubmitButton
 } from './components'
 
 function JudgeTable() {
@@ -16,6 +16,7 @@ function JudgeTable() {
     config,
     loading,
     uiRefreshing,
+    uiPending,
     waitSeconds,
     isComplete,
     modal,
@@ -23,7 +24,6 @@ function JudgeTable() {
     closeModal,
     submitToDB,
     updateJudge,
-    aiDebug,
   } = useJudgeSystem();
 
   const sysConfig     = useSystemConfig();
@@ -36,6 +36,39 @@ function JudgeTable() {
 
   const primary   = sysConfig.primary_color   || '#1B4332';
   const secondary = sysConfig.secondary_color || '#2D6A4F';
+
+  // While the admin is still generating (empty ui_cache) and nothing can be
+  // shown yet, display a friendly "being generated" placeholder instead of a
+  // broken table. Refreshes automatically via syncNow + the ui_cache poll.
+  const pendingUI = uiPending && !tableHtml && !loading;
+
+  const body = pendingUI ? (
+    <div
+      className="flex flex-col items-center justify-center gap-4 py-24"
+      style={{ background: '#FAFBFA' }}
+    >
+      <div
+        className="h-10 w-10 rounded-full animate-spin"
+        style={{ border: `3px solid ${primary}25`, borderTopColor: primary }}
+      />
+      <div className="text-center">
+        <p className="font-semibold" style={{ color: '#14201A', fontSize: 15 }}>
+          UI being generated
+        </p>
+        <p className="mt-1 text-sm" style={{ color: '#66736B' }}>
+          The organizer is designing the scoring interface — it will appear here
+          automatically in a few moments.
+        </p>
+      </div>
+    </div>
+  ) : (
+    <ScoringCard
+      tableHtml={tableHtml}
+      loading={loading}
+      refreshing={uiRefreshing}
+      waitSeconds={waitSeconds}
+    />
+  );
 
   return (
     <div
@@ -82,14 +115,7 @@ function JudgeTable() {
         >
           <CardHeaderStrip primary={primary} secondary={secondary} selectedJudge={selectedJudge} />
 
-          <ScoringCard
-            tableHtml={tableHtml}
-            loading={loading}
-            refreshing={uiRefreshing}
-            waitSeconds={waitSeconds}
-          />
-
-          <AiDebugConsole debug={aiDebug} />
+          {body}
         </div>
 
         <div className="mt-6 sm:mt-10 flex flex-col items-center gap-3 sm:gap-4 pb-4">

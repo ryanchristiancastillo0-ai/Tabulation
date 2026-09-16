@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import AdminLayout from "../../layouts/AdminLayout";
 import Button from "../../components/ui/Button";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import SectionRender from "./sections/sectionRender"
+import AiGenerationTerminal from "./components/AiGenerationTerminal";
+import { streamUiUi } from "../../utils/streamUi";
 import apiClient from "../../services/api";
 import { useConfigChange } from '../../context/ConfigChangeContext';
 
@@ -17,7 +19,8 @@ function Dashboard() {
   const [contestName,     setContestName]     = useState("");
   const [contestType,     setContestType]     = useState("pageant");
   const [aiPrompt,        setAiPrompt]        = useState("");
-  const [aiModel,         setAiModel]         = useState("qwen3.8-flash");
+  const [aiProvider,      setAiProvider]      = useState("unorouter");
+  const [aiModel,         setAiModel]         = useState("codestral-latest");
   const [uiMode,          setUiMode]          = useState("ai");
   const [judgeCount,      setJudgeCount]      = useState(3);
   const [calculationType, setCalculationType] = useState("average");
@@ -50,6 +53,29 @@ function Dashboard() {
   const [toast,           setToast]           = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [saving,          setSaving]          = useState(false);
+
+  // ── AI generation terminal state ───────────────────────────────────────────
+  const [aiGen, setAiGen] = useState({
+    active: false, status: 'idle', text: '', error: '',
+    model: '', startedAt: null, cached: false, generationId: null,
+  });
+  const genTextRef      = useRef('');
+  const genFlushTimer   = useRef(null);
+  const genAbortRef     = useRef(null);
+
+  const flushGenText = () => {
+    genFlushTimer.current = null;
+    setAiGen(prev => ({ ...prev, text: genTextRef.current }));
+  };
+  const appendGenText = (delta) => {
+    genTextRef.current += delta;
+    if (!genFlushTimer.current) genFlushTimer.current = setTimeout(flushGenText, 80);
+  };
+  const closeAiGen = () => {
+    if (genAbortRef.current) genAbortRef.current.abort();
+    if (genFlushTimer.current) { clearTimeout(genFlushTimer.current); genFlushTimer.current = null; }
+    setAiGen(prev => ({ ...prev, active: false }));
+  };
 
   // Keep activeNav in sync with the ?tab= query param (set by the sidebar)
   useEffect(() => {
@@ -88,7 +114,8 @@ function Dashboard() {
       setContestName(settings.contest_name ?? "");
       setContestType(settings.contest_type ?? "pageant");
       setAiPrompt(settings.ai_prompt ?? "");
-      setAiModel(settings.ai_model ?? "qwen3.8-flash");
+      setAiProvider(settings.ai_provider ?? "unorouter");
+      setAiModel(settings.ai_model ?? "codestral-latest");
       setUiMode(settings.ui_mode ?? "ai");
       setJudgeCount(Number(settings.judge_count ?? 3));
       setCalculationType(settings.computation_type ?? "average");
@@ -124,6 +151,10 @@ function Dashboard() {
   useEffect(() => { loadAllData(); }, []);
 
   // ── Save ──────────────────────────────────────────────────────────────────
+  // Flow (AI mode): save settings first → open the streaming terminal → the
+  // backend streams the LLM code into ui_cache in real time. The Save button
+  // stays locked ("Generating UI…") until the AI finishes, so the admin always
+  // knows the design is fully saved before the judges can grab it.
   const onSave = async () => {
     setSaving(true);
     try {
@@ -132,6 +163,7 @@ function Dashboard() {
         contest_type:     contestType,
         ai_prompt:        aiPrompt,
         ai_model:         aiModel,
+        ai_provider:      aiProvider,
         ui_mode:          uiMode,
         judge_count:      judgeCount,
         computation_type: calculationType,
@@ -148,10 +180,51 @@ function Dashboard() {
         footer_text:     footerText,    logo_radius:     logoRadius,
         header_template: headerTemplate,
       });
-      showToast("success", "Configuration saved!");
+
+      if (uiMode === "ai") {
+        genTextRef.current = '';
+        if (genFlushTimer.current) { clearTimeout(genFlushTimer.current); genFlushTimer.current = null; }
+        genAbortRef.current = new AbortController();
+        const startedAt = Date.now();
+        setAiGen({ active: true, status: 'streaming', text: '', error: '', model: aiModel, startedAt, cached: false, generationId: null });
+
+        try {
+          const result = await streamUiUi({
+            aiPrompt: aiPrompt || 'Modern and Professional',
+            aiModel,
+            uiMode,
+            contestants,
+            criteria,
+            signal: genAbortRef.current.signal,
+            onDelta: appendGenText,
+          });
+          if (genFlushTimer.current) { clearTimeout(genFlushTimer.current); genFlushTimer.current = null; }
+          setAiGen(prev => ({
+            ...prev,
+            text: genTextRef.current,
+            status: 'done',
+            cached: !!result.fromCache,
+            generationId: result.generationId || null,
+          }));
+          showToast("success", "Configuration saved! AI Judge UI generated.");
+        } catch (genErr) {
+          if (genFlushTimer.current) { clearTimeout(genFlushTimer.current); genFlushTimer.current = null; }
+          if (genErr && genErr.name === 'AbortError') {
+            setAiGen(prev => ({ ...prev, status: 'error', error: 'Generation stopped by you. The saved design will not appear until it finishes.' }));
+          } else {
+            setAiGen(prev => ({ ...prev, status: 'error', error: genErr.message }));
+            showToast("error", "Config saved, but AI UI failed: " + genErr.message);
+          }
+        } finally {
+          genAbortRef.current = null;
+        }
+      } else {
+        showToast("success", "Configuration saved!");
+      }
+
       await loadAllData();
-      // Notify any open judge tabs immediately so they show the loading
-      // spinner and regenerate the UI (cross-tab via BroadcastChannel).
+      // Notify any open judge tabs immediately so they fetch the new design
+      // (cross-tab via BroadcastChannel).
       notifyConfigChanged();
     } catch (err) {
       showToast("error", "Save failed: " + err.message);
@@ -182,7 +255,7 @@ function Dashboard() {
       variant="primary"
       full={full}
       loading={saving}
-      loadingText="Saving…"
+      loadingText={uiMode === "ai" ? "Generating UI…" : "Saving…"}
       onClick={onSave}
       disabled={saving}
     >
@@ -229,6 +302,7 @@ function Dashboard() {
               contestName={contestName}         setContestName={setContestName}
               contestType={contestType}         setContestType={setContestType}
               aiPrompt={aiPrompt}               setAiPrompt={setAiPrompt}
+              aiProvider={aiProvider}           setAiProvider={setAiProvider}
               aiModel={aiModel}                  setAiModel={setAiModel}
               uiMode={uiMode}                    setUiMode={setUiMode}
               judgeCount={judgeCount}           setJudgeCount={setJudgeCount}
@@ -252,6 +326,7 @@ function Dashboard() {
               footerText={footerText}           setFooterText={setFooterText}
               logoRadius={logoRadius}           setLogoRadius={setLogoRadius}
               headerTemplate={headerTemplate}   setHeaderTemplate={setHeaderTemplate}
+              aiGen={aiGen}
             />
           </AdminLayout>
 
@@ -270,6 +345,19 @@ function Dashboard() {
           <span>{toast.type === "error" ? "✗" : "✓"}</span> {toast.msg}
         </div>
       )}
+
+      <AiGenerationTerminal
+        variant="modal"
+        open={aiGen.active}
+        status={aiGen.status}
+        text={aiGen.text}
+        error={aiGen.error}
+        model={aiGen.model}
+        startedAt={aiGen.startedAt}
+        cached={aiGen.cached}
+        generationId={aiGen.generationId}
+        onClose={closeAiGen}
+      />
 
       <ConfirmDialog
         isOpen={showDeleteModal}

@@ -1,9 +1,9 @@
 const pool = require('../config/db');
 const HttpError = require('../utils/http-error');
+const aiModels = require('../ai/ai-models');
 const { rankValues, numeric } = require('../utils/ranks');
 const { ACTIVE_WINDOW_MINUTES } = require('../utils/activity');
 const { cacheGetJson, cacheSetJson, cacheDel, cacheDelPattern, CACHE_TTL_SECONDS } = require('../utils/mem-cache');
-const judgeService = require('./judge.service');
 
 const allDataKey      = (schoolId) => `public:get-all-data:${schoolId}`;
 const systemConfigKey = (schoolId) => `public:system-config:${schoolId}`;
@@ -72,47 +72,6 @@ async function invalidateSchoolCaches(schoolId, { system = false, ui = true } = 
   await cacheDel(allDataKey(schoolId));
   if (system) await cacheDel(systemConfigKey(schoolId));
   if (ui)     await cacheDelPattern(schoolUiKey(schoolId));
-}
-
-// ── AI Judge UI prewarm (fire-and-forget) ─────────────────────────────────
-// When the admin saves the contest config we generate the Judge UI right away
-// (in the background, without blocking the save response) and store it in the
-// ui_cache table. This makes "save a new design prompt → open the judge →
-// instantly see the new design" actually work: the judge page fetches the fresh
-// cached HTML from ui_cache instead of finding it empty and showing the plain
-// template table while B.AI thinks for a minute.
-const prewarming = new Set(); // schoolId → in-flight guard
-function prewarmJudgeUi(schoolId) {
-  (async () => {
-    const key = String(schoolId);
-    if (prewarming.has(key)) {
-      console.log(`♻️ [prewarm] already running school=${key}`);
-      return;
-    }
-    prewarming.add(key);
-    try {
-      const all         = await getAllData(schoolId);
-      const contestants = all.contestants || [];
-      const criteria    = all.criteria    || [];
-      if (!contestants.length || !criteria.length) {
-        console.log(`⏭️ [prewarm] nothing to render school=${schoolId}`);
-        return;
-      }
-      const result = await judgeService.renderUI({
-        contestants,
-        criteria,
-        aiPrompt: all.settings?.ai_prompt || undefined,
-        model:    all.settings?.ai_model  || undefined,
-        uiMode:   all.settings?.ui_mode   || undefined,
-        school_id: schoolId,
-      });
-      console.log(`🔆 [prewarm] cached judge UI school=${schoolId} hash=${String(result?.promptHash || '').slice(0, 8)} len=${result?.html?.length || 0}`);
-    } catch (err) {
-      console.error(`❌ [prewarm] failed school=${schoolId}:`, err.message);
-    } finally {
-      prewarming.delete(key);
-    }
-  })();
 }
 
 // ── LEADERBOARD (average or rank-sum) ──
@@ -276,7 +235,7 @@ async function resetData(schoolId) {
     await connection.execute('DELETE FROM criteria     WHERE school_id = ?', [schoolId]);
     await connection.execute(
       `UPDATE settings SET contest_name = '', judge_count = 3, ai_prompt = 'Modern and Professional',
-       ai_model = 'qwen3.8-flash',
+       ai_model = 'codestral-latest', ai_provider = 'unorouter',
        computation_type = 'average', custom_base = 'average', tie_break_method = 'midrank',
        contest_type = 'pageant', is_judge_locked = 0, ui_mode = 'ai'
        WHERE school_id = ?`,
@@ -298,10 +257,10 @@ async function saveConfig(schoolId, body) {
   const {
     contest_name, judge_count, ai_prompt, contestants,
     criteria, computation_type, contest_type, is_judge_locked,
-    custom_base, tie_break_method, ai_model, ui_mode,
+    custom_base, tie_break_method, ai_model, ai_provider, ui_mode,
   } = body;
 
-  console.log(`💾 [saveConfig] school=${schoolId} prompt="${ai_prompt?.slice(0,60)}..." model=${ai_model} ui_mode=${ui_mode} contestants=${contestants?.length} criteria=${criteria?.length}`);
+  console.log(`💾 [saveConfig] school=${schoolId} provider=${ai_provider} prompt="${ai_prompt?.slice(0,60)}..." model=${ai_model} ui_mode=${ui_mode} contestants=${contestants?.length} criteria=${criteria?.length}`);
 
   // Diff helpers — skip delete/re-insert (and the score wipe + judge UI
   // refresh that follows) when the incoming row set already matches the DB
@@ -339,12 +298,13 @@ async function saveConfig(schoolId, body) {
     // can reset the persisted AI UI cache (ui_cache) on exactly those saves.
     let promptChanged = false;
     let modelChanged = false;
+    let providerChanged = false;
     let modeChanged = false;
 
     // Use explicit UPDATE instead of INSERT ... ON DUPLICATE KEY UPDATE VALUES()
     // VALUES() is deprecated in MySQL 8+ and causes unpredictable multi-row updates
     const [existing] = await connection.execute(
-      'SELECT id, ai_prompt, ai_model, ui_mode FROM settings WHERE school_id = ? LIMIT 1',
+      'SELECT id, ai_prompt, ai_model, ai_provider, ui_mode FROM settings WHERE school_id = ? LIMIT 1',
       [schoolId]
     );
 
@@ -356,13 +316,29 @@ async function saveConfig(schoolId, body) {
       contest_type:     () => contest_type ?? 'pageant',
       judge_count:      () => judge_count ?? 3,
       ai_prompt:        () => ai_prompt ?? '',
-      ai_model:         () => ai_model ?? 'qwen3.8-flash',
+      ai_model:         () => ai_model ?? 'codestral-latest',
+      ai_provider:      () => ai_provider ?? 'unorouter',
       ui_mode:          () => ui_mode ?? 'ai',
       computation_type: () => computation_type ?? 'average',
       custom_base:      () => custom_base ?? 'average',
       tie_break_method: () => tie_break_method ?? 'midrank',
       is_judge_locked:  () => is_judge_locked ?? 0,
     };
+
+    // Backend validation — never trust frontend values. When the admin saves an
+    // AI provider and/or model, the resulting combination MUST be one of the
+    // allowed ones from the centralized config (UnoRouter/Gemini + their
+    // configured model ids). Invalid pairs are rejected outright.
+    if (Object.prototype.hasOwnProperty.call(body, 'ai_provider') ||
+        Object.prototype.hasOwnProperty.call(body, 'ai_model')) {
+      const currentProvider = ai_provider || existing[0]?.ai_provider || 'unorouter';
+      const currentModel = ai_model || existing[0]?.ai_model || 'codestral-latest';
+      try {
+        aiModels.assertValidProviderModel(currentProvider, currentModel);
+      } catch (err) {
+        throw new HttpError(400, err.message);
+      }
+    }
 
     if (existing.length > 0) {
       // Row exists — UPDATE only this school's row, and only the columns
@@ -379,13 +355,16 @@ async function saveConfig(schoolId, body) {
         promptChanged = (ai_prompt ?? '') !== (existing[0]?.ai_prompt ?? '');
       }
       if (updates.includes('ai_model')) {
-        modelChanged = (ai_model ?? 'qwen3.8-flash') !== (existing[0]?.ai_model || 'qwen3.8-flash');
+        modelChanged = (ai_model ?? 'codestral-latest') !== (existing[0]?.ai_model || 'codestral-latest');
+      }
+      if (updates.includes('ai_provider')) {
+        providerChanged = (ai_provider ?? 'unorouter') !== (existing[0]?.ai_provider || 'unorouter');
       }
       if (updates.includes('ui_mode')) {
         modeChanged = (ui_mode ?? 'ai') !== (existing[0]?.ui_mode || 'ai');
       }
 
-      console.log(`📝 [saveConfig] UPDATE fields=${updates.join(',')} promptChanged=${promptChanged} modelChanged=${modelChanged} modeChanged=${modeChanged}`);
+      console.log(`📝 [saveConfig] UPDATE fields=${updates.join(',')} promptChanged=${promptChanged} modelChanged=${modelChanged} providerChanged=${providerChanged} modeChanged=${modeChanged}`);
 
       await connection.execute(
         `UPDATE settings SET ${assignments} WHERE school_id = ?`,
@@ -393,22 +372,24 @@ async function saveConfig(schoolId, body) {
       );
     } else {
       // No row yet — INSERT a fresh one
-      if (ai_prompt) promptChanged = true;
-      if (ai_model)  modelChanged = true;
-      if (ui_mode)   modeChanged = true;
-      console.log(`📝 [saveConfig] INSERT new row promptChanged=${promptChanged} modelChanged=${modelChanged} modeChanged=${modeChanged}`);
+      if (ai_prompt)   promptChanged = true;
+      if (ai_model)    modelChanged = true;
+      if (ai_provider) providerChanged = true;
+      if (ui_mode)     modeChanged = true;
+      console.log(`📝 [saveConfig] INSERT new row promptChanged=${promptChanged} modelChanged=${modelChanged} providerChanged=${providerChanged} modeChanged=${modeChanged}`);
       await connection.execute(
         `INSERT INTO settings
-           (school_id, contest_name, contest_type, judge_count, ai_prompt, ai_model, ui_mode,
+           (school_id, contest_name, contest_type, judge_count, ai_prompt, ai_model, ai_provider, ui_mode,
             computation_type, custom_base, tie_break_method, is_judge_locked)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           schoolId,
           contest_name     ?? '',
           contest_type     ?? 'pageant',
           judge_count      ?? 3,
           ai_prompt        ?? '',
-          ai_model         ?? 'qwen3.8-flash',
+          ai_model         ?? 'codestral-latest',
+          ai_provider      ?? 'unorouter',
           ui_mode          ?? 'ai',
           computation_type ?? 'average',
           custom_base      ?? 'average',
@@ -433,7 +414,7 @@ async function saveConfig(schoolId, body) {
       const contestantsChanged = !rowsEqual(existingContestants, contestants);
       const criteriaChanged    = !criteriaEqual(existingCriteria, criteria);
 
-      if (contestantsChanged || criteriaChanged || promptChanged || modelChanged || modeChanged) {
+      if (contestantsChanged || criteriaChanged || promptChanged || modelChanged || providerChanged || modeChanged) {
         // Contestants/criteria are deleted and re-inserted below with NEW ids,
         // so any existing scores (which reference the old ids) must be wiped
         // first or the foreign keys fk_scores_contestant / fk_scores_criteria
@@ -441,7 +422,7 @@ async function saveConfig(schoolId, body) {
         await connection.execute('DELETE FROM scores WHERE school_id = ?', [schoolId]);
       }
 
-      if (contestantsChanged || criteriaChanged || promptChanged || modelChanged || modeChanged) {
+      if (contestantsChanged || criteriaChanged || promptChanged || modelChanged || providerChanged || modeChanged) {
         // The judge's rendered table depends on the prompt, the criteria and
         // the contestant list — when any of those change, the persisted AI UI
         // is stale (old layout, missing/reordered rows, old percentages).
@@ -509,17 +490,6 @@ async function saveConfig(schoolId, body) {
 
     await connection.commit();
     await invalidateSchoolCaches(schoolId);
-
-    // ✅ FIX: save-config now also kicks off the AI Judge UI generation in the
-    // background and caches the result in ui_cache. Without this the cache was
-    // only ever filled lazily when a judge loaded the page — and if that
-    // generation was slow/failed the judge was stuck on the default template
-    // table. Now the save response returns instantly, B.AI works in the
-    // background, and the next judge fetch reads the fresh design from
-    // ui_cache.
-    if (contestants?.length && criteria?.length) {
-      prewarmJudgeUi(schoolId);
-    }
 
     return { success: true, message: 'Configuration saved!' };
   } catch (error) {
