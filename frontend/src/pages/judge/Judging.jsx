@@ -8,76 +8,7 @@ import {CriteriaHeader,EncryptedBadge,CardHeaderStrip,
   JudgeFooter,JudgeHeader,
   ScoringCard,StatusModal,SubmitButton
 } from './components'
-/* ── Utility ─────────────────────────────────────────────────────── */
 
-/* ── Poll lock state ─────────────────────────────────────────────── */
-
-
-/* ── System config ───────────────────────────────────────────────── */
-
-
-/* ── Contest name poller ─────────────────────────────────────────── */
-
-
-/* ── Offline Banner ──────────────────────────────────────────────── */
-
-/* ── Lock Banner ─────────────────────────────────────────────────── */
-
-
-/* ── Logo Mark ───────────────────────────────────────────────────── */
-
-
-/* ── Judge Selector ──────────────────────────────────────────────── */
-
-
-/* ════════════════════════════════════════════════════════════════════
-   HEADER TEMPLATES
-   ════════════════════════════════════════════════════════════════════ */
-
-/* ── Template: Structured (two-row) ─────────────────────────────── */
-
-
-/* ── Template: Compact Bar (single row) ─────────────────────────── */
-
-
-/* ── Template: Elevated Card ─────────────────────────────────────── */
-
-
-/* ── Dynamic Header Router ───────────────────────────────────────── */
-
-
-/* ── Judge Header ────────────────────────────────────────────────── */
-
-
-/* ── Judge Footer ────────────────────────────────────────────────── */
-
-
-/* ── Static Criteria Header ──────────────────────────────────────── */
-// FIX: title row now uses justify-content: center so the label + total
-// are centred instead of flush left/right.
-
-
-/* ── Scroll Hint (mobile only) ───────────────────────────────────── */
-
-
-/* ── Loading Spinner ─────────────────────────────────────────────── */
-
-/* ── Card Header Strip ───────────────────────────────────────────── */
-
-
-/* ── Memoized Scoring Card ───────────────────────────────────────── */
-
-
-/* ── Submit Button ───────────────────────────────────────────────── */
-
-
-/* ── Encrypted Badge ─────────────────────────────────────────────── */
-
-
-/* ── Global Styles ───────────────────────────────────────────────── */
-
-
-/* ── Main JudgeTable ─────────────────────────────────────────────── */
 function JudgeTable() {
   const {
     selectedJudge,
@@ -85,6 +16,7 @@ function JudgeTable() {
     config,
     loading,
     uiRefreshing,
+    waitSeconds,
     isComplete,
     modal,
     isOnline,
@@ -153,6 +85,7 @@ function JudgeTable() {
             tableHtml={tableHtml}
             loading={loading}
             refreshing={uiRefreshing}
+            waitSeconds={waitSeconds}
           />
         </div>
 

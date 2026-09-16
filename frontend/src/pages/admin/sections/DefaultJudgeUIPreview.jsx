@@ -16,16 +16,19 @@ const SAMPLE_CRITERIA = [
 
 const STYLE = `
   .preview-table{width:100%;border-collapse:separate;border-spacing:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;font-size:13px;background:#fff;table-layout:fixed}
-  .preview-table thead th.pv-th{background:repeating-linear-gradient(45deg,#f8fafc,#f8fafc 6px,#f4f6f9 6px,#f4f6f9 12px);border-bottom:2px solid #cbd5d9;padding:9px 8px;text-align:center;font-weight:600;font-size:12px;letter-spacing:.02em;color:#334155}
-  .preview-table .pv-pct{display:inline-block;margin-left:3px;padding:1px 5px;border-radius:6px;background:#e2e8f0;color:#475569;font-size:10px;font-weight:700}
-  .preview-table td{padding:1px 8px;vertical-align:middle;border-bottom:1px solid #eef1f4;text-align:center}
-  .pv-td-num{width:44px;font-weight:700;color:#334155}
-  .pv-td-name{width:170px;text-align:left;font-weight:600;color:#1e293b;padding-left:10px}
+  .preview-table thead th.pv-th{background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:10px 8px;text-align:center;font-weight:600;font-size:11.5px;letter-spacing:.01em;color:#475569}
+  .preview-table .pv-pct{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:5px;background:#eef2ff;color:#4f46e5;font-size:10px;font-weight:700}
+  .preview-table td{padding:9px 8px;vertical-align:middle;border-bottom:1px solid #f1f5f9;text-align:center}
+  .preview-table tbody tr:last-child td{border-bottom:none}
+  .preview-table tbody tr:nth-child(even){background:#fafbfc}
+  .preview-table tbody tr:hover{background:#f4f6fb}
+  .pv-td-num{width:44px;font-weight:600;color:#64748b;font-variant-numeric:tabular-nums}
+  .pv-td-name{width:170px;text-align:left;font-weight:600;color:#1e293b;padding-left:12px}
   .pv-td-stc{width:96px}
-  .preview-table .pv-wrap{display:flex;align-items:center;justify-content:center;padding:4px 0}
-  .preview-table select.pv-dropdown{width:74px;height:30px;background:#fff;border:1px solid #c4ccd3;border-radius:8px;padding:0 10px;font-size:13px;color:#0f172a;text-align:center;font-weight:600;appearance:none;-webkit-appearance:none;cursor:pointer;border-color:#e2e8f0;pointer-events:none}
-  .preview-table .pv-tot{font-weight:700;color:#0f766e}
-  .preview-table .pv-rank{font-weight:700;color:#155e75}
+  .preview-table .pv-wrap{display:flex;align-items:center;justify-content:center}
+  .preview-table select.pv-dropdown{width:72px;height:30px;background:#fff;border:1px solid #e2e8f0;border-radius:7px;padding:0 8px;font-size:12.5px;color:#94a3b8;text-align:center;font-weight:500;appearance:none;-webkit-appearance:none;cursor:not-allowed;pointer-events:none}
+  .preview-table .pv-tot{font-weight:700;color:#1e293b;font-variant-numeric:tabular-nums}
+  .preview-table .pv-rank{font-weight:700;color:#4f46e5}
 `;
 
 const DefaultJudgeUIPreview = ({ contestants = SAMPLE_CONTESTANTS, criteria = SAMPLE_CRITERIA, contestName = "Event" }) => {
@@ -41,21 +44,23 @@ const DefaultJudgeUIPreview = ({ contestants = SAMPLE_CONTESTANTS, criteria = SA
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>
           Preview — {contestName || 'Contest'}
         </span>
-        <span style={{ fontSize: 10, color: 'var(--text3)', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 999, padding: '2px 10px' }}>standard scoring table</span>
+        <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text3)', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px' }}>
+          Standard scoring table
+        </span>
       </div>
-      <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 6, background: '#fff' }}>
+      <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 10, background: '#fff' }}>
         <style>{STYLE}</style>
         <table className="preview-table">
           <thead>
             <tr>
               <th style={{ width: 44 }} className="pv-th">No.</th>
-              <th style={{ width: 170, textAlign: 'left' }} className="pv-th">Name</th>
+              <th style={{ width: 170, textAlign: 'left', paddingLeft: 12 }} className="pv-th">Name</th>
               {cols.map(c => (
                 <th key={String(c.id)} className="pv-th">
-                  {String(c.name || '')} <span className="pv-pct">{Number(c.percentage) || 0}%</span>
+                  {String(c.name || '')}<span className="pv-pct">{Number(c.percentage) || 0}%</span>
                 </th>
               ))}
               <th className="pv-th">Total</th>

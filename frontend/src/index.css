@@ -56,26 +56,26 @@ body { font-family: 'Inter', sans-serif; }
 
 /* ── Deep Forest Dark Tokens — dark green-black, gold accents ── */
 .dark {
-  --bg:        #0B0F0C;
-  --surface:   #131A15;
-  --surface2:  #1B241D;
-  --border:    #26312B;
-  --text1:     #F4F6F4;
-  --text2:     #A4B1A8;
-  --text3:     #6B7A71;
-  --accent:    #40916C;
-  --accent-lt: rgba(64,145,108,0.16);
-  --accent-bd: rgba(64,145,108,0.35);
-  --accent-mid: #52B788;
-  --gold:      #D4AF37;
-  --gold-lt:   rgba(212,175,55,0.16);
-  --gold-bd:   rgba(212,175,55,0.4);
-  --red:       #f87171;
-  --red-lt:    #2a1414;
-  --green:     #52B788;
-  --green-lt:  rgba(64,145,108,0.16);
-  --amber:     #fbbf24;
-  --amber-lt:  #221c0a;
+  --bg:        #0A0E0D;
+  --surface:   #121815;
+  --surface2:  #1A211D;
+  --border:    #2A342E;
+  --text1:     #F1F5F2;
+  --text2:     #B0BDB4;
+  --text3:     #7C8B81;
+  --accent:    #4ADE80;
+  --accent-lt: rgba(74,222,128,0.14);
+  --accent-bd: rgba(74,222,128,0.32);
+  --accent-mid: #34D399;
+  --gold:      #F2C94C;
+  --gold-lt:   rgba(242,201,76,0.14);
+  --gold-bd:   rgba(242,201,76,0.38);
+  --red:       #FB7185;
+  --red-lt:    #2A1418;
+  --green:     #4ADE80;
+  --green-lt:  rgba(74,222,128,0.14);
+  --amber:     #FBBF24;
+  --amber-lt:  #221C0A;
   --shadow-sm: 0 1px 3px rgba(0,0,0,.4);
   --shadow-md: 0 8px 32px rgba(0,0,0,.5);
 }
@@ -469,3 +469,16 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
 
 @source inline("{bg,text,border}-{slate,gray,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose}-{50,100,200,300,400,500,600,700,800,900}");
 @source inline("{hover:}{bg,text,border}-{slate,gray,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose}-{50,100,200,300,400,500,600,700,800,900}");
+
+
+.judge-select,
+.field-input {
+  color-scheme: light dark;
+}
+
+.judge-select option,
+.field-input option,
+select option {
+  background-color: var(--surface);
+  color: var(--text1);
+}

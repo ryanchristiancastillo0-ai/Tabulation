@@ -16,19 +16,19 @@ const QUICK_TAGS = ['Use large scoreboard numbers', 'Add animated transitions', 
 const AI_MODELS = [
   {
     id: 'qwen3.8-flash',
-    label: 'Qwen3.8-Flash — Fast',
+    label: 'Fast',
     desc: 'Best for fast UI generation and everyday coding tasks. Recommended when you want results quickly.',
     hint: '⚡ Fast generation — Recommended for quickly creating judge UI.',
   },
   {
     id: 'mimo-v2.5',
-    label: 'MiMo-V2.5 — Deep Reasoning',
+    label: 'Heavy Task',
     desc: 'Best for complex prompts, difficult UI requirements, and tasks that need deeper reasoning. May take longer to generate.',
     hint: '🧠 Deep reasoning — Better for complex requirements, but generation may take longer.',
   },
   {
     id: 'glm-5.3-flash',
-    label: 'GLM-5.3-Flash — Fast + Powerful',
+    label: 'Fast + Heavy Task',
     desc: 'Good balance of speed and reasoning for UI generation and coding tasks.',
     hint: '⚡ Strong + fast — Good balance between generation speed and reasoning.',
   },

@@ -131,7 +131,7 @@ async function judgeGet(path, timeoutMs) {
 
 /* ── AI UI generation (async job queue) ─────────────────────────── */
 const AI_POLL_INTERVAL_MS  = 2000;
-const AI_POLL_MAX_ATTEMPTS = 15; // ~30s — never keep the judge blocked longer.
+const AI_POLL_MAX_ATTEMPTS = 30; // ~60s — background-only, never blocks the judge.
 const AI_POLL_TIMEOUT_MS   = 5000; // each status check is bounded too
 
 // Polls a queued AI generation job until it COMPLETES, FAILS, or gives up.
@@ -228,6 +228,7 @@ export const useJudgeSystem = () => {
   const [config,        setConfig]        = useState({ contestants: [], criteria: [], settings: {} });
   const [loading,       setLoading]       = useState(false);
   const [uiRefreshing,  setUiRefreshing]  = useState(false);
+  const [waitSeconds,   setWaitSeconds]   = useState(0);
   const [isComplete,    setIsComplete]    = useState(false);
   const [modal,         setModal]         = useState({ show: false, title: '', message: '', type: 'success' });
 
@@ -244,6 +245,42 @@ export const useJudgeSystem = () => {
     // Make sure submitted values stay visible after the modal is dismissed.
     setTimeout(restoreScores, 0);
   };
+
+  // ── Wait timer: shows elapsed seconds on the judge spinner ──────
+  // Runs for BOTH the full loader and the refresh overlay, because a live AI
+  // generation holds `uiRefreshing` for up to ~90s and the judge needs feedback.
+  useEffect(() => {
+    if (loading || uiRefreshing) {
+      setWaitSeconds(0);
+      const id = setInterval(() => setWaitSeconds(s => s + 1), 1000);
+      return () => clearInterval(id);
+    }
+    setWaitSeconds(0);
+  }, [loading, uiRefreshing]);
+
+  // ── Hard watchdog: the spinner/overlay can NEVER persist beyond ~100 s ──
+  // If any code path forgets to clear loading/uiRefreshing, this forces the
+  // deterministic table on screen so the judge is never stuck. 100s (not 25s)
+  // because a live AI generation legitimately holds the request open that long.
+  const watchdogRef = useRef(null);
+  const configRef   = useRef(config);
+  configRef.current = config;
+  useEffect(() => {
+    if (loading || uiRefreshing) {
+      if (!watchdogRef.current) {
+        watchdogRef.current = setTimeout(() => {
+          watchdogRef.current = null;
+          setLoading(false);
+          setUiRefreshing(false);
+          const { contestants, criteria } = configRef.current;
+          const tbl = buildStaticJudgeTable(contestants, criteria);
+          if (tbl) setDynamicUI(prev => (prev?.html === tbl ? prev : { html: tbl }));
+        }, 100000);
+      }
+      return () => { clearTimeout(watchdogRef.current); watchdogRef.current = null; };
+    }
+    if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }
+  }, [loading, uiRefreshing]);
 
   const allScoresFilled = useCallback(() => {
     const dropdowns = document.querySelectorAll('.score-dropdown');
@@ -371,6 +408,7 @@ export const useJudgeSystem = () => {
   // cross-tab ConfigChangeProvider (BroadcastChannel + storage fallback).
   const uiRendered = useRef('');
   const dynamicUIRef = useRef('');
+  const liveGenRef = useRef(0); // guards stale background AI polls
   useEffect(() => {
     dynamicUIRef.current = typeof dynamicUI === 'string' ? dynamicUI : (dynamicUI?.html || '');
   }, [dynamicUI]);
@@ -406,8 +444,14 @@ export const useJudgeSystem = () => {
       .catch(() => {
         // Timeout/network failure — never leave the judge on a loader. STEP 2
         // will still run with the current config and render the static table.
+      })
+      .finally(() => {
+        // Backstop: every config signal must release the LOADER even if the
+        // next STEP 2 run returns early. uiRefreshing is deliberately NOT
+        // cleared here — renderUI (and its 100s watchdog) owns it, so a live
+        // AI generation can keep showing "Updating interface…(Xs)" until the
+        // LLM actually finishes instead of flickering away after 12s.
         setLoading(false);
-        setUiRefreshing(false);
       });
   }, [configChangeCount, schoolId]);
 
@@ -425,7 +469,11 @@ export const useJudgeSystem = () => {
   useEffect(() => {
     const { contestants, criteria, settings } = config;
 
-    if (!contestants?.length || !criteria?.length) return;
+    if (!contestants?.length || !criteria?.length) {
+      // Nothing to render → never leave STEP 1b's overlay hanging.
+      setUiRefreshing(false);
+      return;
+    }
 
     const school_id = getSchoolId();
     const criteriaSignature = criteria
@@ -438,7 +486,11 @@ export const useJudgeSystem = () => {
 
     // Re-run only when the actual config signature changes (admin edits, etc.),
     // so unchanged configs don't cause redundant regenerations.
-    if (uiRendered.current === renderSignature) return;
+    if (uiRendered.current === renderSignature) {
+      // Nothing changed → dismiss any stale refresh overlay from STEP 1b.
+      setUiRefreshing(false);
+      return;
+    }
     uiRendered.current = renderSignature;
 
     // Static table = what the judge sees INSTANTLY on load, no network, no AI.
@@ -450,45 +502,52 @@ export const useJudgeSystem = () => {
       // Show the deterministic table right away and let the AI version fill in
       // behind it. Keeps a previous good table on screen while refreshing.
       const hasPrevious = !!dynamicUIRef.current;
-      if (!hasPrevious && staticTable) {
-        setDynamicUI(prev => (prev?.html === staticTable ? prev : { html: staticTable }));
-      }
-      setLoading(false);
-
-      // 1. localStorage hit → use it, sync DB cache in background
-      const localCached = loadUiFromLocalStorage(school_id, criteria, aiPrompt);
-      if (localCached?.html) {
-        setDynamicUI(prev => (prev?.html === localCached.html ? prev : localCached));
-
-        // Background refresh — hits cache-only endpoint, NEVER triggers AI here.
-        // When nothing is cached the backend hands back a ready-to-use
-        // standard table (dropdowns already 0..percentage), so we never need
-        // to kick off an AI job just to show something.
-        withTimeout(
-          judgeGet(
-            `/judge/render-ui-cached?school_id=${school_id}` +
-            `&criteria_signature=${encodeURIComponent(criteriaSignature)}`
-          ),
-          12000
-        )
-          .then(data => {
-            if (data.html && data.html !== localCached.html) {
-              const cleanHtml = sanitizeAiHtml(data.html, criteria);
-              saveUiToLocalStorage(school_id, criteria, { html: cleanHtml }, aiPrompt);
-              if (cleanHtml !== localCached.html) setDynamicUI({ html: cleanHtml });
-            }
-          })
-          .catch(() => {
-            // Offline or timeout — local cache is already showing, nothing to do
-          });
-
-        return;
-      }
-
-      // 2. No local cache → refresh from the DB-backed endpoint (fast) or, as a
-      //    last resort, ask the AI — but always with a hard timeout.
-      if (hasPrevious) setUiRefreshing(true);
       try {
+        if (!hasPrevious && staticTable) {
+          setDynamicUI(prev => (prev?.html === staticTable ? prev : { html: staticTable }));
+        }
+        setLoading(false);
+
+        // 1. localStorage hit → use it, sync DB cache in background
+        const localCached = loadUiFromLocalStorage(school_id, criteria, aiPrompt);
+        if (localCached?.html) {
+          setDynamicUI(prev => (prev?.html === localCached.html ? prev : localCached));
+
+          // Background refresh — hits cache-only endpoint, NEVER triggers AI here.
+          // When nothing is cached the backend hands back a ready-to-use
+          // standard table (dropdowns already 0..percentage), so we never need
+          // to kick off an AI job just to show something.
+          withTimeout(
+            judgeGet(
+              `/judge/render-ui-cached?school_id=${school_id}` +
+              `&criteria_signature=${encodeURIComponent(criteriaSignature)}`
+            ),
+            12000
+          )
+            .then(data => {
+              if (!data) return;
+              // The server has NO cached design for the current prompt/model
+              // (e.g. the admin just switched the AI model) → generate it now
+              // in the background so the change actually reaches the judge.
+              if (data.fromCache === false) {
+                return ensureCachedUi(contestants, criteria, settings, school_id, true);
+              }
+              if (data.html && data.html !== localCached.html) {
+                const cleanHtml = sanitizeAiHtml(data.html, criteria);
+                saveUiToLocalStorage(school_id, criteria, { html: cleanHtml }, aiPrompt);
+                if (cleanHtml !== localCached.html) setDynamicUI({ html: cleanHtml });
+              }
+            })
+            .catch(() => {
+              // Offline or timeout — local cache is already showing, nothing to do
+            });
+
+          return;
+        }
+
+        // 2. No local cache → refresh from the DB-backed endpoint (fast) or, as a
+        //    last resort, ask the AI — but always with a hard timeout.
+        if (hasPrevious) setUiRefreshing(true);
         const cached = await withTimeout(
           judgeGet(
             `/judge/render-ui-cached?school_id=${school_id}` +
@@ -512,6 +571,9 @@ export const useJudgeSystem = () => {
       } catch (err) {
         // Timeout/failure — the static table is already on screen, keep it.
       } finally {
+        // ALWAYS release the loader and the refresh overlay. The cached-config
+        // branch above returns before this try block's awaits, so if this
+        // finally were missing it would leave "Updating interface…" up forever.
         setLoading(false);
         setUiRefreshing(false);
       }
@@ -524,11 +586,23 @@ export const useJudgeSystem = () => {
   // Generate-or-fetch the AI table for the given config, caching locally.
   // When `silent` is true the caller already manages the loading indication
   // (e.g. the refresh overlay), so this never flips the full-screen loader.
-  // Every branch returns usable HTML — the AI result if available, otherwise a
-  // deterministic standard table — so the judge is never stuck on a spinner.
+  // The backend is asked to WAIT for the LLM up to ~80s and hand back the
+  // finished AI design, so the judge's very first save already shows the
+  // LLM-generated UI instead of only the default table.
   const ensureCachedUi = async (contestants, criteria, settings, school_id, silent = false) => {
     const staticTable = buildStaticJudgeTable(contestants, criteria);
 
+    // Show/keep the deterministic table and end the action. Returns
+    // { html: null } so callers NEVER store the static table as the "AI UI" —
+    // that's exactly why the judge only ever saved the default design before.
+    const settleFallback = () => {
+      if (staticTable) {
+        setDynamicUI(prev => (prev?.html === staticTable ? prev : { html: staticTable }));
+      }
+      setLoading(false);
+      setUiRefreshing(false);
+      return { html: null };
+    };
     const settle = (html) => {
       setDynamicUI(prev => (prev?.html === html ? prev : { html }));
       setLoading(false);
@@ -536,53 +610,60 @@ export const useJudgeSystem = () => {
       return { html };
     };
 
+    // Monotonic id so a stale background poll can't overwrite the UI with a
+    // design for a config the admin has since changed.
+    const genSeq = ++liveGenRef.current;
+
     if (!silent) setLoading(true);
+    let submitResp;
     try {
-      let submitResp;
-      try {
-        submitResp = await judgePost('/ai/generate', {
-          contestants,
-          criteria,
-          school_id,
-          aiPrompt: settings?.ai_prompt || 'Modern and Professional',
-          aiModel: settings?.ai_model || 'qwen3.8-flash',
-          uiMode: settings?.ui_mode || 'ai',
-        }, 15000); // hard cap — a stuck AI call can never freeze the judge page
-      } catch (postErr) {
-        // Backend unreachable / timed out — use the deterministic table immediately.
-        return settle(staticTable);
-      }
-
-      // Cached fast-path returns the html directly (also the on-screen
-      // fallback the backend sends when the AI queue is unavailable).
-      if (submitResp.result) {
-        const html = sanitizeAiHtml(submitResp.result, criteria);
-        if (!submitResp.fallback) {
-          try { saveUiToLocalStorage(school_id, criteria, { html }, settings?.ai_prompt || ''); } catch { /* ignore */ }
-        }
-        return settle(html);
-      }
-
-      // Queued path: poll until the job ends, but never block forever — on
-      // timeout/error we fall back to the standard table.
-      if (submitResp.generationId) {
-        const result = await pollJobUntilDone(submitResp.generationId, school_id);
-        if (result.html) {
-          const html = sanitizeAiHtml(result.html, criteria);
-          try { saveUiToLocalStorage(school_id, criteria, { html }, settings?.ai_prompt || ''); } catch { /* ignore */ }
-          return settle(html);
-        }
-        if (staticTable) {
-          showStatus('Notice', result.error || 'Showing the standard scoring table.', 'warning');
-        }
-        return settle(staticTable);
-      }
-
-      // No html and no job (shouldn't happen) — show the standard table.
-      return settle(staticTable);
-    } catch (err) {
-      return settle(staticTable || '');
+      submitResp = await judgePost('/ai/generate', {
+        contestants,
+        criteria,
+        school_id,
+        aiPrompt: settings?.ai_prompt || 'Modern and Professional',
+        aiModel: settings?.ai_model || 'qwen3.8-flash',
+        uiMode: settings?.ui_mode || 'ai',
+        wait: 1, // hold the request until the LLM output is actually finished
+      }, 95000); // matches the backend's AI_WAIT_TIMEOUT_MS cap (~80s) + slack
+    } catch (postErr) {
+      // Backend unreachable / timed out — use the deterministic table, but
+      // never cache it as the AI design.
+      return settleFallback();
     }
+
+    // Real AI design returned directly (generation completed within the wait).
+    if (submitResp.result && !submitResp.fallback) {
+      const html = sanitizeAiHtml(submitResp.result, criteria);
+      try { saveUiToLocalStorage(school_id, criteria, { html }, settings?.ai_prompt || ''); } catch { /* ignore */ }
+      return settle(html);
+    }
+
+    // Explicit generation failure → tell the judge why, no caching.
+    if (submitResp.status === 'FAILED') {
+      settleFallback();
+      if (staticTable) {
+        showStatus('Notice', submitResp.error || 'AI generation failed — showing the standard scoring table.', 'warning');
+      }
+      return { html: null };
+    }
+
+    // Queue used and the job is still running past the wait cap → show the
+    // standard table NOW (no frozen overlay), keep polling quietly in the
+    // background, and swap in the AI design the moment the worker finishes.
+    if (submitResp.generationId) {
+      pollJobUntilDone(submitResp.generationId, school_id).then(result => {
+        if (!result.html) return;
+        if (liveGenRef.current !== genSeq) return; // superseded by a newer config
+        const aiHtml = sanitizeAiHtml(result.html, criteria);
+        try { saveUiToLocalStorage(school_id, criteria, { html: aiHtml }, settings?.ai_prompt || ''); } catch { /* ignore */ }
+        setDynamicUI(prev => (prev?.html === aiHtml ? prev : { html: aiHtml }));
+      });
+      return settleFallback();
+    }
+
+    // No html and no job (shouldn't happen) — show the standard table.
+    return settleFallback();
   };
 
   // ── STEP 3: Hydrate UI whenever dynamicUI or selectedJudge changes ─
@@ -642,7 +723,7 @@ export const useJudgeSystem = () => {
         judgeId: selectedJudge,
         scores,
         school_id,
-      });
+      }, 15000); // hard cap — a stuck submit can never freeze the judge page
 
       if (data.success) {
         // Immediately re-apply the judge's saved values after a successful
@@ -738,6 +819,7 @@ export const useJudgeSystem = () => {
     config,
     loading,
     uiRefreshing,
+    waitSeconds,
     isComplete,
     modal,
     isOnline,

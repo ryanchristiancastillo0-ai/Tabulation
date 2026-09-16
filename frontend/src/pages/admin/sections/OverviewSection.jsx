@@ -126,30 +126,6 @@ const OverviewSection = ({
       </div>
     </div>
 
-    {/* Danger Zone */}
-    <div style={{ ...card, border: '1px solid #fecdd3', background: '#fff1f2', padding: '16px 20px' }}>
-      <div className="flex items-center gap-2 mb-3">
-        <div style={{ width: 28, height: 28, borderRadius: 5, background: '#ffe4e6', border: '1px solid #fecdd3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <AlertTriangle size={14} style={{ color: '#be123c' }} />
-        </div>
-        <span className="section-heading" style={{ margin: 0, color: '#9f1239' }}>Danger Zone</span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#9f1239' }}>Reset Competition Data</div>
-          <div style={{ fontSize: 12, color: '#be123c', marginTop: 3 }}>Clear all scores, criteria, and contestants for a new event.</div>
-        </div>
-        <button
-          onClick={() => setShowDeleteModal(true)}
-          style={{ padding: '9px 16px', borderRadius: 6, border: 'none', background: '#be123c', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0 }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#9f1239'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#be123c'; }}
-        >
-          <Trash2 size={14} /> Reset Data
-        </button>
-      </div>
-    </div>
-
     {/* Scoring Criteria list */}
     <div style={card}>
       <div className="flex items-center gap-2 mb-4">
@@ -182,6 +158,30 @@ const OverviewSection = ({
             <span style={{ fontSize: 13, fontStyle: 'italic' }}>No criteria added yet.</span>
           </div>
         )}
+      </div>
+    </div>
+
+    {/* Danger Zone */}
+    <div style={{ ...card, border: '1px solid #fecdd3', background: '#fff1f2', padding: '16px 20px' }}>
+      <div className="flex items-center gap-2 mb-3">
+        <div style={{ width: 28, height: 28, borderRadius: 5, background: '#ffe4e6', border: '1px solid #fecdd3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AlertTriangle size={14} style={{ color: '#be123c' }} />
+        </div>
+        <span className="section-heading" style={{ margin: 0, color: '#9f1239' }}>Danger Zone</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#9f1239' }}>Reset Competition Data</div>
+          <div style={{ fontSize: 12, color: '#be123c', marginTop: 3 }}>Clear all scores, criteria, and contestants for a new event.</div>
+        </div>
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          style={{ padding: '9px 16px', borderRadius: 6, border: 'none', background: '#be123c', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0 }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#9f1239'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = '#be123c'; }}
+        >
+          <Trash2 size={14} /> Reset Data
+        </button>
       </div>
     </div>
   </div>

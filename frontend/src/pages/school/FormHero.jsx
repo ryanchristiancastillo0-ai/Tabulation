@@ -11,9 +11,7 @@ export default function FormHero() {
       >
         Create your school account
       </h1>
-      <p className="text-base text-[#4B5A4D] leading-relaxed">
-        Set up your competition portal in under 2 minutes.
-      </p>
+      
     </div>
   );
 }
