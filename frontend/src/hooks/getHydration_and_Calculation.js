@@ -34,6 +34,27 @@ function sanitizeAiHtml(html, criteria) {
       options += `<option value="${i}">${i}%</option>`;
     }
     select.innerHTML = options;
+
+    // Force every score cell to EXACTLY ONE control. The wrap must contain only
+    // the <details> dropdown and this hidden select — anything else (stale
+    // "%" labels, duplicated selects, extra triggers) is removed so old cached
+    // designs can't render a second control beside the box.
+    const wrap = select.closest('.sts-dd-wrap');
+    if (wrap) {
+      Array.prototype.slice.call(wrap.children).forEach(child => {
+        if (child === select || child.classList.contains('sts-dd')) return;
+        child.remove();
+      });
+      const panel = wrap.querySelector('.sts-dd-panel');
+      if (panel) {
+        let opts = `<div class="sts-dd-option" data-value="" role="option">–</div>`;
+        for (let i = max; i >= 0; i--) {
+          const decadeClass = (i > 0 && i % 10 === 0) ? ' sts-dd-decade' : '';
+          opts += `<div class="sts-dd-option${decadeClass}" data-value="${i}" role="option">${i}%</div>`;
+        }
+        panel.innerHTML = opts;
+      }
+    }
   });
 
   return div.innerHTML;
@@ -122,6 +143,14 @@ export const getHydra_and_Calcu = (
     }
 
     dropdowns.forEach(select => {
+      // Force every score cell to EXACTLY ONE control (see sanitizeAiHtml).
+      const wrap = select.closest('.sts-dd-wrap');
+      if (wrap) {
+        Array.prototype.slice.call(wrap.children).forEach(child => {
+          if (child === select || child.classList.contains('sts-dd')) return;
+          child.remove();
+        });
+      }
       // Sanitize the dropdown's parent wrapper to strip rogue AI styles
       const wrapper = select.closest('div, td, th');
       if (wrapper) {
