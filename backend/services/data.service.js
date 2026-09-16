@@ -452,13 +452,9 @@ async function saveConfig(schoolId, body) {
       }
     }
 
-    // Any save that touched the rendered table (prompt, model, contestants or
-    // criteria changed) invalidates the persisted AI UI, so the judge never
-    // sees a stale generation from a previous configuration. A true no-op save
-    // (identical prompt + model + lineup) keeps the cache untouched.
-    if (renderDataChanged) {
-      await connection.execute('DELETE FROM ui_cache WHERE school_id = ?', [schoolId]);
-    }
+    // Clear ui_cache on EVERY save so judges never see stale AI designs
+    // after any config change (mode switch, prompt tweak, model swap, etc.)
+    await connection.execute('DELETE FROM ui_cache WHERE school_id = ?', [schoolId]);
 
     for (const [sql, vals] of waiting) {
       await connection.execute(sql, vals);

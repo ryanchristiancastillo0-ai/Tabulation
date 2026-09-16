@@ -46,6 +46,18 @@ function loadUiFromLocalStorage(schoolId, criteria, aiPrompt, aiModel, uiMode) {
   }
 }
 
+// Clear ALL ui_html_cache_* entries for a school (used on config change)
+function clearUiCacheForSchool(schoolId) {
+  try {
+    const prefix = `ui_html_cache_${schoolId}_`;
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith(prefix)) localStorage.removeItem(k);
+    });
+  } catch (e) {
+    console.warn('[UICache] could not clear cache:', e.message);
+  }
+}
+
 /* ── Client-side config cache helpers ────────────────────────────── */
 function configsMatch(a, b) {
   if (!a || !b) return false;
@@ -478,6 +490,7 @@ export const useJudgeSystem = () => {
         if (configsMatch(configRef.current, fresh)) return;
 
         if (renderRelevantChanged(configRef.current, fresh)) {
+          clearUiCacheForSchool(schoolId);
           const hasTable = !!dynamicUIRef.current;
           uiRendered.current = '';
           setLoading(!hasTable);
