@@ -6,7 +6,7 @@ import {GlobalStyles} from './components/GlobalStyles'
 import {CriteriaHeader,EncryptedBadge,CardHeaderStrip,
   
   JudgeFooter,JudgeHeader,
-  ScoringCard,StatusModal,SubmitButton
+  ScoringCard,StatusModal,SubmitButton,AiDebugConsole
 } from './components'
 
 function JudgeTable() {
@@ -23,6 +23,7 @@ function JudgeTable() {
     closeModal,
     submitToDB,
     updateJudge,
+    aiDebug,
   } = useJudgeSystem();
 
   const sysConfig     = useSystemConfig();
@@ -87,6 +88,8 @@ function JudgeTable() {
             refreshing={uiRefreshing}
             waitSeconds={waitSeconds}
           />
+
+          <AiDebugConsole debug={aiDebug} />
         </div>
 
         <div className="mt-6 sm:mt-10 flex flex-col items-center gap-3 sm:gap-4 pb-4">

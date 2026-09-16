@@ -129,12 +129,12 @@ async function judgeGet(path, timeoutMs) {
 
 /* ── AI UI generation (async job queue) ─────────────────────────── */
 
-// ✅ FIX: bumped from 30 to 60 attempts. The server's AI_WAIT_TIMEOUT_MS
-// defaults to 80s; 30 * 2s = 60s gave up BEFORE the server's cap, so a job
-// that finished at 70s was silently dropped and the judge kept the stale UI.
-// 60 * 2s = 120s leaves comfortable headroom.
+// ✅ FIX: bumped to 120 attempts = ~240s+ of coverage. The b.ai model is slow
+// (measured 50s+ for a small table, a couple of minutes for a real prompt), so
+// the poll must outlast the generation — otherwise the AI design arrives after
+// the frontend already gave up and the judge keeps the plain fallback table.
 const AI_POLL_INTERVAL_MS  = 2000;
-const AI_POLL_MAX_ATTEMPTS = 60;
+const AI_POLL_MAX_ATTEMPTS = 120;
 const AI_POLL_TIMEOUT_MS   = 5000;
 
 async function pollJobUntilDone(jobId, schoolId, cancelledRef) {
@@ -245,6 +245,19 @@ export const useJudgeSystem = () => {
   const [waitSeconds,   setWaitSeconds]   = useState(0);
   const [isComplete,    setIsComplete]    = useState(false);
   const [modal,         setModal]         = useState({ show: false, title: '', message: '', type: 'success' });
+  const [aiDebug,       setAiDebug]       = useState({
+    lastRequestAt: null,
+    prompt: '',
+    model: '',
+    uiMode: '',
+    state: '',          // 'idle' | 'requesting' | 'generating' | 'done' | 'failed'
+    generationId: null,
+    httpStatus: '',
+    error: '',
+    resultLength: 0,
+    resultPreview: '',
+    responseTimeMs: 0,
+  });
 
   const isOnline = useConnectivity();
   const { saveToCache, loadCache } = useJudgePersistence(selectedJudge, config.contestants, schoolId);
@@ -656,7 +669,18 @@ export const useJudgeSystem = () => {
     const genSeq = ++liveGenRef.current;
 
     if (!silent) setLoading(true);
+    const startedRequestAt = Date.now();
     console.log(`🚀 [ensureCachedUi] starting genSeq=${genSeq} school=${school_id} prompt="${settings?.ai_prompt?.slice(0,60)}..." model=${settings?.ai_model} uiMode=${settings?.ui_mode}`);
+    setAiDebug(prev => ({
+      ...prev,
+      lastRequestAt: new Date().toLocaleTimeString(),
+      prompt: settings?.ai_prompt || 'Modern and Professional',
+      model: settings?.ai_model || 'qwen3.8-flash',
+      uiMode: settings?.ui_mode || 'ai',
+      state: 'requesting',
+      error: '',
+      resultPreview: '',
+    }));
     let submitResp;
     try {
       submitResp = await judgePost('/ai/generate', {
@@ -670,11 +694,18 @@ export const useJudgeSystem = () => {
         // `req.body.wait === true`, so `1` silently fell through and the judge
         // always got the deterministic fallback instead of waiting for the LLM.
         wait: true,
-      // ✅ FIX: bumped from 95s → 120s so it exceeds AI_WAIT_TIMEOUT_MS (80s
-      // default) with comfortable slack even if the env var is tuned upward.
-      }, 120000);
+      // ✅ FIX: time the request to the server's AI_GENERATION_WAIT. The b.ai
+      // model is slow (minutes for real prompts), so give the live-wait enough
+      // room before the background poll takes over.
+      }, 180000);
     } catch (postErr) {
       console.error(`❌ [ensureCachedUi] judgePost error genSeq=${genSeq}:`, postErr.message);
+      setAiDebug(prev => ({
+        ...prev,
+        state: 'failed',
+        error: postErr.message,
+        responseTimeMs: Date.now() - startedRequestAt,
+      }));
       settleFallback();
       showStatus('AI Generation Failed',
         `Could not reach the AI service (${postErr.message}). Showing the standard table instead.`,
@@ -691,11 +722,27 @@ export const useJudgeSystem = () => {
           settings?.ai_prompt || '', settings?.ai_model || '', settings?.ui_mode || 'ai');
       } catch { /* ignore */ }
       console.log(`✅ [ensureCachedUi] COMPLETED immediately genSeq=${genSeq} htmlLength=${html.length}`);
+      setAiDebug(prev => ({
+        ...prev,
+        state: 'done',
+        generationId: submitResp.generationId || null,
+        httpStatus: submitResp.status || 'COMPLETED',
+        resultLength: html.length,
+        resultPreview: html.slice(0, 400),
+        responseTimeMs: Date.now() - startedRequestAt,
+      }));
       return settle(html);
     }
 
     if (submitResp.status === 'FAILED') {
       console.log(`❌ [ensureCachedUi] FAILED genSeq=${genSeq} error=${submitResp.error}`);
+      setAiDebug(prev => ({
+        ...prev,
+        state: 'failed',
+        generationId: submitResp.generationId || null,
+        error: submitResp.error,
+        responseTimeMs: Date.now() - startedRequestAt,
+      }));
       settleFallback();
       if (staticTable) {
         showStatus('AI Generation Failed', submitResp.error || 'AI generation failed — showing the standard scoring table.', 'warning');
@@ -709,6 +756,13 @@ export const useJudgeSystem = () => {
     // switching to the plain table.
     if (submitResp.result && submitResp.fallback) {
       console.warn(`⚠️ [ensureCachedUi] backend returned fallback result (LLM skipped) genSeq=${genSeq} status=${submitResp.status}`);
+      setAiDebug(prev => ({
+        ...prev,
+        state: 'failed',
+        error: 'Backend skipped the LLM (returned fallback directly). Check uiMode/settings.',
+        generationId: submitResp.generationId || null,
+        responseTimeMs: Date.now() - startedRequestAt,
+      }));
       settleFallback();
     }
 
@@ -717,10 +771,22 @@ export const useJudgeSystem = () => {
     // finish seconds later and the AI design should swap in without a reload.
     if (submitResp.generationId) {
       console.log(`⏳ [ensureCachedUi] starting background poll genSeq=${genSeq} generationId=${submitResp.generationId}`);
+      setAiDebug(prev => ({
+        ...prev,
+        state: 'generating',
+        generationId: submitResp.generationId,
+        httpStatus: submitResp.status || 'PROCESSING',
+      }));
       const cancelRef = { current: liveGenRef.current !== genSeq };
       pollJobUntilDone(submitResp.generationId, school_id, cancelRef).then(result => {
         if (!result.html) {
           console.warn(`⚠️ [ensureCachedUi] background poll ended without result genSeq=${genSeq} — ${result.error || 'no error'}`);
+          setAiDebug(prev => ({
+            ...prev,
+            state: 'failed',
+            error: (result && result.error) || 'Generation ended without a result.',
+            responseTimeMs: Date.now() - startedRequestAt,
+          }));
           if (result.error) {
             showStatus('AI Generation Failed', result.error, 'warning');
           }
@@ -736,6 +802,13 @@ export const useJudgeSystem = () => {
             settings?.ai_prompt || '', settings?.ai_model || '', settings?.ui_mode || 'ai');
         } catch { /* ignore */ }
         console.log(`✅ [ensureCachedUi] background poll COMPLETED genSeq=${genSeq} htmlLength=${aiHtml.length}`);
+        setAiDebug(prev => ({
+          ...prev,
+          state: 'done',
+          resultLength: aiHtml.length,
+          resultPreview: aiHtml.slice(0, 400),
+          responseTimeMs: Date.now() - startedRequestAt,
+        }));
         setDynamicUI(prev => (prev?.html === aiHtml ? prev : { html: aiHtml }));
       });
       return settleFallback();
@@ -892,5 +965,6 @@ export const useJudgeSystem = () => {
     closeModal,
     submitToDB,
     updateJudge,
+    aiDebug,
   };
 };

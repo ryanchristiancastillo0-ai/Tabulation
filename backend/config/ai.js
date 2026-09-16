@@ -14,12 +14,14 @@ const DEFAULT_MODEL = process.env.BAI_MODEL || 'qwen3.8-flash';
 // OpenRouter fallback is an internal failover — never selectable by the Admin.
 const OPENROUTER_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
 
-// Per-provider timeout. Split the request window in two so a B.AI hang followed
-// by an OpenRouter attempt still finishes inside the worker's AI_JOB_TIMEOUT_MS.
-const PROVIDER_TIMEOUT_MS = Math.floor(
-  (Number(process.env.AI_REQ_TIMEOUT_MS) ||
-    Math.max((Number(process.env.AI_JOB_TIMEOUT_MS) || 150000) - 10000, 60000)) / 2
-);
+// Per-provider timeout. B.AI is the primary provider and can be SLOW for long
+// HTML prompts (measured ~50s for a tiny table, 2+ minutes for a real one), so
+// it gets the full job budget minus a safety margin. The OpenRouter fallback
+// gets only a short window — it's a backup, not the primary path.
+const AI_JOB_TIMEOUT_MS = Number(process.env.AI_JOB_TIMEOUT_MS) || 240000;
+const PROVIDER_TIMEOUT_MS =
+  Number(process.env.AI_REQ_TIMEOUT_MS) || Math.max(AI_JOB_TIMEOUT_MS - 20000, 120000);
+const FALLBACK_TIMEOUT_MS = Math.min(60000, Math.max(PROVIDER_TIMEOUT_MS - 10000, 30000));
 
 function resolveApiKey() {
   const key = process.env.BAI_API_KEY;
@@ -162,7 +164,7 @@ async function generateWithFallback(prompt, model) {
             apiKey: resolveOpenRouterKey(),
             model: OPENROUTER_MODEL,
             prompt,
-            timeoutMs: PROVIDER_TIMEOUT_MS,
+            timeoutMs: FALLBACK_TIMEOUT_MS,
         });
         console.log('✅ [generateWithFallback] OpenRouter succeeded');
         return content;

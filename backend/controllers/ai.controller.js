@@ -104,7 +104,7 @@ exports.generate = async (req, res) => {
   }
 
   if (fallback && wait) {
-    const maxWaitMs = Number(process.env.AI_WAIT_TIMEOUT_MS) || 80000;
+    const maxWaitMs = Number(process.env.AI_WAIT_TIMEOUT_MS) || 220000;
     console.log(`⏳ [ai.generate] waiting for generation id=${generation.id} maxWait=${maxWaitMs}ms`);
     const done = await waitForGeneration(generation.id, school_id, maxWaitMs);
 

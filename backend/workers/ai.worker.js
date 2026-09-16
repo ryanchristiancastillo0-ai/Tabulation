@@ -16,7 +16,7 @@ const genService = require('../services/ai-generation.service');
 const { cacheSet, CACHE_TTL_SECONDS } = require('../utils/redis-cache');
 
 const CONCURRENCY        = Number(process.env.AI_WORKER_CONCURRENCY) || 3;
-const JOB_TIMEOUT_MS     = Number(process.env.AI_JOB_TIMEOUT_MS)     || 150000;
+const JOB_TIMEOUT_MS     = Number(process.env.AI_JOB_TIMEOUT_MS)     || 240000;
 const RETRYABLE_HTTP     = new Set([408, 429, 500, 502, 503, 504]);
 
 // ── Retry policy ─────────────────────────────────────────────────────────────

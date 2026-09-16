@@ -18,5 +18,6 @@ export {default as ScoringCard} from './ScoringCard'
 export {default as ScrollHint} from './ScrollHint'
 export {default as StatusModal} from './StatusModal'
 export {default as SubmitButton} from './SubmitButton'
+export {default as AiDebugConsole} from './AiDebugConsole'
 
 
