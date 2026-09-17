@@ -1,7 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Upload
-
-} from 'lucide-react';
+import React, { useRef } from 'react';
+import { Upload, X } from 'lucide-react';
 
 const LogoUploadField = ({ label, value, onChange, readOnly }) => {
   const inputRef = useRef();
@@ -38,6 +36,7 @@ const LogoUploadField = ({ label, value, onChange, readOnly }) => {
           gap: 12,
           transition: 'all .2s',
           opacity: readOnly ? 0.6 : 1,
+          position: 'relative',
         }}
         onMouseEnter={e => { if (!readOnly) e.currentTarget.style.borderColor = 'var(--accent-mid)'; }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--accent-bd)'; }}
@@ -46,6 +45,34 @@ const LogoUploadField = ({ label, value, onChange, readOnly }) => {
           <>
             <img src={value} alt={label} style={{ width: 40, height: 40, borderRadius: 5, objectFit: 'cover', border: '1px solid var(--border)', flexShrink: 0 }} />
             <div><div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>✓ Uploaded</div><div style={{ fontSize: 11, color: 'var(--text3)' }}>{readOnly ? 'Enter edit mode to replace' : 'Click to replace'}</div></div>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onChange(''); }}
+                title="Remove image"
+                style={{
+                  position: 'absolute',
+                  top: 6,
+                  right: 6,
+                  width: 22,
+                  height: 22,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '50%',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface)',
+                  color: 'var(--text3)',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'all .15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.borderColor = 'var(--red-bd)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+              >
+                <X size={13} />
+              </button>
+            )}
           </>
         ) : (
           <>
