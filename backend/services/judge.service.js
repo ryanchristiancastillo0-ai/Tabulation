@@ -159,7 +159,7 @@ async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, p
     contest_name: 'Event',
     ai_prompt: 'Modern and Professional',
     ai_model: DEFAULT_MODEL,
-    ai_provider: 'unorouter',
+    ai_provider: aiModels.DEFAULT_PROVIDER,
     ui_mode: 'ai',
   };
   const finalDesignGoal = aiPrompt || settings.ai_prompt || 'Modern and Professional';
@@ -168,9 +168,10 @@ async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, p
   // Resolve + coerce to a VALID provider/model combination. save-config rejects
   // invalid pairs strictly; this soft coercion only protects internal/legacy
   // callers from a stale value in the settings row (e.g. pre-migration data).
-  const providerEntry = aiModels.getProvider(provider || settings.ai_provider);
-  const finalProvider = providerEntry ? providerEntry.name : 'unorouter';
-  const rawModel = String(model || settings.ai_model || DEFAULT_MODEL).toLowerCase();
+  // Legacy pre-Groq ids are coalesced here too ('unorouter'/'codestral-latest').
+  const providerEntry = aiModels.getProvider(aiModels.coalesceProvider(provider || settings.ai_provider));
+  const finalProvider = providerEntry ? providerEntry.name : aiModels.DEFAULT_PROVIDER;
+  const rawModel = aiModels.coalesceModel(String(model || settings.ai_model || DEFAULT_MODEL).toLowerCase());
   const finalModel = aiModels.hasModel(finalProvider, rawModel)
     ? rawModel
     : (aiModels.listModels(finalProvider)[0] || DEFAULT_MODEL);
@@ -182,7 +183,7 @@ async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, p
     .join(',');
 
   // The provider is part of the cache key: the same prompt + model can produce
-  // different HTML on different providers, so a UnoRouter design must never be
+  // different HTML on different providers, so a Groq design must never be
   // served when the admin switched to Gemini (or vice versa).
   const configHash = crypto.createHash('md5')
     .update(`${finalProvider}|${finalDesignGoal}|${criteriaSignature}|${finalModel}|${finalUiMode}|${school_id}`)
@@ -438,10 +439,10 @@ async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiMode
   // ✅ prefer the client's explicit values; fall back to settings only when
   // the caller didn't supply them (e.g. an older client or an internal call).
   const aiPrompt = aiPromptOverride || settings[0]?.ai_prompt || 'Modern and Professional';
-  const aiModel  = aiModelOverride  || settings[0]?.ai_model  || DEFAULT_MODEL;
+  const aiModel  = aiModels.coalesceModel(aiModelOverride  || settings[0]?.ai_model)  || DEFAULT_MODEL;
   const uiMode   = uiModeOverride   || settings[0]?.ui_mode   || 'ai';
-  const providerEntry = aiModels.getProvider(aiProviderOverride || settings[0]?.ai_provider);
-  const provider = providerEntry ? providerEntry.name : 'unorouter';
+  const providerEntry = aiModels.getProvider(aiModels.coalesceProvider(aiProviderOverride || settings[0]?.ai_provider));
+  const provider = providerEntry ? providerEntry.name : aiModels.DEFAULT_PROVIDER;
 
   // Provider is part of the hash — MUST match prepareRender exactly so the judge
   // and the admin generator agree on the same cache row for the same provider.

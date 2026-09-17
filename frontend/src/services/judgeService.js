@@ -21,8 +21,8 @@ export const getJudgeDataFetch = async (setLoading, setConfig, setDynamicUI, sho
     const uiData = await apiClient.post('/judge/render-ui', {
       school_id,
       aiPrompt:    data.settings?.ai_prompt || 'Modern and Professional',
-      aiProvider:  data.settings?.ai_provider || 'unorouter',
-      aiModel:     data.settings?.ai_model || 'codestral-latest',
+      aiProvider:  data.settings?.ai_provider || 'groq',
+      aiModel:     data.settings?.ai_model || 'openai/gpt-oss-120b',
       uiMode:      data.settings?.ui_mode  || 'ai',
       contestants: data.contestants  || [],
       criteria:    data.criteria     || [],

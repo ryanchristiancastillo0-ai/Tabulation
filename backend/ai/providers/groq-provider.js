@@ -1,14 +1,14 @@
-// ── UnoRouter provider ────────────────────────────────────────────────────────
-// OpenAI-compatible chat-completions via https://api.unorouter.com/v1.
+// ── Groq provider ─────────────────────────────────────────────────────────────
+// OpenAI-compatible chat-completions via https://api.groq.com/openai/v1.
 // Admin-selected model, one provider, one model, no automatic switching.
 
 const aiModels = require('../ai-models');
 const { safeError, request, getApiKey, providerTimeoutMs } = require('../provider-common');
 
-const CONFIG = aiModels.PROVIDERS.unorouter;
-const BASE_URL = 'https://api.unorouter.com/v1/chat/completions';
+const CONFIG = aiModels.PROVIDERS.groq;
+const BASE_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-// One request — streaming or one-shot — to UnoRouter. Returns the text.
+// One request — streaming or one-shot — to Groq. Returns the text.
 async function chat({ prompt, model, onDelta, timeoutMs }) {
   const apiKey = getApiKey(CONFIG);
   const resolvedTimeout = timeoutMs || providerTimeoutMs(CONFIG);
@@ -35,7 +35,7 @@ async function chat({ prompt, model, onDelta, timeoutMs }) {
         getContent: (j) => j?.choices?.[0]?.delta?.content,
         onDelta,
       });
-      console.log(`✅ [UnoRouter] stream success model=${model} ${Date.now() - t0}ms`);
+      console.log(`✅ [Groq] stream success model=${model} ${Date.now() - t0}ms`);
       return text;
     }
 
@@ -45,10 +45,10 @@ async function chat({ prompt, model, onDelta, timeoutMs }) {
       throw safeError('The AI returned an empty response. Please try again.');
     }
     const text = String(content).trim();
-    console.log(`✅ [UnoRouter] success model=${model} ${Date.now() - t0}ms`);
+    console.log(`✅ [Groq] success model=${model} ${Date.now() - t0}ms`);
     return text;
   } catch (err) {
-    console.error(`❌ [UnoRouter] failed model=${model} ${Date.now() - t0}ms:`, err.message);
+    console.error(`❌ [Groq] failed model=${model} ${Date.now() - t0}ms:`, err.message);
     throw err;
   }
 }

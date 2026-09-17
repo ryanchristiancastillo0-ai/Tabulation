@@ -36,24 +36,16 @@ function sanitizeAiHtml(html, criteria) {
     select.innerHTML = options;
 
     // Force every score cell to EXACTLY ONE control. The wrap must contain only
-    // the <details> dropdown and this hidden select — anything else (stale
-    // "%" labels, duplicated selects, extra triggers) is removed so old cached
-    // designs can't render a second control beside the box.
+    // this visible native <select> — anything else (leftover custom <details>
+    // trigger from stale cached designs, "%" labels, duplicated selects, extra
+    // triggers) is removed so old cached designs can't render a second control
+    // beside the box.
     const wrap = select.closest('.sts-dd-wrap');
     if (wrap) {
       Array.prototype.slice.call(wrap.children).forEach(child => {
-        if (child === select || child.classList.contains('sts-dd')) return;
+        if (child === select) return;
         child.remove();
       });
-      const panel = wrap.querySelector('.sts-dd-panel');
-      if (panel) {
-        let opts = `<div class="sts-dd-option" data-value="" role="option">–</div>`;
-        for (let i = max; i >= 0; i--) {
-          const decadeClass = (i > 0 && i % 10 === 0) ? ' sts-dd-decade' : '';
-          opts += `<div class="sts-dd-option${decadeClass}" data-value="${i}" role="option">${i}%</div>`;
-        }
-        panel.innerHTML = opts;
-      }
     }
   });
 
@@ -61,39 +53,57 @@ function sanitizeAiHtml(html, criteria) {
 }
 
 // ── One-dropdown-per-cell rule ───────────────────────────────────────
-// Any <select> sharing a cell with a .score-dropdown that ISN'T the score
-// select is a stray/duplicate dropdown (AIs love emitting a "percentage"
-// select next to each score). Replace it with plain static text so every
-// criterion cell has exactly one control. The main .score-dropdown is left
-// untouched, and the displayed value is preserved as text.
+// Every scoring cell must contain EXACTLY ONE dropdown control. A cell is a
+// scoring cell if it contains a .score-dropdown; the canonical score select is
+// the one whose id is score-<digits>-<digits>. Any other select in that cell —
+// an AI "percentage" box also tagged .score-dropdown, a stray native box —
+// and any duplicate custom box (an extra .sts-dd-wrap / <details> trigger)
+// is removed outright, so each criterion renders one dropdown only.
 function stripDuplicateSelects(root) {
-  root.querySelectorAll('.score-dropdown').forEach(keep => {
-    const cell = keep.closest('td, th');
+  const cells = new Map(); // scoring cell (td/th) -> canonical select to keep
+  root.querySelectorAll('select.score-dropdown').forEach(select => {
+    const cell = select.closest('td, th');
     if (!cell) return;
+    if (!cells.has(cell)) {
+      cells.set(cell, select);
+    } else {
+      const keep       = cells.get(cell);
+      const keepIsReal = /^score-\d+-\d+$/.test(keep.id || '');
+      const selIsReal  = /^score-\d+-\d+$/.test(select.id || '');
+      if (!keepIsReal && selIsReal) {
+        cells.set(cell, select);
+        keep.remove();
+      } else {
+        select.remove();
+      }
+    }
+  });
+
+  cells.forEach((keep, cell) => {
+    // 1) Drop every other <select> in the cell (native or .score-dropdown).
     cell.querySelectorAll('select').forEach(extra => {
-      if (extra === keep || extra.classList.contains('score-dropdown')) return;
-      const opt  = extra.selectedOptions && extra.selectedOptions[0];
-      const text = (opt ? opt.textContent : '').trim();
-      const span = document.createElement('span');
-      span.textContent = text === '' ? '–' : text;
-      span.style.display  = 'inline-block';
-      span.style.fontWeight = '600';
-      span.style.padding   = '0 4px';
-      span.style.color     = 'inherit';
-      extra.replaceWith(span);
+      if (extra !== keep) extra.remove();
+    });
+
+    // 2) Duplicate custom dropdown wraps (the "21% ▼" box).
+    const keepWrap = keep.closest('.sts-dd-wrap');
+    cell.querySelectorAll('.sts-dd-wrap').forEach(el => {
+      if (el !== keepWrap) el.remove();
+    });
+
+    // 3) Loose custom dropdown <details> not inside the kept wrap.
+    cell.querySelectorAll('details.sts-dd').forEach(el => {
+      if (keepWrap && keepWrap.contains(el)) return;
+      el.remove();
     });
   });
 }
-
-// Keeps the dropdown's trigger label in sync with the selected score (plain
-// text number; "–" when nothing selected) so restored/saved scores are shown.
+// Keeps the trigger's placeholder label ("–") in sync with the native select.
+// The select itself already shows the chosen option; this only re-applies the
+// "–" placeholder when the value is cleared.
 function syncRichDisplay(select, dbVal) {
-  const wrap = select.closest('.sts-dd-wrap');
-  if (!wrap) return;
   const v = dbVal !== undefined && dbVal !== null ? String(dbVal) : select.value;
-  const hasValue = v !== '' && v !== null && v !== undefined;
-  const val = wrap.querySelector('.sts-dd-value');
-  if (val) val.textContent = hasValue ? v.replace('%', '') : '–';
+  if (v === '' || v === null || v === undefined) select.value = '';
 }
 
 export const getHydra_and_Calcu = (
@@ -147,7 +157,7 @@ export const getHydra_and_Calcu = (
       const wrap = select.closest('.sts-dd-wrap');
       if (wrap) {
         Array.prototype.slice.call(wrap.children).forEach(child => {
-          if (child === select || child.classList.contains('sts-dd')) return;
+          if (child === select) return;
           child.remove();
         });
       }

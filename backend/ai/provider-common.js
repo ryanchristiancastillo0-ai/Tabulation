@@ -1,6 +1,7 @@
 // ── Shared pieces for the AI providers ────────────────────────────────────────
-// fetch + timeout + OpenAI-style SSE parsing + user-safe errors. Both providers
-// (UnoRouter, Gemini) reuse these so request processing is never duplicated.
+// fetch + timeout + OpenAI-style SSE parsing + user-safe errors. All providers
+// (Groq, Gemini, OpenRouter) reuse these so request processing is never
+// duplicated.
 
 const DEFAULT_TIMEOUT_MS = Number(process.env.AI_JOB_TIMEOUT_MS) || 240000;
 

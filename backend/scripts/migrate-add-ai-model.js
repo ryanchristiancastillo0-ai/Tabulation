@@ -2,9 +2,10 @@ require('dotenv').config();
 const pool = require('../config/db');
 
 // Adds the B.AI model columns:
-//   settings.ai_model       ('qwen3.8-flash' | 'mimo-v2.5' | 'glm-5.3-flash')
+//   settings.ai_model       (e.g. 'openai/gpt-oss-120b')
 //                           — Admin-selected model for judge UI generation
 //   generations.model       — the model used for each AI generation job
+const DEFAULT_MODEL = 'openai/gpt-oss-120b';
 async function columnExists(table, column) {
   const [rows] = await pool.query(
     `SELECT COUNT(*) AS n
@@ -36,8 +37,8 @@ async function withRetry(fn, attempts = 6) {
 async function migrate() {
   if (!(await columnExists('settings', 'ai_model'))) {
     await pool.query(`ALTER TABLE \`settings\`
-      ADD COLUMN \`ai_model\` VARCHAR(50) DEFAULT 'qwen3.8-flash'
-      COMMENT 'B.AI model id used for judge UI generation'
+      ADD COLUMN \`ai_model\` VARCHAR(50) DEFAULT '${DEFAULT_MODEL}'
+      COMMENT 'AI model id used for judge UI generation'
       AFTER \`ai_prompt\``);
     console.log('✅ settings.ai_model added.');
   } else {
@@ -46,8 +47,8 @@ async function migrate() {
 
   if (!(await columnExists('generations', 'model'))) {
     await pool.query(`ALTER TABLE \`generations\`
-      ADD COLUMN \`model\` VARCHAR(50) DEFAULT 'qwen3.8-flash'
-      COMMENT 'B.AI model id used for this generation'
+      ADD COLUMN \`model\` VARCHAR(50) DEFAULT '${DEFAULT_MODEL}'
+      COMMENT 'AI model id used for this generation'
       AFTER \`prompt\``);
     console.log('✅ generations.model added.');
   } else {

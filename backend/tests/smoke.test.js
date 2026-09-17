@@ -1,4 +1,5 @@
-// Smoke tests for the two-provider AI system (no external calls, no keys required).
+// Smoke tests for the three-provider AI system (no external calls, no keys required).
+// Covers provider/model validation, provider adapters, and the fallback chain.
 // Run with: npm test
 const assert = require('assert');
 
@@ -22,33 +23,37 @@ function test(name, fn) {
 
 async function main() {
   await test('ai-models: defaults + safe metadata (no key env leaked)', () => {
-    assert.strictEqual(aiModels.DEFAULT_PROVIDER, 'unorouter');
-    assert.strictEqual(aiModels.DEFAULT_MODEL, 'codestral-latest');
+    assert.strictEqual(aiModels.DEFAULT_PROVIDER, 'groq');
+    assert.strictEqual(aiModels.DEFAULT_MODEL, 'openai/gpt-oss-120b');
     const meta = JSON.stringify(aiModels.safeModelMetadata());
     assert.ok(!meta.includes('API_KEY'), 'metadata must never leak key env names');
-    assert.ok(meta.includes('UnoRouter'));
+    assert.ok(meta.includes('Groq'));
     assert.ok(meta.includes('gemini-3.1-flash-lite'));
+    assert.ok(meta.includes('OpenRouter'));
+    assert.ok(meta.includes('openrouter/free'));
   });
 
   await test('ai-models: valid provider/model pairs accepted', () => {
-    assert.deepStrictEqual(aiModels.assertValidProviderModel('unorouter', 'codestral-latest'), { provider: 'unorouter', model: 'codestral-latest' });
+    assert.deepStrictEqual(aiModels.assertValidProviderModel('groq', 'openai/gpt-oss-120b'), { provider: 'groq', model: 'openai/gpt-oss-120b' });
     assert.deepStrictEqual(aiModels.assertValidProviderModel('GEMINI', 'Gemini-3.1-Flash-Lite'), { provider: 'gemini', model: 'gemini-3.1-flash-lite' });
+    assert.deepStrictEqual(aiModels.assertValidProviderModel('openrouter', 'openrouter/free'), { provider: 'openrouter', model: 'openrouter/free' });
   });
 
-  await test('ai-models: :free / legacy B.AI / unknown all rejected', () => {
-    assert.throws(() => aiModels.assertValidProviderModel('unorouter', 'codestral-latest:free'), /not a valid model/);
-    assert.throws(() => aiModels.assertValidProviderModel('unorouter', 'mimo-v2.5'), /not a valid model/);
+  await test('ai-models: wrong-provider model / legacy B.AI / unknown all rejected', () => {
+    assert.throws(() => aiModels.assertValidProviderModel('groq', 'gemini-3.1-flash-lite'), /not a valid model/);
+    assert.throws(() => aiModels.assertValidProviderModel('openrouter', 'gpt-4o'), /not a valid model/);
+    assert.throws(() => aiModels.assertValidProviderModel('openrouter', 'codestral-latest'), /not a valid model/);
     assert.throws(() => aiModels.assertValidProviderModel('bai', 'anything'), /Unknown AI provider/);
     assert.throws(() => aiModels.assertValidProviderModel('gemini', 'codestral-latest'), /not a valid model/);
     assert.throws(() => aiModels.assertValidProviderModel('', 'codestral-latest'), /Unknown AI provider/);
   });
 
   await test('provider-common: missing key -> safe, user-readable', () => {
-    const keyEnv = aiModels.PROVIDERS.unorouter.keyEnv;
+    const keyEnv = aiModels.PROVIDERS.groq.keyEnv;
     const prev = process.env[keyEnv];
     delete process.env[keyEnv];
     try {
-      assert.throws(() => pc.getApiKey(aiModels.PROVIDERS.unorouter), (e) => {
+      assert.throws(() => pc.getApiKey(aiModels.PROVIDERS.groq), (e) => {
         assert.strictEqual(e.safe, true);
         assert.ok(e.message.includes(keyEnv), `message mentions ${keyEnv}`);
         return true;
@@ -95,7 +100,7 @@ async function main() {
     let joined = '';
     try {
       const text = await pc.request({
-        url: 'unorouter', headers: {}, body: {}, stream: true,
+        url: 'groq', headers: {}, body: {}, stream: true,
         getContent: (j) => j?.choices?.[0]?.delta?.content,
         onDelta: (d) => { joined += d; },
       });
@@ -128,19 +133,80 @@ async function main() {
     await assert.rejects(() => aiService.generate({ provider: '', model: '', prompt: 'x' }), (e) => e.safe === true);
   });
 
-  await test('unorouter chat: one-shot (stubbed fetch) returns content', async () => {
+  await test('groq chat: one-shot (stubbed fetch) returns content', async () => {
     const realFetch = global.fetch;
-    const keyEnv = aiModels.PROVIDERS.unorouter.keyEnv;
+    const keyEnv = aiModels.PROVIDERS.groq.keyEnv;
     const prevKey = process.env[keyEnv];
     process.env[keyEnv] = 'test-key';
     global.fetch = async (url) => {
-      assert.ok(url === 'https://api.unorouter.com/v1/chat/completions');
-      return { ok: true, status: 200, body: {}, json: async () => ({ choices: [{ message: { content: 'GEN UNO' } }] }) };
+      assert.ok(url === 'https://api.groq.com/openai/v1/chat/completions');
+      return { ok: true, status: 200, body: {}, json: async () => ({ choices: [{ message: { content: 'GEN GROQ' } }] }) };
     };
     try {
-      const unorouter = require('../ai/providers/unorouter-provider');
-      const text = await unorouter.chat({ prompt: 'p', model: 'codestral-latest' });
-      assert.strictEqual(text, 'GEN UNO');
+      const { chat } = require('../ai/providers/groq-provider');
+      const text = await chat({ prompt: 'p', model: 'openai/gpt-oss-120b' });
+      assert.strictEqual(text, 'GEN GROQ');
+    } finally { global.fetch = realFetch; restoreKey(keyEnv, prevKey); }
+  });
+
+  await test('openrouter chat: one-shot (stubbed fetch) returns content', async () => {
+    const realFetch = global.fetch;
+    const keyEnv = aiModels.PROVIDERS.openrouter.keyEnv;
+    const prevKey = process.env[keyEnv];
+    process.env[keyEnv] = 'test-key';
+    global.fetch = async (url) => {
+      assert.ok(url === 'https://openrouter.ai/api/v1/chat/completions');
+      return { ok: true, status: 200, body: {}, json: async () => ({ choices: [{ message: { content: 'GEN OR' } }] }) };
+    };
+    try {
+      const { chat } = require('../ai/providers/openrouter-provider');
+      const text = await chat({ prompt: 'p', model: 'openrouter/free' });
+      assert.strictEqual(text, 'GEN OR');
+    } finally { global.fetch = realFetch; restoreKey(keyEnv, prevKey); }
+  });
+
+  await test('ai-service: selected provider receives the requested model', async () => {
+    const realFetch = global.fetch;
+    const prevKeys = setAllKeys();
+    const seen = {};
+    global.fetch = async (url, opts) => {
+      seen.url = String(url);
+      if (opts && opts.body) {
+        const parsed = JSON.parse(opts.body);
+        seen.model = parsed.model;
+        seen.stream = !!parsed.stream;
+      }
+      const json = String(url).includes('generativelanguage')
+        ? { candidates: [{ content: { parts: [{ text: 'GEN' }] } }] }
+        : { choices: [{ message: { content: 'GEN' } }] };
+      return { ok: true, status: 200, body: {}, json: async () => json };
+    };
+    try {
+      const text = await aiService.generate({ provider: 'openrouter', model: 'openrouter/free', prompt: 'p' });
+      assert.strictEqual(text, 'GEN');
+      assert.strictEqual(seen.url, 'https://openrouter.ai/api/v1/chat/completions');
+      assert.strictEqual(seen.model, 'openrouter/free');
+
+      await aiService.generate({ provider: 'gemini', model: 'gemini-3.1-flash-lite', prompt: 'p' });
+      assert.ok(seen.url.includes('/models/gemini-3.1-flash-lite:generateContent'), seen.url);
+    } finally { global.fetch = realFetch; restoreAllKeys(prevKeys); }
+  });
+
+  await test('openrouter chat: streaming (stubbed fetch) accumulates + returns text', async () => {
+    const realFetch = global.fetch;
+    const keyEnv = aiModels.PROVIDERS.openrouter.keyEnv;
+    const prevKey = process.env[keyEnv];
+    process.env[keyEnv] = 'test-key';
+    const reader = makeReader([
+      'data: {"choices":[{"delta":{"content":"A"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"B"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]);
+    global.fetch = async () => ({ ok: true, status: 200, body: { getReader: () => reader } });
+    try {
+      const { chat } = require('../ai/providers/openrouter-provider');
+      const text = await chat({ prompt: 'p', model: 'openrouter/free', onDelta: () => {} });
+      assert.strictEqual(text, 'AB');
     } finally { global.fetch = realFetch; restoreKey(keyEnv, prevKey); }
   });
 
@@ -178,6 +244,62 @@ async function main() {
     } finally { global.fetch = realFetch; restoreKey(keyEnv, prevKey); }
   });
 
+  await test('ai-service: transient Gemini failure falls back to Groq', async () => {
+    const realFetch = global.fetch;
+    const prevKeys = setAllKeys();
+    global.fetch = async (url) => {
+      if (String(url).includes('generativelanguage')) {
+        return { ok: false, status: 429, json: async () => ({ error: { message: 'rate limited' } }) };
+      }
+      if (String(url).includes('api.groq.com')) {
+        return { ok: true, status: 200, body: {}, json: async () => ({ choices: [{ message: { content: 'GEN FALLBACK' } }] }) };
+      }
+      throw new Error('unexpected url ' + url);
+    };
+    try {
+      const text = await aiService.generate({ provider: 'gemini', model: 'gemini-3.1-flash-lite', prompt: 'p' });
+      assert.strictEqual(text, 'GEN FALLBACK');
+    } finally { global.fetch = realFetch; restoreAllKeys(prevKeys); }
+  });
+
+  await test('ai-service: Gemini + Groq transient failures fall back to OpenRouter', async () => {
+    const realFetch = global.fetch;
+    const prevKeys = setAllKeys();
+    global.fetch = async (url) => {
+      if (String(url).includes('generativelanguage')) {
+        return { ok: false, status: 429, json: async () => ({ error: { message: 'rate limited' } }) };
+      }
+      if (String(url).includes('api.groq.com')) {
+        return { ok: false, status: 503, json: async () => ({ error: { message: 'provider outage' } }) };
+      }
+      if (String(url).includes('openrouter.ai')) {
+        return { ok: true, status: 200, body: {}, json: async () => ({ choices: [{ message: { content: 'GEN OR' } }] }) };
+      }
+      throw new Error('unexpected url ' + url);
+    };
+    try {
+      const text = await aiService.generate({ provider: 'gemini', model: 'gemini-3.1-flash-lite', prompt: 'p' });
+      assert.strictEqual(text, 'GEN OR');
+    } finally { global.fetch = realFetch; restoreAllKeys(prevKeys); }
+  });
+
+  await test('ai-service: auth errors DO NOT trigger fallback', async () => {
+    const realFetch = global.fetch;
+    const prevKeys = setAllKeys();
+    const calls = [];
+    global.fetch = async (url) => {
+      calls.push(String(url));
+      return { ok: false, status: 401, json: async () => ({ error: { message: 'bad key' } }) };
+    };
+    try {
+      await assert.rejects(
+        () => aiService.generate({ provider: 'gemini', model: 'gemini-3.1-flash-lite', prompt: 'p' }),
+        (e) => e.status === 401
+      );
+      assert.strictEqual(calls.length, 1, 'only the selected provider may be called');
+    } finally { global.fetch = realFetch; restoreAllKeys(prevKeys); }
+  });
+
   console.log(`\nSmoke: ${passed} passed`);
 }
 
@@ -194,6 +316,17 @@ function createChain(chunks) {
 function restoreKey(env, prev) {
   if (prev === undefined) delete process.env[env];
   else process.env[env] = prev;
+}
+function setAllKeys() {
+  const prevKeys = {};
+  for (const env of ['GEMINI_API_KEY', 'GROQ_API_KEY', 'OPENROUTER_API_KEY']) {
+    prevKeys[env] = process.env[env];
+    process.env[env] = 'test-key';
+  }
+  return prevKeys;
+}
+function restoreAllKeys(prevKeys) {
+  for (const env of Object.keys(prevKeys)) restoreKey(env, prevKeys[env]);
 }
 
 main();

@@ -19,8 +19,8 @@ function Dashboard() {
   const [contestName,     setContestName]     = useState("");
   const [contestType,     setContestType]     = useState("pageant");
   const [aiPrompt,        setAiPrompt]        = useState("");
-  const [aiProvider,      setAiProvider]      = useState("unorouter");
-  const [aiModel,         setAiModel]         = useState("codestral-latest");
+  const [aiProvider,      setAiProvider]      = useState("groq");
+  const [aiModel,         setAiModel]         = useState("openai/gpt-oss-120b");
   const [uiMode,          setUiMode]          = useState("ai");
   const [judgeCount,      setJudgeCount]      = useState(3);
   const [calculationType, setCalculationType] = useState("average");
@@ -114,8 +114,8 @@ function Dashboard() {
       setContestName(settings.contest_name ?? "");
       setContestType(settings.contest_type ?? "pageant");
       setAiPrompt(settings.ai_prompt ?? "");
-      setAiProvider(settings.ai_provider ?? "unorouter");
-      setAiModel(settings.ai_model ?? "codestral-latest");
+      setAiProvider(settings.ai_provider ?? "groq");
+      setAiModel(settings.ai_model ?? "openai/gpt-oss-120b");
       setUiMode(settings.ui_mode ?? "ai");
       setJudgeCount(Number(settings.judge_count ?? 3));
       setCalculationType(settings.computation_type ?? "average");

@@ -91,51 +91,55 @@ const AIConfigSection = ({ aiPrompt, setAiPrompt, aiProvider, setAiProvider, aiM
             <div>This prompt tells the AI how to <strong>generate the Judge UI and Tabulation layout</strong>. Pick a theme preset or write your own below.</div>
           </div>
 
-          {/* Provider selector */}
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: 10 }}>AI Provider</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
-              {providers.length === 0 && (
-                <div style={{ fontSize: 12, color: 'var(--text3)', padding: '10px 2px' }}>Loading AI providers…</div>
-              )}
-              {providers.map(p => {
-                const isActive = aiProvider === p.provider;
-                return (
-                  <button key={p.provider} onClick={() => setAiProvider(p.provider)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5, padding: '12px 14px', borderRadius: 6, textAlign: 'left', border: isActive ? '2px solid var(--accent-mid)' : '1px solid var(--border)', background: isActive ? 'var(--accent-lt)' : 'var(--surface2)', cursor: 'pointer', transition: 'all .15s', fontFamily: 'inherit', boxShadow: isActive ? '0 0 0 3px var(--accent-lt)' : 'none' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: 999, background: isActive ? 'var(--accent)' : 'var(--text3)', flexShrink: 0 }} />
-                      <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? 'var(--accent)' : 'var(--text1)' }}>{p.label}</div>
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.4 }}>{p.models.length} model{p.models.length !== 1 ? 's' : ''}</div>
-                  </button>
-                );
-              })}
+          {/* Provider + Model — one unified panel */}
+          <div style={{ border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface2)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', padding: '12px 14px 10px' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>AI Provider & Model</div>
+              <div style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>auto-fallback: gemini → groq → openrouter</div>
             </div>
-          </div>
 
-          {/* Model selector — scoped to the selected provider */}
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: 10 }}>AI Model</div>
-            <select
-              className="field-input"
-              title="Choose which model of the selected provider generates the Judge UI"
-              style={{ appearance: 'none', cursor: 'pointer' }}
-              value={selectedModel}
-              onChange={e => setAiModel(e.target.value)}
-              disabled={!models.length}
-            >
-              {models.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-            <div style={{ fontSize: 12, color: 'var(--text2)', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', marginTop: 8, lineHeight: 1.5 }}>
-              {currentProvider
-                ? `"${selectedModel}" (${currentProvider.label}) generates the Judge UI when you save.`
-                : 'No AI models loaded yet.'}
-              <div style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600, marginTop: 4 }}>
-                One provider + one model per save. API keys live only on the server — never in the browser.
+            {providers.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--text3)', padding: '0 14px 14px' }}>Loading AI providers…</div>
+            ) : (
+              <div style={{ padding: '0 14px 14px', display: 'grid', gap: 10 }}>
+                {/* Provider pills */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 6 }}>
+                  {providers.map(p => {
+                    const isActive = aiProvider === p.provider;
+                    return (
+                      <button key={p.provider} onClick={() => setAiProvider(p.provider)} title={`Use ${p.label} to generate the Judge UI`}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 6, textAlign: 'left', border: isActive ? '1.5px solid var(--accent)' : '1px solid var(--border)', background: isActive ? 'var(--accent-lt)' : 'var(--surface)', cursor: 'pointer', transition: 'all .15s', fontFamily: 'inherit', boxShadow: isActive ? '0 0 0 3px var(--accent-lt)' : 'none' }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 999, background: isActive ? 'var(--accent)' : 'var(--text3)', flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, fontWeight: 700, color: isActive ? 'var(--accent)' : 'var(--text1)' }}>{p.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Model — scoped to the selected provider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="field-label" style={{ margin: 0, flexShrink: 0, minWidth: 44 }}>Model</div>
+                  <select
+                    className="field-input"
+                    title="Choose which model of the selected provider generates the Judge UI"
+                    style={{ appearance: 'none', cursor: 'pointer', flex: 1 }}
+                    value={selectedModel}
+                    onChange={e => setAiModel(e.target.value)}
+                    disabled={!models.length}
+                  >
+                    {models.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Summary line */}
+                <div style={{ fontSize: 11, color: 'var(--text2)', lineHeight: 1.5, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                  <strong style={{ color: 'var(--text1)' }}>{selectedModel}</strong>{currentProvider ? ` (${currentProvider.label})` : ''} generates the Judge UI when you save.
+                  <span style={{ color: 'var(--accent)', fontWeight: 600 }}> API keys live only on the server — never in the browser.</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: 10 }}>Design theme presets</div>

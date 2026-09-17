@@ -12,15 +12,14 @@
 //   focus     border #1B4332 + ring rgba(27,67,50,0.15), bg flips to white
 //   font      Inter
 //
-// The score control below is a fully custom dropdown built from <details>/<summary> —
-// no native <select> UI is shown to the user. A hidden native <select id="score-{c}-{cr}">
-// is kept in sync (value + change event) so any existing code reading
-// document.getElementById('score-...').value keeps working unchanged.
+// The score control is a real native <select class="score-dropdown" id="score-{c}-{cr}">
+// styled with CSS to match the theme. Its popup list is rendered by the browser in
+// its own overlay, so it is inherently adaptive (the browser flips it up/down around
+// the viewport) and can never overlap the table layout.
 
 export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 1') {
   if (!Array.isArray(contestants) || !Array.isArray(criteria)) return '';
   if (!contestants.length || !criteria.length) return '';
-
   const maxBy = {};
   criteria.forEach(c => {
     if (c && c.id !== undefined && c.id !== null) maxBy[String(c.id)] = Number(c.percentage) || 0;
@@ -46,94 +45,17 @@ export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 
     `</th>`;
   }).join('');
 
-  // Native <select> options — kept exactly as before, for the hidden compatibility select.
+  // Native <select> options — highest first so the current percentage is on top,
+  // each labelled with its percentage (25 → "25%"), matching the criterion weight.
   const nativeOptionString = (max) => {
-    let out = '<option value="">–</option>';
+    let out = '<option value="" data-placeholder="true">–</option>';
     for (let i = max; i >= 0; i--) out += `<option value="${i}">${i}%</option>`;
     return out;
   };
 
-  // Custom panel rows for the built dropdown. Every 10th value gets a divider line
-  // so long ranges (e.g. max 100) stay scannable. Listed highest-first and each
-  // labelled with its percentage (25 → "25%"), matching the criterion weight.
-  const panelOptionString = (max) => {
-    let out = `<div class="sts-dd-option" data-value="" role="option">–</div>`;
-    for (let i = max; i >= 0; i--) {
-      const decadeClass = (i > 0 && i % 10 === 0) ? ' sts-dd-decade' : '';
-      out += `<div class="sts-dd-option${decadeClass}" data-value="${i}" role="option">${i}%</div>`;
-    }
-    return out;
-  };
-
-  // Inline style keys the adaptive panel overrides while open; cleared on close so
-  // the normal (in-table) layout returns the next time it is opened fresh.
-  const pnlReset = `['position','left','top','width','minWidth','maxHeight','bottom','right','transform','margin','zIndex']`;
-
-  // Constrain the open panel to the viewport so it can never overlap neighbouring
-  // columns, rows, or the screen edges. On open the panel is pinned
-  // position:fixed at the trigger's co-ordinates, centred AND clamped to the
-  // screen, and flipped above the row when there isn't enough room below (or
-  // when above has more room than below). Its height is always constrained so
-  // it never gets cut off top or bottom. While the dropdown is open, scrolling
-  // or resizing re-measures and re-positions it (it stays open and follows the
-  // trigger), and it is cleared on close.
-  const panelOpenJS =
-    `(function(){var d=this.closest('details');var p=d.querySelector('.sts-dd-panel');if(!d||!p)return;` +
-    `var s=this;var dd=d;var pnl=p;` +
-    `var rrk=${pnlReset};` +
-    `var off=function(){rrk.forEach(function(k){pnl.style[k]='';});if(s.__m){window.removeEventListener('scroll',s.__m,true);s.__m=null;}if(s.__r){window.removeEventListener('resize',s.__r);s.__r=null;}};` +
-    `s.__off=off;` +
-    `if(d.open){off();return;}` +
-    `var pos=function(){` +
-      `var vw=window.innerWidth||document.documentElement.clientWidth;var vh=window.innerHeight||document.documentElement.clientHeight;` +
-      `var r=s.getBoundingClientRect();var pad=10;` +
-      `var w=Math.max(84,Math.min(r.width+16,200));` +
-      `var left=Math.max(pad,Math.min(r.left+(r.width-w)/2,Math.max(pad,vw-w-pad)));` +
-      `var below=vh-(r.bottom+6)-pad;var above=r.top-pad-6;` +
-      `var flip=below<100&&above>below;` +
-      `var maxH=Math.max(40,Math.min(224,flip?above:below));` +
-      `var top=flip?r.top-maxH-6:r.bottom+6;` +
-      `top=Math.max(pad,Math.min(top,vh-maxH-pad));` +
-      `pnl.style.position='fixed';pnl.style.left=left+'px';pnl.style.top=top+'px';pnl.style.width=w+'px';pnl.style.minWidth='0';pnl.style.maxHeight=maxH+'px';pnl.style.zIndex='60';pnl.style.margin='0';pnl.style.right='auto';pnl.style.bottom='auto';pnl.style.transform='none';` +
-    `};` +
-    `pos();` +
-    `s.__m=function(){if(dd.open)pos();};` +
-    `s.__r=function(){if(dd.open)pos();};` +
-    `window.addEventListener('scroll',s.__m,true);window.addEventListener('resize',s.__r);` +
-    `setTimeout(function(){if(dd.open)pos();},0);` +
-    `})();`;
-
-  // One shared inline handler (per panel, not per option) — keeps markup light even
-  // with 100+ options, and needs no external <script> tag to function.
-  const panelClickHandler =
-    `var t=event.target.closest('.sts-dd-option');if(!t)return;` +
-    `var d=this.closest('details');var sel=d.nextElementSibling;` +
-    `sel.value=t.getAttribute('data-value');` +
-    `sel.dispatchEvent(new Event('change',{bubbles:true}));` +
-    `var v=t.getAttribute('data-value');var disp=(v===''||v==null)?'–':v.replace('%','');` +
-    `d.querySelector('.sts-dd-value').textContent=disp;` +
-    `d.querySelectorAll('.sts-dd-option').forEach(function(o){o.classList.remove('is-selected')});` +
-    `t.classList.add('is-selected');` +
-    `d.removeAttribute('open');` +
-    `var sg=d.querySelector('summary');if(sg)if(sg.__off)sg.__off();`;
-
-  const scrimClickHandler =
-    `var d=this.closest('details');var sg=d.querySelector('summary');if(sg)if(sg.__off)sg.__off();` +
-    `d.removeAttribute('open');`;
-
   const buildDropdown = (id, ariaLabel, max) => {
     return `<div class="sts-dd-wrap">` +
-      `<details class="sts-dd">` +
-        `<summary class="sts-dd-trigger" aria-label="${escAttr(ariaLabel)}" aria-haspopup="listbox" onclick="${escAttr(panelOpenJS)}">` +
-          `<span class="sts-dd-value">–</span>` +
-          `<svg class="sts-dd-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>` +
-        `</summary>` +
-        `<div class="sts-dd-panel" role="listbox" onclick="${escAttr(panelClickHandler)}">` +
-          panelOptionString(max) +
-        `</div>` +
-        `<div class="sts-dd-scrim" onclick="${escAttr(scrimClickHandler)}"></div>` +
-      `</details>` +
-      `<select class="score-dropdown" id="${id}" aria-hidden="true" tabindex="-1" style="display:none">` +
+      `<select class="score-dropdown" id="${id}" aria-label="${escAttr(ariaLabel)}">` +
         nativeOptionString(max) +
       `</select>` +
     `</div>`;
@@ -505,7 +427,7 @@ export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 
     .sts-rank-pill.sts-rank-2 { background: var(--c-silver-tint); color: #5B6479; border-color: rgba(138,147,166,0.4); }
     .sts-rank-pill.sts-rank-3 { background: var(--c-bronze-tint); color: #8A5A2E; border-color: rgba(180,120,63,0.4); }
 
-    /* ---------- custom dropdown (replaces native select) ---------- */
+    /* ---------- score control (real native <select>, styled) ---------- */
     .sts-td-stc { text-align: center; }
     .sts-dd-wrap {
       display: flex;
@@ -513,19 +435,10 @@ export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 
       justify-content: center;
       position: relative;
     }
-    .sts-dd { position: relative; }
-    .sts-dd summary { list-style: none; }
-    .sts-dd summary::-webkit-details-marker { display: none; }
-    .sts-dd summary::marker { content: ''; }
-
-    .sts-dd-trigger {
-      display: inline-flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+    .sts-dd-wrap select.score-dropdown {
       width: 76px;
       height: 38px;
-      padding: 0 11px;
+      padding: 0 28px 0 11px;
       font-family: 'Inter', sans-serif;
       font-size: 13px;
       font-weight: 700;
@@ -534,87 +447,29 @@ export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 
       border: 1px solid var(--c-input-border);
       border-radius: var(--r-input);
       cursor: pointer;
+      text-align: center;
+      text-align-last: center;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%236C7A71' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
       transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
-      -webkit-user-select: none;
-      user-select: none;
     }
-    .sts-dd-trigger:hover {
+    .sts-dd-wrap select.score-dropdown:hover {
       border-color: #9FB0A0;
     }
-    .sts-dd:focus-within .sts-dd-trigger,
-    .sts-dd[open] .sts-dd-trigger {
-      border-color: var(--c-primary);
-      background: var(--c-surface);
-      box-shadow: 0 0 0 3px var(--c-ring);
+    .sts-dd-wrap select.score-dropdown:focus {
       outline: none;
+      border-color: var(--c-primary);
+      background-color: var(--c-surface);
+      box-shadow: 0 0 0 3px var(--c-ring);
     }
-    .sts-dd-value {
-      font-variant-numeric: tabular-nums;
-      line-height: 1;
-    }
-    .sts-dd-caret {
-      color: var(--c-text-muted);
-      flex-shrink: 0;
-      transition: transform 0.15s ease;
-    }
-    .sts-dd[open] .sts-dd-caret {
-      transform: rotate(180deg);
-      color: var(--c-primary);
-    }
-
-    .sts-dd-panel {
-      position: absolute;
-      top: calc(100% + 6px);
-      left: 0;
-      right: 0;
-      margin: 0 auto;
-      width: 92px;
-      min-width: 0;
-      max-height: 216px;
-      overflow-y: auto;
-      background: var(--c-surface);
-      border: 1px solid var(--c-divider);
-      border-radius: var(--r-input);
-      box-shadow: 0 4px 10px rgba(20,32,26,0.06), 0 12px 28px -6px rgba(20,32,26,0.18);
-      padding: 4px;
-      z-index: 40;
-    }
-    .sts-dd-panel::-webkit-scrollbar { width: 6px; }
-    .sts-dd-panel::-webkit-scrollbar-thumb { background: var(--c-input-border); border-radius: var(--r-pill); }
-
-    .sts-dd-option {
-      padding: 7px 10px;
-      font-size: 12.5px;
+    .sts-dd-wrap select.score-dropdown option {
       font-weight: 600;
       color: var(--c-text);
-      border-radius: 3px;
-      text-align: center;
-      cursor: pointer;
-      transition: background-color 0.1s ease, color 0.1s ease;
-    }
-    .sts-dd-option:hover {
-      background: var(--c-input);
-    }
-    .sts-dd-option.is-selected {
-      background: var(--c-primary-tint-strong);
-      color: var(--c-primary);
-      font-weight: 800;
-    }
-    .sts-dd-option.sts-dd-decade {
-      border-top: 1px solid var(--c-divider-soft);
-      margin-top: 2px;
-      padding-top: 9px;
-    }
-
-    .sts-dd-scrim {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 30;
-      background: transparent;
-    }
-    .sts-dd[open] .sts-dd-scrim {
-      display: block;
+      background: var(--c-surface);
     }
 
     /* ---------- footer ---------- */
@@ -660,11 +515,12 @@ export function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 
       .sts-table tbody td { padding: var(--sp-2) var(--sp-2); }
       .sts-table thead th.sts-col-name { padding-left: var(--sp-4); }
       .sts-td-name { padding-left: var(--sp-4); }
-      .sts-dd-trigger {
+      .sts-dd-wrap select.score-dropdown {
         width: 64px;
         height: 34px;
-        padding: 0 9px;
+        padding: 0 26px 0 9px;
         font-size: 12px;
+        background-position: right 9px center;
       }
       .sts-footer { padding: var(--sp-2) var(--sp-4); flex-wrap: wrap; }
     }
