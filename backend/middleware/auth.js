@@ -1,10 +1,12 @@
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config/jwt');
-const { touchSchoolActivity } = require('../utils/activity');
+const { isSessionActive } = require('../services/session.service');
 
 // ── requireAuth ────────────────────────────────────────────────────────────
 // Verifies JWT from Authorization header and injects req.school_id + req.admin
-// into every protected route.
+// into every protected route. Then gates the request on a live device session:
+// not logged out, refresh still valid, and a presence heartbeat within the
+// last 24 hours (legacy tokens without a device_id still pass during rollout).
 function requireAuth(req, res, next) {
   const authHeader = req.headers['authorization'];
 
@@ -12,25 +14,34 @@ function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Missing or malformed Authorization header.' });
   }
 
-  const token = authHeader.split(' ')[1];
-
+  let decoded;
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    if (!decoded.school_id) {
-      return res.status(401).json({ error: 'Token missing school_id.' });
-    }
-
-    req.school_id = decoded.school_id;   // ← every route can use req.school_id
-    req.admin     = decoded;             // { admin_id, admin_email, school_id, iat, exp }
-
-    // Track that this school is actively in use (throttled, non-blocking).
-    touchSchoolActivity(decoded.school_id);
-
-    next();
+    decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token.' });
   }
+
+  if (!decoded.school_id) {
+    return res.status(401).json({ error: 'Token missing school_id.' });
+  }
+
+  req.school_id = decoded.school_id;   // ← every route can use req.school_id
+  req.admin     = decoded;             // { admin_id, admin_email, school_id, device_id, iat, exp }
+
+  isSessionActive({ device_id: decoded.device_id, school_id: decoded.school_id })
+    .then((active) => {
+      if (!active) {
+        return res.status(401).json({
+          error: 'Your session has been inactive too long. Please sign in again.',
+          code:  'presence_expired',
+        });
+      }
+      next();
+    })
+    .catch((err) => {
+      console.error('💥 Session validation failed:', err);
+      res.status(500).json({ error: 'Session validation failed. Please try again.' });
+    });
 }
 
 // ── requireJudge ────────────────────────────────────────────────────────────
@@ -45,25 +56,34 @@ function requireJudge(req, res, next) {
     return res.status(401).json({ error: 'Missing or malformed Authorization header.' });
   }
 
-  const token = authHeader.split(' ')[1];
-
+  let decoded;
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    if (decoded.role !== 'judge' || !decoded.school_id) {
-      return res.status(401).json({ error: 'Invalid judge token.' });
-    }
-
-    req.school_id = decoded.school_id;
-    req.judge     = decoded; // { school_id, role: 'judge', iat, exp }
-
-    // Track that this school is actively in use (throttled, non-blocking).
-    touchSchoolActivity(decoded.school_id);
-
-    next();
+    decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token.' });
   }
+
+  if (decoded.role !== 'judge' || !decoded.school_id) {
+    return res.status(401).json({ error: 'Invalid judge token.' });
+  }
+
+  req.school_id = decoded.school_id;
+  req.judge     = decoded; // { school_id, role: 'judge', device_id, iat, exp }
+
+  isSessionActive({ device_id: decoded.device_id, school_id: decoded.school_id })
+    .then((active) => {
+      if (!active) {
+        return res.status(401).json({
+          error: 'Your session has been inactive too long. Please sign in again.',
+          code:  'presence_expired',
+        });
+      }
+      next();
+    })
+    .catch((err) => {
+      console.error('💥 Session validation failed:', err);
+      res.status(500).json({ error: 'Session validation failed. Please try again.' });
+    });
 }
 
 // ── protect (legacy alias) ─────────────────────────────────────────────────

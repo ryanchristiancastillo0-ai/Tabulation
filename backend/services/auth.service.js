@@ -3,7 +3,8 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const HttpError = require('../utils/http-error');
 const { sendPasswordResetEmail } = require('../utils/email');
-const { JWT_SECRET, JWT_EXPIRES } = require('../config/jwt');
+const sessionService = require('./session.service');
+const { JWT_SECRET, ACCESS_TOKEN_EXPIRES } = require('../config/jwt');
 
 const RESET_CODE_LIFETIME_MS = 10 * 60 * 1000; // 10 minutes
 const RESET_TOKEN_LIFETIME = '10m';
@@ -44,20 +45,31 @@ async function login({ email, password }) {
     throw new HttpError(401, 'Invalid email or password.');
   }
 
-  // Sign JWT — school_id lives in the payload
+  // Sign a SHORT-LIVED access JWT for this device. The device_id binds the
+  // token to the session row created below, so a logged-out device is rejected
+  // immediately even while its old access token is unexpired.
+  const { deviceId, refreshToken } = await sessionService.createSession({
+    school_id:  admin.school_id,
+    actor_type: 'admin',
+    actor_id:   admin.admin_id,
+  });
+
   const token = jwt.sign(
     {
       admin_id:    admin.admin_id,
       admin_email: admin.email,
       school_id:   admin.school_id,
+      device_id:   deviceId,
+      token_type:  'access',
     },
     JWT_SECRET,
-    { expiresIn: JWT_EXPIRES }
+    { expiresIn: ACCESS_TOKEN_EXPIRES }
   );
 
   return {
     success: true,
     token,
+    refreshToken,
     admin: {
       id:          admin.admin_id,
       name:        admin.name,
@@ -102,18 +114,27 @@ async function judgeLogin({ email, password }) {
     throw new HttpError(401, 'Invalid email or password.');
   }
 
+  const { deviceId, refreshToken } = await sessionService.createSession({
+    school_id:  school.id,
+    actor_type: 'judge',
+    actor_id:   school.id,
+  });
+
   const token = jwt.sign(
     {
       school_id: school.id,
-      role: 'judge',
+      role:      'judge',
+      device_id: deviceId,
+      token_type: 'access',
     },
     JWT_SECRET,
-    { expiresIn: JWT_EXPIRES }
+    { expiresIn: ACCESS_TOKEN_EXPIRES }
   );
 
   return {
     success: true,
     token,
+    refreshToken,
     school: {
       id:          school.id,
       school_name: school.school_name,
@@ -286,4 +307,107 @@ async function resetPassword({ resetToken, newPassword }) {
   return { success: true, message: 'Password updated successfully.' };
 }
 
-module.exports = { login, judgeLogin, requestPasswordReset, verifyResetCode, resetPassword };
+// ── SESSION / PRESENCE ENDPOINTS ─────────────────────────────────────────────
+
+// Exchange the opaque refresh token for a fresh short-lived access token.
+// Deliberately does NOT touch last_seen — a valid authentication alone never
+// counts as presence. A session whose last heartbeat is ≥24h old is treated as
+// logged out: the refresh is refused and the client signs out.
+async function refreshSession({ refresh_token }) {
+  if (!refresh_token) {
+    throw new HttpError(400, 'Refresh token is required.');
+  }
+
+  const session = await sessionService.findSessionByRefresh(refresh_token);
+
+  if (!sessionService.sessionRefreshValid(session)) {
+    throw new HttpError(401, 'Your session has expired. Please sign in again.');
+  }
+
+  if (!sessionService.presenceActive(session.last_seen)) {
+    const err = new HttpError(401, 'Your session has been inactive too long. Please sign in again.');
+    err.code = 'presence_expired';
+    throw err;
+  }
+
+  const [schools] = await pool.execute('SELECT status FROM schools WHERE id = ? LIMIT 1', [session.school_id]);
+  if (schools.length === 0 || schools[0].status !== 'active') {
+    const err = new HttpError(403, 'This school account is inactive. Contact support.');
+    err.code = 'school_inactive';
+    throw err;
+  }
+
+  let payload;
+  if (session.actor_type === 'admin') {
+    const [admins] = await pool.execute(
+      'SELECT id, email, school_id FROM admins WHERE id = ? LIMIT 1',
+      [session.actor_id]
+    );
+    if (admins.length === 0) {
+      throw new HttpError(401, 'This admin account no longer exists. Please sign in again.');
+    }
+    payload = {
+      admin_id:    admins[0].id,
+      admin_email: admins[0].email,
+      school_id:   admins[0].school_id,
+      device_id:   session.device_id,
+      token_type:  'access',
+    };
+  } else {
+    payload = {
+      school_id:  session.school_id,
+      role:       'judge',
+      device_id:  session.device_id,
+      token_type: 'access',
+    };
+  }
+
+  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRES });
+
+  return { success: true, token };
+}
+
+// Presence heartbeat. Rejects (without touching rows) when the session is
+// already outside the 24-hour window — an expired presence can only be brought
+// back by a fresh sign-in, never by an idle page pinging the server.
+async function touchPresence({ refresh_token }) {
+  if (!refresh_token) {
+    throw new HttpError(400, 'Refresh token is required.');
+  }
+
+  const session = await sessionService.findSessionByRefresh(refresh_token);
+
+  if (!sessionService.sessionRefreshValid(session)) {
+    throw new HttpError(401, 'Your session has expired. Please sign in again.');
+  }
+
+  if (!sessionService.presenceActive(session.last_seen)) {
+    const err = new HttpError(401, 'Your session has been inactive too long. Please sign in again.');
+    err.code = 'presence_expired';
+    throw err;
+  }
+
+  await sessionService.touchPresence(session);
+
+  return { success: true };
+}
+
+// Per-device logout: burns the refresh token and flags the session as logged
+// out. Idempotent, best-effort — the frontend still clears local state either
+// way, and only THIS device is signed out (other login devices stay online).
+async function logout({ refresh_token }) {
+  if (!refresh_token) return { success: true };
+  await sessionService.revokeSession(refresh_token);
+  return { success: true };
+}
+
+module.exports = {
+  login,
+  judgeLogin,
+  requestPasswordReset,
+  verifyResetCode,
+  resetPassword,
+  refreshSession,
+  touchPresence,
+  logout,
+};

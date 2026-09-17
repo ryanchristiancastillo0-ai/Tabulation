@@ -6,6 +6,7 @@ import { getHydra_and_Calcu, sanitizeAiHtml } from './getHydration_and_Calculati
 import { buildStaticJudgeTable as buildRichStaticTable } from '../utils/judgeTable';
 import { getSchoolId, getJudgeToken } from '../utils/judge';
 import { rankValues, formatRank } from '../utils/ranks';
+import { refreshAccessToken, clearJudgeSession, redirectToLogin } from '../services/session';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 /* ── Client-side config cache helpers ────────────────────────────── */
@@ -32,8 +33,8 @@ function renderRelevantChanged(a, b) {
       criteria:    c.criteria    || [],
       settings: {
         ai_prompt:   c.settings?.ai_prompt   || '',
-        ai_provider: c.settings?.ai_provider || 'unorouter',
-        ai_model:    c.settings?.ai_model    || 'codestral-latest',
+        ai_provider: c.settings?.ai_provider || 'groq',
+        ai_model:    c.settings?.ai_model    || 'openai/gpt-oss-120b',
         ui_mode:     c.settings?.ui_mode     || 'ai',
       },
     });
@@ -59,12 +60,32 @@ async function judgePost(path, body, timeoutMs, cancelledRef) {
   }
 
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
+    let res = await fetch(`${API_BASE}${path}`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', ...judgeAuthHeader() },
       body:    JSON.stringify(body),
       signal:  controller.signal,
     });
+
+    if (res.status === 401 && !cancelledRef?.current) {
+      let refreshed = true;
+      try {
+        await refreshAccessToken('judge');
+      } catch {
+        refreshed = false;
+        clearJudgeSession();
+        redirectToLogin('judge');
+      }
+      if (refreshed) {
+        res = await fetch(`${API_BASE}${path}`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', ...judgeAuthHeader() },
+          body:    JSON.stringify(body),
+          signal:  controller.signal,
+        });
+      }
+    }
+
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     return data;
@@ -82,10 +103,28 @@ async function judgeGet(path, timeoutMs) {
   const controller = new AbortController();
   const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : null;
   try {
-    const res  = await fetch(`${API_BASE}${path}`, {
+    let res = await fetch(`${API_BASE}${path}`, {
       headers: judgeAuthHeader(),
       signal:  controller.signal,
     });
+
+    if (res.status === 401) {
+      let refreshed = true;
+      try {
+        await refreshAccessToken('judge');
+      } catch {
+        refreshed = false;
+        clearJudgeSession();
+        redirectToLogin('judge');
+      }
+      if (refreshed) {
+        res = await fetch(`${API_BASE}${path}`, {
+          headers: judgeAuthHeader(),
+          signal:  controller.signal,
+        });
+      }
+    }
+
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     return data;
@@ -334,9 +373,8 @@ export const useJudgeSystem = () => {
       .map(c => `${c.id}:${c.percentage}`)
       .join(',');
     const aiPrompt  = settings?.ai_prompt  || '';
-    const aiProvider = settings?.ai_provider || 'unorouter';
-    const aiModel   = settings?.ai_model   || 'codestral-latest';
-    const uiMode    = settings?.ui_mode    || 'ai';
+const aiProvider = settings?.ai_provider || 'groq';
+    const aiModel   = settings?.ai_model   || 'openai/gpt-oss-120b';
     return `${criteriaSignature}::${aiProvider}::${aiPrompt}::${aiModel}::${uiMode}`;
   }, [config]);
 
@@ -405,8 +443,8 @@ export const useJudgeSystem = () => {
       .map(c => `${c.id}:${c.percentage}`)
       .join(',');
     const aiPrompt  = settings?.ai_prompt  || '';
-    const aiProvider = settings?.ai_provider || 'unorouter';
-    const aiModel   = settings?.ai_model   || 'codestral-latest';
+    const aiProvider = settings?.ai_provider || 'groq';
+    const aiModel   = settings?.ai_model   || 'openai/gpt-oss-120b';
     const cachedUrl =
       `/judge/render-ui-cached?school_id=${school_id}` +
       `&criteria_signature=${encodeURIComponent(criteriaSignature)}` +

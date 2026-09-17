@@ -14,6 +14,7 @@ import {
 import { USALoader } from '../../components/ui';
 import { setActiveSchoolId } from '../../utils/getSchoolId';
 import { setJudgeToken, getJudgePageUrl } from '../../utils/judge';
+import { judgeRefreshKey } from '../../services/session';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -58,8 +59,12 @@ const JudgeLoginPage = () => {
         localStorage.setItem('judgeToken', data.token);
         setJudgeToken(schoolId, data.token);
         localStorage.setItem('judgeSchool', JSON.stringify(data.school));
+        if (data.refreshToken) {
+          localStorage.setItem(judgeRefreshKey(schoolId), data.refreshToken);
+        }
         localStorage.setItem('auth', JSON.stringify({
           token: data.token,
+          refreshToken: data.refreshToken || null,
           school: data.school,
           role: 'judge',
         }));

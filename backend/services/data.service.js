@@ -1,29 +1,37 @@
 const pool = require('../config/db');
 const HttpError = require('../utils/http-error');
 const aiModels = require('../ai/ai-models');
-const { rankValues, numeric } = require('../utils/ranks');
-const { ACTIVE_WINDOW_MINUTES } = require('../utils/activity');
+const { PRESENCE_WINDOW_HOURS } = require('./session.service');
+const { DEFAULT_PROVIDER, DEFAULT_MODEL, coalesceProvider, coalesceModel } = aiModels;
 const { cacheGetJson, cacheSetJson, cacheDel, cacheDelPattern, CACHE_TTL_SECONDS } = require('../utils/mem-cache');
 
 const allDataKey      = (schoolId) => `public:get-all-data:${schoolId}`;
 const systemConfigKey = (schoolId) => `public:system-config:${schoolId}`;
 const schoolUiKey     = (schoolId) => `ui:html:${schoolId}:*`;
 
-// ── ACTIVE SCHOOLS (real-time) ──
-// Schools that have had authenticated activity within the last ACTIVE_WINDOW_MINUTES.
+// ── ACTIVE SCHOOLS (presence-based) ──
+// A school counts as ONLINE when at least one device session is alive: not
+// logged out, its refresh is unexpired, and its last presence heartbeat is
+// within the 24-hour inactivity window. A school with no such session (users
+// closed the browser without signing out) is correctly reported as offline.
 async function getActiveSchools() {
   const [rows] = await pool.execute(
-    `SELECT id, school_name, school_logo, last_active_at
-       FROM schools
-      WHERE status = 'active'
-        AND last_active_at >= NOW() - INTERVAL 5 MINUTE
-      ORDER BY last_active_at DESC, id DESC
+    `SELECT s.id, s.school_name, s.school_logo, MAX(ss.last_seen) AS last_active_at
+       FROM schools s
+       JOIN sessions ss
+         ON ss.school_id     = s.id
+        AND ss.logged_out_at IS NULL
+        AND ss.expires_at    > NOW()
+        AND ss.last_seen     >= NOW() - INTERVAL 24 HOUR
+      WHERE s.status = 'active'
+      GROUP BY s.id, s.school_name, s.school_logo
+      ORDER BY last_active_at DESC, s.id DESC
       LIMIT 100`
   );
 
   return {
     count:           rows.length,
-    windowMinutes:   ACTIVE_WINDOW_MINUTES,
+    windowMinutes:   PRESENCE_WINDOW_HOURS * 60,
     schools:         rows.map((s) => ({
       id:             s.id,
       school_name:    s.school_name,
@@ -59,7 +67,15 @@ async function getAllData(schoolId) {
   const [criteria] = await pool.execute('SELECT * FROM criteria WHERE school_id = ?', [schoolId]);
 
   const result = {
-    settings:    settings[0] || { contest_name: 'Event', judge_count: 3 },
+    // Coalesce legacy pre-Groq ids ('unorouter'/'codestral-latest') stored in
+    // old settings rows so the Admin UI and render paths always see valid ones.
+    settings: settings[0]
+      ? {
+          ...settings[0],
+          ai_provider: aiModels.coalesceProvider(settings[0]?.ai_provider) || aiModels.DEFAULT_PROVIDER,
+          ai_model:    aiModels.coalesceModel(settings[0]?.ai_model)    || aiModels.DEFAULT_MODEL,
+        }
+      : { contest_name: 'Event', judge_count: 3 },
     contestants,
     criteria,
   };
@@ -236,11 +252,11 @@ async function resetData(schoolId) {
     await connection.execute('DELETE FROM generations  WHERE school_id = ?', [schoolId]);
     await connection.execute(
       `UPDATE settings SET contest_name = '', judge_count = 3, ai_prompt = 'Modern and Professional',
-       ai_model = 'codestral-latest', ai_provider = 'unorouter',
+       ai_model = ?, ai_provider = ?,
        computation_type = 'average', custom_base = 'average', tie_break_method = 'midrank',
        contest_type = 'pageant', is_judge_locked = 0, ui_mode = 'ai'
        WHERE school_id = ?`,
-      [schoolId]
+      [DEFAULT_MODEL, DEFAULT_PROVIDER, schoolId]
     );
     await connection.commit();
     await invalidateSchoolCaches(schoolId);
@@ -317,8 +333,8 @@ async function saveConfig(schoolId, body) {
       contest_type:     () => contest_type ?? 'pageant',
       judge_count:      () => judge_count ?? 3,
       ai_prompt:        () => ai_prompt ?? '',
-      ai_model:         () => ai_model ?? 'codestral-latest',
-      ai_provider:      () => ai_provider ?? 'unorouter',
+      ai_model:         () => ai_model ?? DEFAULT_MODEL,
+      ai_provider:      () => ai_provider ?? DEFAULT_PROVIDER,
       ui_mode:          () => ui_mode ?? 'ai',
       computation_type: () => computation_type ?? 'average',
       custom_base:      () => custom_base ?? 'average',
@@ -328,12 +344,14 @@ async function saveConfig(schoolId, body) {
 
     // Backend validation — never trust frontend values. When the admin saves an
     // AI provider and/or model, the resulting combination MUST be one of the
-    // allowed ones from the centralized config (UnoRouter/Gemini + their
-    // configured model ids). Invalid pairs are rejected outright.
+    // allowed ones from the centralized config (Groq/Gemini + their
+    // configured model ids). Invalid pairs are rejected outright. Legacy
+    // pre-Groq 'unorouter'/'codestral-latest' values from old DB rows are
+    // coalesced first so those rows validate + save under the new names.
     if (Object.prototype.hasOwnProperty.call(body, 'ai_provider') ||
         Object.prototype.hasOwnProperty.call(body, 'ai_model')) {
-      const currentProvider = ai_provider || existing[0]?.ai_provider || 'unorouter';
-      const currentModel = ai_model || existing[0]?.ai_model || 'codestral-latest';
+      const currentProvider = aiModels.coalesceProvider(ai_provider || existing[0]?.ai_provider) || DEFAULT_PROVIDER;
+      const currentModel = aiModels.coalesceModel(ai_model || existing[0]?.ai_model) || DEFAULT_MODEL;
       try {
         aiModels.assertValidProviderModel(currentProvider, currentModel);
       } catch (err) {
@@ -356,10 +374,10 @@ async function saveConfig(schoolId, body) {
         promptChanged = (ai_prompt ?? '') !== (existing[0]?.ai_prompt ?? '');
       }
       if (updates.includes('ai_model')) {
-        modelChanged = (ai_model ?? 'codestral-latest') !== (existing[0]?.ai_model || 'codestral-latest');
+        modelChanged = (ai_model ?? DEFAULT_MODEL) !== (aiModels.coalesceModel(existing[0]?.ai_model) || DEFAULT_MODEL);
       }
       if (updates.includes('ai_provider')) {
-        providerChanged = (ai_provider ?? 'unorouter') !== (existing[0]?.ai_provider || 'unorouter');
+        providerChanged = (ai_provider ?? DEFAULT_PROVIDER) !== (aiModels.coalesceProvider(existing[0]?.ai_provider) || DEFAULT_PROVIDER);
       }
       if (updates.includes('ui_mode')) {
         modeChanged = (ui_mode ?? 'ai') !== (existing[0]?.ui_mode || 'ai');
@@ -389,8 +407,8 @@ async function saveConfig(schoolId, body) {
           contest_type     ?? 'pageant',
           judge_count      ?? 3,
           ai_prompt        ?? '',
-          ai_model         ?? 'codestral-latest',
-          ai_provider      ?? 'unorouter',
+          ai_model         ?? DEFAULT_MODEL,
+          ai_provider      ?? DEFAULT_PROVIDER,
           ui_mode          ?? 'ai',
           computation_type ?? 'average',
           custom_base      ?? 'average',

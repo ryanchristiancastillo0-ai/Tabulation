@@ -1,6 +1,7 @@
 import { useJudgeSystem } from '../../hooks/useJudgeSystem';
 import {useSystemConfig} from '../../hooks/useSystemConfig'
 import {useContestContext} from '../../context/ContestContext'
+import { usePresence } from '../../hooks/usePresence';
 
 import {GlobalStyles} from './components/GlobalStyles'
 import {CriteriaHeader,EncryptedBadge,CardHeaderStrip,
@@ -10,6 +11,7 @@ import {CriteriaHeader,EncryptedBadge,CardHeaderStrip,
 } from './components'
 
 function JudgeTable() {
+  usePresence('judge');
   const {
     selectedJudge,
     dynamicUI,

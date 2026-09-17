@@ -19,6 +19,7 @@ import {
 
 import { USALoader } from '../../components/ui';
 import { setActiveSchoolId } from '../../utils/getSchoolId';
+import { adminRefreshKey } from '../../services/session';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -67,8 +68,12 @@ const AdminLogin = () => {
         localStorage.setItem(`admin_token_${schoolId}`, data.token);
         localStorage.setItem('adminToken', data.token);
         localStorage.setItem('adminUser', JSON.stringify(data.admin));
+        if (data.refreshToken) {
+          localStorage.setItem(adminRefreshKey(schoolId), data.refreshToken);
+        }
         localStorage.setItem('auth', JSON.stringify({
           token: data.token,
+          refreshToken: data.refreshToken || null,
           admin: data.admin,
         }));
         setActiveSchoolId(schoolId);

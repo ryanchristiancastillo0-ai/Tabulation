@@ -4,6 +4,7 @@ import { MobileTopBar } from '../components/layout/MobileTopBar';
 import { MobileNavDrawer } from '../pages/admin/sections/sectionRender';
 import { navItems } from '../utils/constants';
 import { useTheme } from '../context/ThemeContext';
+import { usePresence } from '../hooks/usePresence';
 
 
 export default function AdminLayout({
@@ -14,6 +15,7 @@ export default function AdminLayout({
   wide = false,
   children,
 }) {
+  usePresence('admin');
   const { dark, setDark } = useTheme();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

@@ -1,4 +1,5 @@
 import { getToken } from '../services/api';
+import { refreshAccessToken } from '../services/session';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -15,9 +16,9 @@ export async function streamUiUi({ aiPrompt, aiModel, uiMode, contestants, crite
     else externalSignal.addEventListener('abort', onExtAbort);
   }
 
-  try {
+  const doFetch = () => {
     const token = getToken();
-    const res = await fetch(`${API_BASE}/stream-ui`, {
+    return fetch(`${API_BASE}/stream-ui`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -26,6 +27,21 @@ export async function streamUiUi({ aiPrompt, aiModel, uiMode, contestants, crite
       body: JSON.stringify({ aiPrompt, aiModel, uiMode, contestants, criteria }),
       signal: controller.signal,
     });
+  };
+
+  try {
+    let res = await doFetch();
+
+    // 15-minute access tokens expire while a dashboard stays open — try one
+    // silent refresh before treating the stream as a dead session.
+    if (res.status === 401) {
+      try {
+        await refreshAccessToken('admin');
+        res = await doFetch();
+      } catch {
+        // keep res as-is so the 401 branch below signs the user out
+      }
+    }
 
     if (!res.ok || !res.body) {
       const data = await res.json().catch(() => ({}));

@@ -4,7 +4,8 @@ import {Lock,X, User, Trophy, Shield, LogOut} from 'lucide-react';
 
 
 import {JudgeSelector,LogoMark} from './index'
-import { getSchoolId, clearJudgeToken, clearActiveSchoolId } from '../../../utils/judge';
+import { clearActiveSchoolId } from '../../../utils/judge';
+import { logoutRemote, clearJudgeSession } from '../../../services/session';
 
 export default function MobileDrawer({
   isOpen, onClose,
@@ -17,12 +18,8 @@ export default function MobileDrawer({
   const navigate  = useNavigate();
 
   const handleLogout = () => {
-    const sid = getSchoolId();
-    localStorage.removeItem('judgeToken');
-    localStorage.removeItem('judgeSchool');
-    localStorage.removeItem(`judge_id_${sid}`);
-    localStorage.removeItem('auth');
-    clearJudgeToken(sid);
+    logoutRemote('judge'); // fire-and-forget; only this device signs out
+    clearJudgeSession();
     clearActiveSchoolId();
     onClose();
     navigate('/judge/login');

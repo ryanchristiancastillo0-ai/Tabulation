@@ -139,7 +139,7 @@ export default function StatsSection() {
 
                     <div className="px-4 py-2 border-t border-white/10">
                       <p className="text-[9px] text-white/50 uppercase tracking-widest">
-                        Refreshes every 20s · active in last 5 min
+                        Refreshes every 20s · active in last 24 hrs
                       </p>
                     </div>
                   </div>

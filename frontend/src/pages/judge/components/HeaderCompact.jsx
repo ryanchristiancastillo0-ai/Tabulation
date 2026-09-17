@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   JudgeSelector
 } from './index'
-import { getSchoolId, clearJudgeToken, clearActiveSchoolId } from '../../../utils/judge';
+import { clearActiveSchoolId } from '../../../utils/judge';
+import { logoutRemote, clearJudgeSession } from '../../../services/session';
 
 export default function HeaderCompact({ sysConfig, contestName, selectedJudge, judgeCount, updateJudge, isJudgeLocked }) {
   const primary   = sysConfig.primary_color   || '#1B4332';
@@ -14,12 +15,8 @@ export default function HeaderCompact({ sysConfig, contestName, selectedJudge, j
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    const sid = getSchoolId();
-    localStorage.removeItem('judgeToken');
-    localStorage.removeItem('judgeSchool');
-    localStorage.removeItem(`judge_id_${sid}`);
-    localStorage.removeItem('auth');
-    clearJudgeToken(sid);
+    logoutRemote('judge'); // fire-and-forget; only this device signs out
+    clearJudgeSession();
     clearActiveSchoolId();
     navigate('/judge/login');
   };

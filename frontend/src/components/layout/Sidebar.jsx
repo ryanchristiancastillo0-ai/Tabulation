@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import apiClient from "../../services/api";
+import { logoutRemote, clearAdminSession } from "../../services/session";
 
 // Same nav list used by Dashboard for the mobile drawer
 export const navItems = [
@@ -37,15 +38,8 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
   }, []);
 
   const handleLogout = () => {
-    Object.keys(localStorage)
-      .filter(
-        (k) =>
-          k.startsWith("admin_token_") ||
-          k === "adminToken" ||
-          k === "auth" ||
-          k === "adminUser"
-      )
-      .forEach((k) => localStorage.removeItem(k));
+    logoutRemote("admin"); // fire-and-forget; only this device signs out
+    clearAdminSession();
     window.location.href = "/login";
   };
 

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../services/api';
 import { getSchoolId } from '../../utils/getSchoolId';
 import { rankValues } from '../../utils/ranks';
+import { usePresence } from '../../hooks/usePresence';
 import {
   getOrdinal, ExportAllPanel,
   ErrorState, FullscreenView, HeroBanner, LoadingState, NavBar, RefreshBar,
@@ -19,6 +20,7 @@ const DEFAULT_FS_CONFIG = {
 };
 
 const LeaderBoard = () => {
+  usePresence('admin');
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(null);
   const [data,         setData]         = useState({ contestants: [], criteria: [], settings: {} });

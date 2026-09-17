@@ -7,6 +7,7 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 import { getSchoolId, tokenSchoolId } from '../utils/getSchoolId';
+import { refreshAccessToken, clearAdminSession } from './session';
 
 // Admin tokens are stored per school (admin_token_<school_id>) so multiple
 // school dashboards in different tabs never share/overwrite a single global
@@ -31,19 +32,7 @@ export function getToken() {
 // provider's authFetch (lock/unlock), so an expired/invalid token is handled
 // exactly once instead of surfacing as confusing raw 401 errors.
 export function handleUnauthorized() {
-  try {
-    Object.keys(localStorage)
-      .filter(
-        (k) =>
-          k.startsWith('admin_token_') ||
-          k === 'adminToken' ||
-          k === 'auth' ||
-          k === 'adminUser'
-      )
-      .forEach((k) => localStorage.removeItem(k));
-  } catch {
-    /* ignore */
-  }
+  clearAdminSession();
   if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
     window.location.assign('/login?expired=1');
   }
@@ -66,6 +55,17 @@ async function request(path, options = {}) {
   const data = await res.json().catch(() => ({}));
 
   if (res.status === 401) {
+    // Try a silent refresh exactly once before signing the user out — a 15m
+    // access token is expected to expire while the tab stays open. If the
+    // refresh succeeds (new token stored), replay the original request.
+    if (!options.__authRetried) {
+      try {
+        await refreshAccessToken('admin');
+        return request(path, { ...options, __authRetried: true });
+      } catch {
+        // Refresh failed (logged out / >24h inactive / 7d expired) → sign out.
+      }
+    }
     handleUnauthorized(data);
     throw new Error('Your session has expired. Please sign in again.');
   }

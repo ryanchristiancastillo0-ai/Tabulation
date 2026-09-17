@@ -34,7 +34,10 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use((err, req, res, _next) => {
   const status = err instanceof HttpError ? err.status : 500;
   if (status >= 500) console.error('💥', err);
-  res.status(status).json({ error: err.message });
+  res.status(status).json({
+    error: err.message,
+    ...(err.code ? { code: err.code } : {}),
+  });
 });
 
 const PORT = process.env.PORT || 8080;

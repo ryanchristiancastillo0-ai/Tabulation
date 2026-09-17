@@ -3,10 +3,13 @@ import {getSchoolId} from '../../utils/getSchoolId'
 import {FooterInfo,Hero,RankingsCards,RankingsTable,IdentityMissing} from './scoreboard'
 import { USALoader } from '../../components/ui';
 import { rankValues } from '../../utils/ranks';
+import { refreshAccessToken, clearJudgeSession, redirectToLogin } from '../../services/session';
+import { usePresence } from '../../hooks/usePresence';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 
 const JudgeScoreboard = () => {
+  usePresence('judge');
   const [judgeId, setJudgeId]       = useState(localStorage.getItem(`judge_id_${getSchoolId()}`) || '');
   const [rankings, setRankings]     = useState([]);
   const [loading, setLoading]       = useState(false);
@@ -20,8 +23,22 @@ const JudgeScoreboard = () => {
     try {
       // Judge-only route — school comes from the JWT, not the query string
       const token   = localStorage.getItem(`judge_token_${school_id}`) || null;
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res  = await fetch(`${API_BASE}/judge/my-scores?judgeId=${id}`, { headers });
+      let headers = token ? { Authorization: `Bearer ${token}` } : {};
+      let res  = await fetch(`${API_BASE}/judge/my-scores?judgeId=${id}`, { headers });
+
+      // 15-minute access tokens expire while the scoreboard stays open — try
+      // one silent refresh, otherwise the judge is signed back out.
+      if (res.status === 401) {
+        try {
+          await refreshAccessToken('judge');
+          headers = { Authorization: `Bearer ${localStorage.getItem(`judge_token_${school_id}`)}` };
+          res = await fetch(`${API_BASE}/judge/my-scores?judgeId=${id}`, { headers });
+        } catch {
+          clearJudgeSession();
+          redirectToLogin('judge');
+          throw new Error('Your session has expired. Please sign in again.');
+        }
+      }
       const data = await res.json();
 
       // Guard: make sure it's an array before mapping

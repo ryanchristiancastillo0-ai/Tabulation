@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { getSchoolId, tokenSchoolId } from '../utils/getSchoolId';
 import { handleUnauthorized } from '../services/api';
+import { refreshAccessToken } from '../services/session';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -22,15 +23,27 @@ function getAuthToken() {
 }
 
 function authFetch(url, options = {}) {
-  const token = getAuthToken();
-  return fetch(url, {
+  const doFetch = (tk) => fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(tk ? { Authorization: `Bearer ${tk}` } : {}),
       ...(options.headers || {}),
     },
   });
+
+  return (async () => {
+    let res = await doFetch(getAuthToken());
+    if (res.status === 401) {
+      try {
+        await refreshAccessToken('admin');
+        res = await doFetch(getAuthToken());
+      } catch {
+        // refresh failed → caller's 401 branch runs handleUnauthorized
+      }
+    }
+    return res;
+  })();
 }
 
 const ContestContext = createContext(null);
