@@ -1,9 +1,10 @@
 // pages/LeaderBoard.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import apiClient from '../../services/api';
 import { getSchoolId } from '../../utils/getSchoolId';
 import { rankValues } from '../../utils/ranks';
 import { usePresence } from '../../hooks/usePresence';
+import { useConfigChange } from '../../context/ConfigChangeContext';
 import {
   getOrdinal, ExportAllPanel,
   ErrorState, FullscreenView, HeroBanner, LoadingState, NavBar, RefreshBar,
@@ -21,6 +22,7 @@ const DEFAULT_FS_CONFIG = {
 
 const LeaderBoard = () => {
   usePresence('admin');
+  const { changeCount: configChangeCount } = useConfigChange();
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(null);
   const [data,         setData]         = useState({ contestants: [], criteria: [], settings: {} });
@@ -76,8 +78,10 @@ const LeaderBoard = () => {
     }
   }, [fsConfig]);
 
-  const fetchResults = useCallback(async () => {
-    setLoading(true);
+  // silent=true skips the full-page <LoadingState> — background refreshes (live
+  // config signal, the 15s poll) must swap the numbers in place, never flicker.
+  const fetchResults = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const schoolId = getSchoolId();
@@ -136,6 +140,27 @@ const LeaderBoard = () => {
     fetchResults();
     loadFsConfig();
   }, [fetchResults, loadFsConfig]);
+
+  // Real-time: judges' submitted scores and admin saves broadcast a config-change
+  // signal (ConfigChangeContext). Refetch immediately so the standings reflect
+  // new submissions without waiting for the poll or the manual Refresh button.
+  const prevConfigChange = useRef(configChangeCount);
+  useEffect(() => {
+    if (prevConfigChange.current === configChangeCount) return;
+    prevConfigChange.current = configChangeCount;
+    fetchResults(true);
+  }, [configChangeCount, fetchResults]);
+
+  // Light background poll as a cross-device fallback (BroadcastChannel is
+  // same-browser only — a judge scoring from another device is still picked up).
+  const fullscreenRef = useRef(isFullscreen);
+  useEffect(() => { fullscreenRef.current = isFullscreen; }, [isFullscreen]);
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!fullscreenRef.current) fetchResults(true);
+    }, 15000);
+    return () => clearInterval(id);
+  }, [fetchResults]);
 
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') setIsFullscreen(false); };
@@ -273,7 +298,7 @@ const LeaderBoard = () => {
   };
 
   if (loading) return <LoadingState />;
-  if (error)   return <ErrorState message={error} onRetry={fetchResults} />;
+  if (error)   return <ErrorState message={error} onRetry={() => fetchResults(false)} />;
 
   if (isFullscreen) {
     return (
@@ -329,7 +354,7 @@ const LeaderBoard = () => {
           onXLSX={exportJudgesXLSX}
         />
 
-        <RefreshBar onRefresh={fetchResults} lastRefresh={lastRefresh} />
+        <RefreshBar onRefresh={() => fetchResults(false)} lastRefresh={lastRefresh} />
       </div>
     </div>
   );

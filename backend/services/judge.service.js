@@ -367,11 +367,12 @@ function finalizeAiHtml(rawText, contestants, criteria) {
 // ── Repair AI designs that break the scoring grid ───────────────────────────
 // Models sometimes return a decorative "shell" (a styled <table> with an EMPTY
 // <tbody>, or with rows but no dropdowns). Injecting rows into such a shell
-// would misalign the header (the AI's <thead> has only some of the columns). So
-// the moment a table is missing a body / has an empty body / has no scoring
-// inputs, the ENTIRE table is rebuilt with the exact default judge layout
-// (buildStaticJudgeTable) so header and every row always share one canonical
-// column structure. Row-bearing designs with dropdowns pass through untouched.
+// only works if the AI's <thead> already matches the canonical column count
+// (No. + Name + one per criterion + Total + Rank). When it does, we rebuild
+// ONLY the <tbody> — the AI's theme/design is preserved and every row shares
+// the header's structure. Only when the header is itself wrong/missing do we
+// fall back to rebuilding the ENTIRE table with the exact default judge layout
+// (buildStaticJudgeTable). Row-bearing designs with dropdowns pass untouched.
 function ensureScoreRows(html, contestants, criteria) {
   if (!html) return html;
   const rows = buildScoreRows(contestants, criteria);
@@ -379,21 +380,33 @@ function ensureScoreRows(html, contestants, criteria) {
   const s = String(html);
   if (!/<table[\s>]/i.test(s)) return s;
 
-  // AI tables frequently ship a decorative "shell": a header + an EMPTY
-  // <tbody> (or a body with no scoring inputs). Injecting rows into such a
-  // shell leaves the AI's <thead> with a different column count than the rows →
-  // misaligned, broken layout. In those cases rebuild the ENTIRE table with the
-  // exact default judge layout (header + rows + scoped CSS), so <th>s and every
-  // row ALWAYS share the same canonical column structure.
   const tableTag = s.match(/<table\b[^>]*>[\s\S]*?<\/table>/i);
-  if (tableTag) {
-    const hasBody      = /<tbody[\s>]/i.test(tableTag[0]);
-    const emptyBody    = /<tbody[^>]*>\s*<\/tbody>/i.test(tableTag[0]);
-    const noInputs     = !/score-dropdown/.test(tableTag[0]);
-    if (!hasBody || emptyBody || noInputs) {
-      const rebuilt = buildStaticJudgeTable(contestants, criteria);
-      if (rebuilt) return s.replace(tableTag[0], rebuilt);
-    }
+  if (!tableTag) return s;
+
+  const t = tableTag[0];
+  const hasBody      = /<tbody[\s>]/i.test(t);
+  const emptyBody    = /<tbody[^>]*>\s*<\/tbody>/i.test(t);
+  const noInputs     = !/score-dropdown/.test(t);
+
+  // Expected columns: No. | Name | one per criterion | Total | Rank.
+  const expectedCols = criteria.length + 4;
+  const headThCount  = (() => {
+    const headRow = t.match(/<thead[\s\S]*?<tr\b[^>]*>([\s\S]*?)<\/tr>/i);
+    return headRow ? (headRow[1].match(/<th\b/gi) || []).length : 0;
+  })();
+
+  if (hasBody && (emptyBody || noInputs) && headThCount === expectedCols) {
+    // Design is intact — only the body is empty/dropdown-less. Rebuild JUST the
+    // <tbody> with the canonical rows, keeping the AI's <thead> and styling.
+    const rebuilt = s.replace(/<tbody\b[^>]*>[\s\S]*?<\/tbody>/i, () => `<tbody>${rows}</tbody>`);
+    if (rebuilt !== s) return rebuilt;
+  }
+
+  if (!hasBody || emptyBody || noInputs || headThCount !== expectedCols) {
+    // Header is itself broken or missing → must rebuild the whole table so the
+    // <th>s and every row always share one canonical column structure.
+    const rebuilt = buildStaticJudgeTable(contestants, criteria);
+    if (rebuilt) return s.replace(tableTag[0], rebuilt);
   }
 
   // Table already carries rows + dropdowns → leave the AI design untouched.

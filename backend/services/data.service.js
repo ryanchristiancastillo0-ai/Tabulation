@@ -436,9 +436,18 @@ async function saveConfig(schoolId, body) {
       if (contestantsChanged || criteriaChanged || promptChanged || modelChanged || providerChanged || modeChanged) {
         // Contestants/criteria are deleted and re-inserted below with NEW ids,
         // so any existing scores (which reference the old ids) must be wiped
-        // first or the foreign keys fk_scores_contestant / fk_scores_criteria
-        // will reject fresh submissions with "Cannot add or update a child row".
-        await connection.execute('DELETE FROM scores WHERE school_id = ?', [schoolId]);
+        // ONLY when those lists actually change — otherwise the foreign keys
+        // fk_scores_contestant / fk_scores_criteria reject fresh submissions
+        // with "Cannot add or update a child row".
+        //
+        // Rendering-only changes (ai_prompt, ai_model, ai_provider, ui_mode,
+        // computation_type, lock toggle…) keep the exact same contestant and
+        // criterion ids, so the judges' submitted scores remain valid. They
+        // must NOT be wiped or the leaderboard instantly shows empty standings
+        // ("No scores submitted yet") right after a prompt tweak.
+        if (contestantsChanged || criteriaChanged) {
+          await connection.execute('DELETE FROM scores WHERE school_id = ?', [schoolId]);
+        }
 
         // The judge's rendered table depends on the prompt, the criteria and
         // the contestant list — when any of those change, the persisted AI UI

@@ -24,6 +24,32 @@ function loadConfigFromLocalStorage() {
   return null;
 }
 
+// How long a stale "admin is regenerating" flag is honored after it was
+// written. A normal save + AI generation finishes in ~10-45s; if the admin tab
+// dies mid-save the flag would otherwise (a) never be cleared and (b) leave the
+// judge on a permanent loading screen. The staleness window is the safety net:
+// after it expires the judge treats the flag as gone and falls back to the last
+// good table / standard table, then normal slow polling continues and still
+// picks the design up the moment one lands.
+const UI_GENERATION_STALE_MS = 90000;
+
+// True while the admin's Save/generation is in progress. The admin context
+// writes `ui_generating_<school_id>` on save-start and removes it on completion
+// (success, failure, or abort). While it is set the judge MUST keep the loading
+// state and refuse to apply ui_cache rows (they may still be the previous
+// design until the wipe + regeneration happen).
+function uiGenerationActive(schoolId) {
+  try {
+    const raw = localStorage.getItem(`ui_generating_${schoolId}`);
+    if (!raw) return false;
+    const t = Number(raw);
+    if (!t || Number.isNaN(t)) return false;
+    return Date.now() - t < UI_GENERATION_STALE_MS;
+  } catch {
+    return false;
+  }
+}
+
 // Only the fields below drive the judge's rendered table. Ignoring the rest
 // (e.g. is_judge_locked toggles) prevents a pointless overlay flash while a
 // polled config update is still applied.
@@ -166,7 +192,7 @@ export const useJudgeSystem = () => {
   const isOnline = useConnectivity();
   const { saveToCache, loadCache } = useJudgePersistence(selectedJudge, config.contestants, schoolId);
 
-  const { changeCount: configChangeCount } = useConfigChange();
+  const { changeCount: configChangeCount, notifyConfigChanged } = useConfigChange();
 
   // ── Refs that must exist before any effect / callback closes over them ──
   const selectedJudgeRef = useRef(selectedJudge);
@@ -421,27 +447,25 @@ export const useJudgeSystem = () => {
     // it from the dashboard's Save button). The judge NEVER calls the AI — it
     // only polls until the cache is ready. Reaching this branch means nothing
     // is on screen yet OR the on-screen table belongs to a different (stale)
-    // signature — in both cases render the built-in scoring table IMMEDIATELY
-    // so judges are never stuck on a blank placeholder. The poll below swaps
-    // in the admin's AI design the moment it lands in ui_cache.
+    // signature. The system spinner shows while the latest design is pulled from
+    // ui_cache — the poll below substitutes the built-in default table ONLY if
+    // the cache never lands (offline / failed generation), then auto-swaps in
+    // the admin's AI design the moment it exists.
     const hasPrevious = !!dynamicUIRef.current;
     setLoading(false);
     setUiRefreshing(hasPrevious);
-    setUiPending(false);
-    const fallback = buildRichStaticTable(
-      contestants,
-      criteria,
-      selectedJudgeRef.current ? `Judge ${selectedJudgeRef.current}` : undefined
-    );
-    if (fallback) setDynamicUI(prev => (prev?.html === fallback ? prev : { html: fallback }));
-  }, [config, renderSignature]);
+    setUiPending(!hasPrevious);
+  }, [config, renderSignature, configChangeCount]);
 
   // Poll the admin-generated ui_cache until a design matching our
   // provider/prompt/model/criteria signature is available. Pure consumer — the
   // admin writes BOTH AI designs and the static Default UI into ui_cache on
   // save, so this polls for both modes. Until the design lands, the built-in
   // scoring table stays on screen (built in STEP 2 / this poll) and is
-  // auto-replaced the moment the admin's design is cached.
+  // auto-replaced the moment the admin's design is cached. Every config-change
+  // notification (configChangeCount) re-kicks the poll so the judge re-fetches
+  // the LATEST ui_cache row even when the signature is unchanged (re-save of
+  // the same prompt regenerates and overwrites the same hash row).
   useEffect(() => {
     const { contestants, criteria, settings } = configRef.current;
     if (!contestants?.length || !criteria?.length) return;
@@ -465,9 +489,37 @@ export const useJudgeSystem = () => {
 
     let cancelled = false;
     let timer = null;
+    let attempts = 0;
+
+    const applyDesign = (html, fromPoll = true) => {
+      setDynamicUI(prev => (prev?.html === html ? prev : { html }));
+      if (fromPoll) {
+        setUiPending(false);
+        setUiRefreshing(false);
+      }
+    };
 
     const poll = async () => {
       if (cancelled) return;
+
+      // ── Admin regeneration in progress ────────────────────────────────────
+      // The moment the admin clicks Save Config (notifySaveStarted) the flag is
+      // set. Until it clears we show the loading state on the judge CARD and we
+      // NEVER apply a ui_cache row — it may still hold the previous design (the
+      // wipe happens inside save-config, slightly after the flag is written).
+      // Attempts are reset so nothing "falls back" mid-save; the fast retry
+      // stops as soon as the design lands (flag cleared by generate-end).
+      if (uiGenerationActive(school_id)) {
+        const hasTable = !!dynamicUIRef.current;
+        setLoading(false);
+        setUiRefreshing(hasTable);
+        setUiPending(!hasTable);
+        attempts = 0;
+        console.log(`⏳ [judge-poll] admin is regenerating ui_cache — spinner stays school=${school_id}`);
+        timer = setTimeout(poll, 3000);
+        return;
+      }
+
       try {
         const cached = await withTimeout(judgeGet(cachedUrl, 12000), 12000);
         if (cancelled) return;
@@ -484,32 +536,39 @@ export const useJudgeSystem = () => {
               selectedJudgeRef.current ? `Judge ${selectedJudgeRef.current}` : undefined
             );
           }
-          setDynamicUI(prev => (prev?.html === html ? prev : { html }));
-          setUiPending(false);
-          setUiRefreshing(false);
+          applyDesign(html);
           console.log(`🎨 [judge-poll] cached ${uiMode} UI ready school=${school_id} len=${html.length}`);
-          return; // design received — stop polling
+          if (cancelled) return;
+          // A design is on screen. Keep a light background poll so a re-save of
+          // the SAME signature (which overwrites the same hash row) is picked
+          // up even without an admin-side "change" signal.
+          timer = setTimeout(poll, 15000);
+          return;
         }
-        // Not cached yet. If nothing is on screen (e.g. the judge page opened
-        // right as the admin is generating), render the built-in scoring table
-        // immediately so it's never stuck — the design below auto-swaps in once
-        // the admin's generation lands in ui_cache.
-        if (!dynamicUIRef.current && uiMode === 'ai') {
+        // Not cached yet (admin is regenerating). While nothing is on screen
+        // keep the system spinner up; AFTER a few fast retries the built-in
+        // scoring table substitutes so the page is never a blank placeholder —
+        // it then auto-swaps in once the admin's generation lands in ui_cache.
+        if (uiMode === 'ai' && attempts >= 3 && !dynamicUIRef.current) {
           const fallback = buildRichStaticTable(
             contestants,
             criteria,
             selectedJudgeRef.current ? `Judge ${selectedJudgeRef.current}` : undefined
           );
-          if (fallback) setDynamicUI(prev => (prev?.html === fallback ? prev : { html: fallback }));
+          if (fallback) applyDesign(fallback, false);
         }
-        setUiPending(false);
+        if (!dynamicUIRef.current) setUiPending(true);
+        else setUiPending(false);
         console.log(`⏳ [judge-poll] ui_cache still generating school=${school_id} — retrying…`);
-        timer = setTimeout(poll, 4000);
+        attempts += 1;
+        timer = setTimeout(poll, attempts < 3 ? 4000 : 6000);
       } catch (err) {
         if (cancelled) return;
         console.warn(`⏳ [judge-poll] fetch error (${err.message}) — retrying school=${school_id}`);
-        setUiPending(false);
-        timer = setTimeout(poll, 6000);
+        if (!dynamicUIRef.current) setUiPending(true);
+        else setUiPending(false);
+        attempts += 1;
+        timer = setTimeout(poll, attempts < 3 ? 4000 : 6000);
       }
     };
 
@@ -519,7 +578,7 @@ export const useJudgeSystem = () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [renderSignature]);
+  }, [renderSignature, configChangeCount]);
 
   // ── STEP 3: Hydrate UI whenever dynamicUI or selectedJudge changes ─────
   useEffect(() => {
@@ -586,6 +645,10 @@ export const useJudgeSystem = () => {
           loadCache,
           school_id
         );
+        // Tell the admin leaderboard (and any other open tabs) that scores
+        // just landed, so the rankings refresh instead of showing stale data
+        // until someone clicks the manual Refresh button.
+        try { notifyConfigChanged(); } catch { /* ignore */ }
         showStatus('Success', 'Scores submitted successfully!', 'success');
       }
     } catch (err) {

@@ -11,7 +11,7 @@ import { useConfigChange } from '../../context/ConfigChangeContext';
 
 
 function Dashboard() {
-  const { notifyConfigChanged } = useConfigChange();
+  const { notifySaveStarted, notifySaveFinished } = useConfigChange();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
@@ -160,6 +160,10 @@ function Dashboard() {
     // Default table) is written into ui_cache, then flips to done.
     genTextRef.current = '';
     setAiGen({ active: true, status: 'streaming', text: '', error: '', model: aiModel, startedAt: Date.now(), cached: false, generationId: null });
+    // Tell every open judge terminal to reload RIGHT NOW (before the config is
+    // even saved). The judge card shows its loading spinner and waits for the
+    // regenerated UI; it ignores the old ui_cache row while the flag is set.
+    notifySaveStarted();
     try {
       await apiClient.post("/save-config", {
         contest_name:     contestName,
@@ -254,13 +258,16 @@ function Dashboard() {
       }
 
       await loadAllData();
-      // Notify any open judge tabs immediately so they fetch the new design
-      // (cross-tab via BroadcastChannel).
-      notifyConfigChanged();
     } catch (err) {
       setAiGen(prev => ({ ...prev, active: false }));
       showToast("error", "Save failed: " + err.message);
     } finally {
+      // Always release the judge terminals here — success, AI generation
+      // failure, OR a hard save-config error. The flag being stuck would leave
+      // judges loading forever (the exact infinite loop we must avoid). After
+      // this, judges grab whatever ui_cache holds (new design on success, the
+      // previous row on rollback/failure) and normal background polling resumes.
+      notifySaveFinished();
       setSaving(false);
     }
   };

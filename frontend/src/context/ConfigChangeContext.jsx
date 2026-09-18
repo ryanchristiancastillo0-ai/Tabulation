@@ -32,8 +32,30 @@ export const ConfigChangeProvider = ({ children }) => {
 
   const channelName = `config-change-${schoolId}`;
   const signalKey   = `config_signal_${schoolId}`;
+  // Flag the admin sets the MOMENT a Save starts and clears when it finishes.
+  // Judge tabs treat its presence as "the design is being regenerated": they
+  // show the loading state on the judge card and ignore the ui_cache row until
+  // the flag clears, so a stale design is never applied mid-generation.
+  const uiGenerationKey = `ui_generating_${schoolId}`;
 
   const lastSeenRef = useRef(null);
+
+  // When the admin clicks Save, the ui_cache wipe + AI generation can take
+  // 10-45s. Judges must reload the instant the click happens (not 5s later
+  // when their poll runs) and keep that loading state until the new design is
+  // cached. A timestamp is stored so browsers whose admin tab died mid-save
+  // can detect staleness and never spin forever.
+  const markUiGenerating = useCallback(() => {
+    try {
+      localStorage.setItem(uiGenerationKey, String(Date.now()));
+    } catch { /* ignore */ }
+  }, [uiGenerationKey]);
+
+  const clearUiGenerating = useCallback(() => {
+    try {
+      localStorage.removeItem(uiGenerationKey);
+    } catch { /* ignore */ }
+  }, [uiGenerationKey]);
 
   // Re-resolve the school whenever the URL changes (react-router navigations
   // like /judge?school_id=2, admin ?tab=…, back/forward, etc.), so the channel
@@ -80,7 +102,11 @@ export const ConfigChangeProvider = ({ children }) => {
     try {
       channel = new BroadcastChannel(channelName);
       channel.onmessage = (e) => {
-        if (e.data?.type === 'CONFIG_SAVED') checkSignal();
+        if (e.data?.type === 'UI_GENERATING') markUiGenerating();
+        else if (e.data?.type === 'CONFIG_SAVED') {
+          clearUiGenerating();
+          checkSignal();
+        }
       };
     } catch {
       channel = null;
@@ -89,6 +115,10 @@ export const ConfigChangeProvider = ({ children }) => {
     // storage event fallback — fires when ANOTHER tab writes to localStorage.
     const onStorage = (e) => {
       if (e.key === signalKey) checkSignal();
+      else if (e.key === uiGenerationKey) {
+        if (e.newValue) markUiGenerating();
+        else clearUiGenerating();
+      }
     };
     window.addEventListener('storage', onStorage);
 
@@ -96,22 +126,52 @@ export const ConfigChangeProvider = ({ children }) => {
       channel?.close();
       window.removeEventListener('storage', onStorage);
     };
-  }, [schoolId, channelName, signalKey]);
+  }, [schoolId, channelName, signalKey, uiGenerationKey, markUiGenerating, clearUiGenerating]);
 
-  const notifyConfigChanged = useCallback(() => {
-    const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-    localStorage.setItem(signalKey, stamp);
+  // Broadcast a signal to every open tab of this school (including this one),
+  // falling back to the localStorage 'storage' event when BroadcastChannel is
+  // unavailable. Returns the shared timestamp so callers can reload instantly.
+  const broadcastSignal = useCallback((type, key, stamp) => {
+    try { localStorage.setItem(key, stamp); } catch { /* ignore */ }
     try {
       const channel = new BroadcastChannel(channelName);
-      channel.postMessage({ type: 'CONFIG_SAVED', ts: stamp });
+      channel.postMessage({ type, ts: stamp });
       channel.close();
     } catch {
       /* BroadcastChannel unsupported — storage event still delivers */
     }
-  }, [channelName, signalKey]);
+  }, [channelName]);
+
+  // The admin calls THIS the instant Save Config is clicked. Judges react
+  // immediately: card shows the loading spinner + poll ignores ui_cache until
+  // notifySaveFinished() fires (saved/failed — flag cleared).
+  const notifySaveStarted = useCallback(() => {
+    const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    broadcastSignal('UI_GENERATING', signalKey, stamp);
+    markUiGenerating();
+  }, [broadcastSignal, signalKey, markUiGenerating]);
+
+  // Generic "something changed, please re-fetch" — you MUST NOT clear the
+  // generation flag here. A lock toggle or a submitted score while the admin is
+  // still generating calls this; clearing the flag would let judges apply the
+  // PREVIOUS design from ui_cache mid-generation (the exact stale row the
+  // flag exists to ignore).
+  const notifyConfigChanged = useCallback(() => {
+    const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    broadcastSignal('CONFIG_SAVED', signalKey, stamp);
+  }, [broadcastSignal, signalKey]);
+
+  // The admin calls THIS when a Save fully finishes (success, AI failure, or a
+  // hard save-config error). Clears the generation flag so judges accept the
+  // freshly cached row, then signals the config change.
+  const notifySaveFinished = useCallback(() => {
+    const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    clearUiGenerating();
+    broadcastSignal('CONFIG_SAVED', signalKey, stamp);
+  }, [broadcastSignal, signalKey, clearUiGenerating]);
 
   return (
-    <ConfigChangeContext.Provider value={{ changeCount, notifyConfigChanged, schoolId }}>
+    <ConfigChangeContext.Provider value={{ changeCount, notifyConfigChanged, notifySaveStarted, notifySaveFinished, schoolId }}>
       {children}
     </ConfigChangeContext.Provider>
   );
