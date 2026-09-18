@@ -49,7 +49,11 @@ function normalizeDropdownRanges(html, criteria) {
 }
 
 // ── Deterministic fallback table (no AI required) ───────────────────────────
-function buildScoreTableHtml({ contestants, criteria }) {
+// One standard <tr> per contestant: No., Name, one dropdown per criterion,
+// Total, Rank. Reused by buildScoreTableHtml (the plain fallback table) and by
+// ensureScoreRows (to repair AI designs that rendered a table skeleton without
+// any rows — e.g. an empty <tbody>).
+function buildScoreRows(contestants, criteria) {
   if (!Array.isArray(contestants) || !Array.isArray(criteria)) return '';
   if (!contestants.length || !criteria.length) return '';
 
@@ -60,10 +64,7 @@ function buildScoreTableHtml({ contestants, criteria }) {
     }
   });
 
-  const head = criteria
-    .map((c) => `<th class="sts-th">${String(c.name || '')} <span class="sts-pct">${Number(c.percentage) || 0}%</span></th>`)
-    .join('');
-  const rows = contestants
+  return contestants
     .map((c) => {
       const cells = criteria
         .map((cr) => {
@@ -80,6 +81,16 @@ function buildScoreTableHtml({ contestants, criteria }) {
         `</tr>`;
     })
     .join('');
+}
+
+function buildScoreTableHtml({ contestants, criteria }) {
+  if (!Array.isArray(contestants) || !Array.isArray(criteria)) return '';
+  if (!contestants.length || !criteria.length) return '';
+
+  const head = criteria
+    .map((c) => `<th class="sts-th">${String(c.name || '')} <span class="sts-pct">${Number(c.percentage) || 0}%</span></th>`)
+    .join('');
+  const rows = buildScoreRows(contestants, criteria);
 
   const css = `
     .sts-table{width:100%;border-collapse:separate;border-spacing:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;font-size:13px;background:#fff;table-layout:fixed}
@@ -206,7 +217,14 @@ async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, p
     finalUiMode,
     configHash,
     html: cache.length > 0
-      ? normalizeDropdownRanges(purgeNonScoringElements(cache[0].html_content, contestants), criteria)
+      ? ensureScoreRows(
+          normalizeDropdownRanges(
+            purgeNonScoringElements(cache[0].html_content, contestants),
+            criteria
+          ),
+          contestants,
+          criteria
+        )
       : null,
   };
 }
@@ -264,10 +282,43 @@ function buildAiInstruction(prep) {
 // stream so both store byte-identical results in ui_cache.
 function finalizeAiHtml(rawText, contestants, criteria) {
   const cleanTable = String(rawText || '').replace(/```html/g, '').replace(/```/g, '').trim();
-  return normalizeDropdownRanges(
-    purgeNonScoringElements(cleanTable, contestants),
+  return ensureScoreRows(
+    normalizeDropdownRanges(
+      purgeNonScoringElements(cleanTable, contestants),
+      criteria
+    ),
+    contestants,
     criteria
   );
+}
+
+// ── Repair AI designs that forgot the rows ──────────────────────────────────
+// Models sometimes return a decorative shell (a styled <table> with an EMPTY
+// <tbody> and no dropdowns). The judge can't score an empty table, so it used
+// to fall back to the plain built-in table — hiding the AI design entirely.
+// Instead, inject one standard <tr> per contestant (No., Name, a dropdown per
+// criterion, Total, Rank) into the AI's <tbody> when it has none, keeping the
+// AI's own visual theme intact. Existing row-bearing designs pass through
+// unchanged.
+function ensureScoreRows(html, contestants, criteria) {
+  if (!html) return html;
+  const rows = buildScoreRows(contestants, criteria);
+  if (!rows) return html; // no contestants/criteria → nothing to inject
+  const s = String(html);
+  if (!/<table[\s>]/i.test(s)) return s;
+
+  // Empty <tbody> → fill it with the standard rows.
+  let out = s.replace(/<tbody[^>]*>\s*<\/tbody>/i, (tbody) => {
+    const open = tbody.match(/<tbody[^>]*>/i)[0];
+    return `${open}${rows}</tbody>`;
+  });
+  if (out !== s) return out;
+
+  // No <tbody> at all → append one before </table>.
+  if (!/<tbody[\s>]/i.test(s)) {
+    return s.replace(/<\/table>/i, `<tbody>${rows}</tbody></table>`);
+  }
+  return s;
 }
 
 // ── RENDER JUDGE SCORING TABLE (AI-generated) ──
@@ -444,10 +495,18 @@ async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiMode
   const providerEntry = aiModels.getProvider(aiModels.coalesceProvider(aiProviderOverride || settings[0]?.ai_provider));
   const provider = providerEntry ? providerEntry.name : aiModels.DEFAULT_PROVIDER;
 
+  // Mirror prepareRender's coercion EXACTLY: an invalid model for the resolved
+  // provider is replaced by that provider's first valid model BEFORE hashing.
+  // prepareRender already does this, so without the same step here the judge
+  // and the admin generator would disagree on the cache row (permanent miss).
+  const finalModel = aiModels.hasModel(provider, aiModel)
+    ? aiModel
+    : (aiModels.listModels(provider)[0] || DEFAULT_MODEL);
+
   // Provider is part of the hash — MUST match prepareRender exactly so the judge
   // and the admin generator agree on the same cache row for the same provider.
   const configHash = crypto.createHash('md5')
-    .update(`${provider}|${aiPrompt}|${criteriaSignature}|${aiModel}|${uiMode}|${schoolId}`)
+    .update(`${provider}|${aiPrompt}|${criteriaSignature}|${finalModel}|${uiMode}|${schoolId}`)
     .digest('hex');
 
   const [cache] = await pool.execute(
@@ -455,22 +514,22 @@ async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiMode
     [configHash, schoolId]
   );
 
+  // Exact-hash hit → serve it (the normal, strictly-correct path).
   if (cache.length > 0) {
-    const [criteriaRows] = await pool.execute(
-      'SELECT * FROM criteria WHERE school_id = ?',
-      [schoolId]
-    );
-    const [contestants] = await pool.execute(
-      'SELECT * FROM contestants WHERE school_id = ? ORDER BY entry_number ASC',
-      [schoolId]
-    );
-    return {
-      html: normalizeDropdownRanges(
-        purgeNonScoringElements(cache[0].html_content, contestants),
-        criteriaRows
-      ),
-      fromCache: true,
-    };
+    return normalizeCachedUi(cache[0].html_content, schoolId, true);
+  }
+
+  // ── Safety net: no exact hash match, but the admin just generated SOMETHING
+  // for this school. Serve the most recently cached design instead of making
+  // the judge sit on an empty/fallback screen. The render-relevant wipe keeps
+  // ui_cache clean between design changes, so the newest row is never stale.
+  const [latest] = await pool.execute(
+    'SELECT html_content FROM ui_cache WHERE school_id = ? ORDER BY id DESC LIMIT 1',
+    [schoolId]
+  );
+  if (latest.length > 0) {
+    console.log(`🪄 [getCachedUI] no exact hash hit for school=${schoolId} hash=${configHash.slice(0, 8)} — serving most recent design instead`);
+    return normalizeCachedUi(latest[0].html_content, schoolId, true);
   }
 
   const [contestants] = await pool.execute(
@@ -488,6 +547,31 @@ async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiMode
   };
 }
 
+// Shared cache-read normalization: purge stray form/button/input elements,
+// rebuild dropdown ranges from the criteria, and inject rows into AI designs
+// that were cached without any (empty <tbody>).
+async function normalizeCachedUi(htmlContent, schoolId, fromCache) {
+  const [criteriaRows] = await pool.execute(
+    'SELECT * FROM criteria WHERE school_id = ?',
+    [schoolId]
+  );
+  const [contestants] = await pool.execute(
+    'SELECT * FROM contestants WHERE school_id = ? ORDER BY entry_number ASC',
+    [schoolId]
+  );
+  return {
+    html: ensureScoreRows(
+      normalizeDropdownRanges(
+        purgeNonScoringElements(htmlContent, contestants),
+        criteriaRows
+      ),
+      contestants,
+      criteriaRows
+    ),
+    fromCache,
+  };
+}
+
 module.exports = {
   prepareRender,
   renderUI,
@@ -498,6 +582,8 @@ module.exports = {
   buildAiInstruction,
   finalizeAiHtml,
   buildScoreTableHtml,
+  buildScoreRows,
+  ensureScoreRows,
   normalizeDropdownRanges,
   purgeNonScoringElements,
 };

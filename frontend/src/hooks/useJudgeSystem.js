@@ -7,6 +7,7 @@ import { buildStaticJudgeTable as buildRichStaticTable } from '../utils/judgeTab
 import { getSchoolId, getJudgeToken } from '../utils/judge';
 import { rankValues, formatRank } from '../utils/ranks';
 import { refreshAccessToken, clearJudgeSession, redirectToLogin } from '../services/session';
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 /* ── Client-side config cache helpers ────────────────────────────── */
@@ -47,9 +48,6 @@ function judgeAuthHeader() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// `judgePost` accepts a timeout plus an optional abort flag. When
-// `cancelledRef.current` is already true the request aborts immediately; the
-// caller is expected to check the ref on its own poll interval afterwards.
 async function judgePost(path, body, timeoutMs, cancelledRef) {
   const controller = new AbortController();
   const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : null;
@@ -138,6 +136,15 @@ async function judgeGet(path, timeoutMs) {
   }
 }
 
+/* ── Small timeout wrapper ──────────────────────────────────────── */
+const withTimeout = (promise, ms = 12000) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out — showing the standard table.')), ms)
+    ),
+  ]);
+
 /* ── Hook ────────────────────────────────────────────────────────── */
 export const useJudgeSystem = () => {
   const schoolId = getSchoolId();
@@ -150,14 +157,31 @@ export const useJudgeSystem = () => {
   const [waitSeconds,   setWaitSeconds]   = useState(0);
   const [isComplete,    setIsComplete]    = useState(false);
   const [modal,         setModal]         = useState({ show: false, title: '', message: '', type: 'success' });
-  // True while the admin-generated design isn't in ui_cache yet — the judge
-  // shows a "being generated" placeholder and keeps polling until it is.
-  const [uiPending,     setUiPending]     = useState(false);
+// Kept only as a momentary gate before STEP 2 renders the built-in scoring
+  // table. The judge is never left on an endless "being generated" screen —
+  // if the admin's design isn't cached yet, the standard table shows and swaps
+  // in automatically when the design is ready.
+  const [uiPending, setUiPending] = useState(false);
 
   const isOnline = useConnectivity();
   const { saveToCache, loadCache } = useJudgePersistence(selectedJudge, config.contestants, schoolId);
 
   const { changeCount: configChangeCount } = useConfigChange();
+
+  // ── Refs that must exist before any effect / callback closes over them ──
+  const selectedJudgeRef = useRef(selectedJudge);
+  const configRef        = useRef(config);
+  const dynamicUIRef     = useRef('');
+
+  configRef.current = config;
+
+  useEffect(() => {
+    selectedJudgeRef.current = selectedJudge;
+  }, [selectedJudge]);
+
+  useEffect(() => {
+    dynamicUIRef.current = typeof dynamicUI === 'string' ? dynamicUI : (dynamicUI?.html || '');
+  }, [dynamicUI]);
 
   const showStatus = (title, message, type = 'success', onConfirm) =>
     setModal(onConfirm ? { show: true, title, message, type, onConfirm } : { show: true, title, message, type });
@@ -176,9 +200,6 @@ export const useJudgeSystem = () => {
     }
     setWaitSeconds(0);
   }, [loading, uiRefreshing]);
-
-  const configRef     = useRef(config);
-  configRef.current   = config;
 
   const allScoresFilled = useCallback(() => {
     const dropdowns = document.querySelectorAll('.score-dropdown');
@@ -229,7 +250,7 @@ export const useJudgeSystem = () => {
       loadCache,
       schoolId
     );
-  }, [dynamicUI, config, saveToCache, recalculateRow, updateRankings, loadCache, schoolId]);
+  }, [dynamicUI, config, saveToCache, loadCache, schoolId]);
 
   // ── STEP 1: Load config — cache first (instant), then background sync ─
   useEffect(() => {
@@ -288,20 +309,8 @@ export const useJudgeSystem = () => {
   }, []);
 
   // ── STEP 1b: Keep the judge in sync with admin saves ─────────────────────
-  // Two triggers:
-  //   1. The cross-tab signal (BroadcastChannel/localStorage) → instant refresh.
-  //   2. A light poll (every 5s) so a judge open on a DIFFERENT device/tab
-  //      still catches ui_mode / prompt / model / lineup changes without a
-  //      reload — previously the judge refreshed only on the cross-tab signal,
-  //      so an admin save from another computer never reached it.
-  // When a render-relevant change is detected the loading overlay is shown and
-  // the render guard is cleared so STEP 2 actually regenerates the UI.
   const configSyncBusyRef = useRef(false);
-  const uiRendered   = useRef('');
-  const dynamicUIRef = useRef('');
-  useEffect(() => {
-    dynamicUIRef.current = typeof dynamicUI === 'string' ? dynamicUI : (dynamicUI?.html || '');
-  }, [dynamicUI]);
+  const uiRendered        = useRef('');
 
   useEffect(() => {
     const syncNow = async () => {
@@ -357,14 +366,6 @@ export const useJudgeSystem = () => {
     return () => clearInterval(id);
   }, [configChangeCount, schoolId]);
 
-  const withTimeout = (promise, ms = 12000) =>
-    Promise.race([
-      promise,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out — showing the standard table.')), ms)
-      ),
-    ]);
-
   // ── STEP 2: Render the judge UI — default mode builds instantly, AI mode
   //            only waits for the design the admin already generated ─────────
   const renderSignature = useMemo(() => {
@@ -372,9 +373,10 @@ export const useJudgeSystem = () => {
     const criteriaSignature = (criteria || [])
       .map(c => `${c.id}:${c.percentage}`)
       .join(',');
-    const aiPrompt  = settings?.ai_prompt  || '';
-const aiProvider = settings?.ai_provider || 'groq';
-    const aiModel   = settings?.ai_model   || 'openai/gpt-oss-120b';
+    const aiPrompt   = settings?.ai_prompt   || '';
+    const aiProvider = settings?.ai_provider || 'groq';
+    const aiModel    = settings?.ai_model    || 'openai/gpt-oss-120b';
+    const uiMode     = settings?.ui_mode     || 'ai';
     return `${criteriaSignature}::${aiProvider}::${aiPrompt}::${aiModel}::${uiMode}`;
   }, [config]);
 
@@ -417,21 +419,29 @@ const aiProvider = settings?.ai_provider || 'groq';
 
     // AI mode: the design lives in ui_cache on the server (the admin generates
     // it from the dashboard's Save button). The judge NEVER calls the AI — it
-    // only polls until the cache is ready. If a table is already on screen,
-    // keep it under the "Updating interface…" overlay; otherwise the judge
-    // shows the "UI being generated" placeholder until it lands.
+    // only polls until the cache is ready. Reaching this branch means nothing
+    // is on screen yet OR the on-screen table belongs to a different (stale)
+    // signature — in both cases render the built-in scoring table IMMEDIATELY
+    // so judges are never stuck on a blank placeholder. The poll below swaps
+    // in the admin's AI design the moment it lands in ui_cache.
     const hasPrevious = !!dynamicUIRef.current;
     setLoading(false);
     setUiRefreshing(hasPrevious);
-    setUiPending(!hasPrevious);
+    setUiPending(false);
+    const fallback = buildRichStaticTable(
+      contestants,
+      criteria,
+      selectedJudgeRef.current ? `Judge ${selectedJudgeRef.current}` : undefined
+    );
+    if (fallback) setDynamicUI(prev => (prev?.html === fallback ? prev : { html: fallback }));
   }, [config, renderSignature]);
 
   // Poll the admin-generated ui_cache until a design matching our
   // provider/prompt/model/criteria signature is available. Pure consumer — the
   // admin writes BOTH AI designs and the static Default UI into ui_cache on
-  // save, so this polls for both modes. Default mode keeps its instant
-  // client-side table as the fallback while the cache is empty; AI mode shows
-  // the placeholder and keeps retrying every few seconds.
+  // save, so this polls for both modes. Until the design lands, the built-in
+  // scoring table stays on screen (built in STEP 2 / this poll) and is
+  // auto-replaced the moment the admin's design is cached.
   useEffect(() => {
     const { contestants, criteria, settings } = configRef.current;
     if (!contestants?.length || !criteria?.length) return;
@@ -442,9 +452,9 @@ const aiProvider = settings?.ai_provider || 'groq';
     const criteriaSignature = criteria
       .map(c => `${c.id}:${c.percentage}`)
       .join(',');
-    const aiPrompt  = settings?.ai_prompt  || '';
+    const aiPrompt   = settings?.ai_prompt   || '';
     const aiProvider = settings?.ai_provider || 'groq';
-    const aiModel   = settings?.ai_model   || 'openai/gpt-oss-120b';
+    const aiModel    = settings?.ai_model    || 'openai/gpt-oss-120b';
     const cachedUrl =
       `/judge/render-ui-cached?school_id=${school_id}` +
       `&criteria_signature=${encodeURIComponent(criteriaSignature)}` +
@@ -480,15 +490,25 @@ const aiProvider = settings?.ai_provider || 'groq';
           console.log(`🎨 [judge-poll] cached ${uiMode} UI ready school=${school_id} len=${html.length}`);
           return; // design received — stop polling
         }
-        // UI pending overlay is AI-mode only; default mode already shows the
-        // instant client-built table, so never hide it behind the placeholder.
-        if (uiMode === 'ai') setUiPending(true);
+        // Not cached yet. If nothing is on screen (e.g. the judge page opened
+        // right as the admin is generating), render the built-in scoring table
+        // immediately so it's never stuck — the design below auto-swaps in once
+        // the admin's generation lands in ui_cache.
+        if (!dynamicUIRef.current && uiMode === 'ai') {
+          const fallback = buildRichStaticTable(
+            contestants,
+            criteria,
+            selectedJudgeRef.current ? `Judge ${selectedJudgeRef.current}` : undefined
+          );
+          if (fallback) setDynamicUI(prev => (prev?.html === fallback ? prev : { html: fallback }));
+        }
+        setUiPending(false);
         console.log(`⏳ [judge-poll] ui_cache still generating school=${school_id} — retrying…`);
         timer = setTimeout(poll, 4000);
       } catch (err) {
         if (cancelled) return;
         console.warn(`⏳ [judge-poll] fetch error (${err.message}) — retrying school=${school_id}`);
-        if (uiMode === 'ai') setUiPending(true);
+        setUiPending(false);
         timer = setTimeout(poll, 6000);
       }
     };
@@ -502,11 +522,6 @@ const aiProvider = settings?.ai_provider || 'groq';
   }, [renderSignature]);
 
   // ── STEP 3: Hydrate UI whenever dynamicUI or selectedJudge changes ─────
-  const selectedJudgeRef = useRef(selectedJudge);
-  useEffect(() => {
-    selectedJudgeRef.current = selectedJudge;
-  }, [selectedJudge]);
-
   useEffect(() => {
     if (dynamicUI && config.criteria?.length > 0) {
       getHydra_and_Calcu(
@@ -633,7 +648,7 @@ const aiProvider = settings?.ai_provider || 'groq';
         schoolId
       );
     }
-  }, [dynamicUI, config, saveToCache, recalculateRow, updateRankings, schoolId]);
+  }, [dynamicUI, config, saveToCache, schoolId]);
 
   return {
     selectedJudge,

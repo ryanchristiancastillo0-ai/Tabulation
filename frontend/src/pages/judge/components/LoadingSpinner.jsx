@@ -1,21 +1,7 @@
-export default function LoadingSpinner({ secondary }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 sm:py-20 gap-4 opacity-50">
-      <div
-        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full"
-        style={{
-          borderWidth: 3,
-          borderStyle: 'solid',
-          borderLeftColor:   secondary,
-          borderRightColor:  secondary,
-          borderBottomColor: secondary,
-          borderTopColor:    'transparent',
-          animation: 'spin 0.8s linear infinite',
-        }}
-      />
-      <p className="font-mono text-xs tracking-[0.18em] uppercase text-[#4B5A4D]">
-        Building Interface…
-      </p>
-    </div>
-  );
+import { USALoader } from '../../../components/ui';
+
+// Judge loading indicator — reuses the system's own loader (USALoader) so the
+// whole app spins with the same branded spinner instead of a one-off circle.
+export default function LoadingSpinner({ fullScreen = false, prompt = 'Building interface…' }) {
+  return <USALoader fullScreen={fullScreen} prompt={prompt} background="transparent" />;
 }

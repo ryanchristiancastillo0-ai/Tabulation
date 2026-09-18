@@ -7,6 +7,7 @@ import {GlobalStyles} from './components/GlobalStyles'
 import {CriteriaHeader,EncryptedBadge,CardHeaderStrip,
   
   JudgeFooter,JudgeHeader,
+  LoadingSpinner,
   ScoringCard,StatusModal,SubmitButton
 } from './components'
 
@@ -47,29 +48,13 @@ function JudgeTable() {
   const secondary = sysConfig.secondary_color || '#2D6A4F';
 
   // While the admin is still generating (empty ui_cache) and nothing can be
-  // shown yet, display a friendly "being generated" placeholder instead of a
-  // broken table. Refreshes automatically via syncNow + the ui_cache poll.
+  // shown yet, display the system loader instead of a broken table. Normally
+  // the built-in scoring table shows right away (see useJudgeSystem) and this
+  // branch stays unused; it only guards the very first instant.
   const pendingUI = uiPending && !tableHtml && !loading;
 
   const body = pendingUI ? (
-    <div
-      className="flex flex-col items-center justify-center gap-4 py-24"
-      style={{ background: '#FAFBFA' }}
-    >
-      <div
-        className="h-10 w-10 rounded-full animate-spin"
-        style={{ border: `3px solid ${primary}25`, borderTopColor: primary }}
-      />
-      <div className="text-center">
-        <p className="font-semibold" style={{ color: '#14201A', fontSize: 15 }}>
-          UI being generated
-        </p>
-        <p className="mt-1 text-sm" style={{ color: '#66736B' }}>
-          The organizer is designing the scoring interface — it will appear here
-          automatically in a few moments.
-        </p>
-      </div>
-    </div>
+    <LoadingSpinner prompt="UI being generated" />
   ) : (
     <ScoringCard
       tableHtml={tableHtml}

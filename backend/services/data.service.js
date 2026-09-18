@@ -439,9 +439,7 @@ async function saveConfig(schoolId, body) {
         // first or the foreign keys fk_scores_contestant / fk_scores_criteria
         // will reject fresh submissions with "Cannot add or update a child row".
         await connection.execute('DELETE FROM scores WHERE school_id = ?', [schoolId]);
-      }
 
-      if (contestantsChanged || criteriaChanged || promptChanged || modelChanged || providerChanged || modeChanged) {
         // The judge's rendered table depends on the prompt, the criteria and
         // the contestant list — when any of those change, the persisted AI UI
         // is stale (old layout, missing/reordered rows, old percentages).
@@ -499,9 +497,14 @@ async function saveConfig(schoolId, body) {
       }
     }
 
-    // Clear ui_cache on EVERY save so judges never see stale AI designs
-    // after any config change (mode switch, prompt tweak, model swap, etc.)
-    await connection.execute('DELETE FROM ui_cache WHERE school_id = ?', [schoolId]);
+    // Clear ui_cache ONLY when the rendered table actually changed (prompt,
+    // model, provider, ui_mode, contestants, criteria). Sparse saves that
+    // merely touch is_judge_locked (the lock/unlock toggle) must NOT wipe the
+    // AI design — otherwise a freshly-opened judge terminal would wait forever
+    // for a design that nothing ever regenerates.
+    if (renderDataChanged) {
+      await connection.execute('DELETE FROM ui_cache WHERE school_id = ?', [schoolId]);
+    }
 
     for (const [sql, vals] of waiting) {
       await connection.execute(sql, vals);
