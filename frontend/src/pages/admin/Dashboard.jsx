@@ -26,7 +26,6 @@ function Dashboard() {
   const [calculationType, setCalculationType] = useState("average");
   const [customBase,      setCustomBase]      = useState("average");
   const [tieBreakMethod,  setTieBreakMethod]  = useState("midrank");
-  const [isJudgeLocked,   setIsJudgeLocked]   = useState(false);
 
   // ── Criteria & Contestants ────────────────────────────────────────────────
   const [criteria,    setCriteria]    = useState([]);
@@ -121,7 +120,6 @@ function Dashboard() {
       setCalculationType(settings.computation_type ?? "average");
       setCustomBase(settings.custom_base ?? "average");
       setTieBreakMethod(settings.tie_break_method ?? "midrank");
-      setIsJudgeLocked(Boolean(settings.is_judge_locked));
       setContestants(
         (rawC || []).map((c) => ({ id: String(c.id), name: c.name, number: c.entry_number }))
       );
@@ -174,7 +172,6 @@ function Dashboard() {
         computation_type: calculationType,
         custom_base:      customBase,
         tie_break_method: tieBreakMethod,
-        is_judge_locked:  isJudgeLocked ? 1 : 0,
         contestants: contestants.map((c)  => ({ name: c.name, entry_number: c.number })),
         criteria:    criteria.map((cr)    => ({ name: cr.name, percentage: cr.weight })),
       });
@@ -203,7 +200,10 @@ function Dashboard() {
           if (genFlushTimer.current) { clearTimeout(genFlushTimer.current); genFlushTimer.current = null; }
           setAiGen(prev => ({
             ...prev,
-            text: genTextRef.current,
+            // Use the backend's final (sanitized + repaired) HTML so the
+            // preview and "Copy HTML" always show the aligned scoring layout,
+            // never a broken AI shell that streamed into the terminal live.
+            text: result.html || genTextRef.current,
             status: 'done',
             cached: !!result.fromCache,
             generationId: result.generationId || null,
@@ -341,7 +341,6 @@ function Dashboard() {
               calculationType={calculationType} setCalculationType={setCalculationType}
               customBase={customBase}           setCustomBase={setCustomBase}
               tieBreakMethod={tieBreakMethod}   setTieBreakMethod={setTieBreakMethod}
-              isJudgeLocked={isJudgeLocked}     setIsJudgeLocked={setIsJudgeLocked}
               criteria={criteria}               setCriteria={setCriteria}
               contestants={contestants}         setContestants={setContestants}
               newCrit={newCrit}                 setNewCrit={setNewCrit}

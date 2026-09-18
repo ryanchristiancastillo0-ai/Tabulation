@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { getSchoolId, tokenSchoolId } from '../utils/getSchoolId';
 import { handleUnauthorized } from '../services/api';
 import { refreshAccessToken } from '../services/session';
+import { useConfigChange } from './ConfigChangeContext';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -56,6 +57,7 @@ export const useContestContext = () => {
 
 export const ContestProvider = ({ children, pollInterval = 4000 }) => {
   const schoolId = getSchoolId();
+  const { changeCount, notifyConfigChanged } = useConfigChange();
 
   const [isJudgeLocked,   setIsJudgeLocked]   = useState(false);
   const [lockLoading,     setLockLoading]     = useState(false);
@@ -68,6 +70,10 @@ export const ContestProvider = ({ children, pollInterval = 4000 }) => {
   const lockedRef = useRef(isJudgeLocked);
   useEffect(() => { lockedRef.current = isJudgeLocked; }, [isJudgeLocked]);
 
+  // Normalize whatever shape the DB returns (TINYINT 0/1, boolean, or string)
+  // into a strict boolean — "0" must NEVER be treated as locked.
+  const parseLocked = (raw) => String(raw) === '1' || raw === true;
+
   const fetchConfig = useCallback(async () => {
     try {
       const res  = await fetch(`${API_BASE}/public/get-all-data?school_id=${schoolId}`);
@@ -76,10 +82,7 @@ export const ContestProvider = ({ children, pollInterval = 4000 }) => {
       if (data && !data.error) {
         const settings = data.settings || {};
 
-        const serverLocked =
-          settings.is_judge_locked === 1 ||
-          settings.is_judge_locked === true ||
-          settings.is_judge_locked === '1';
+        const serverLocked = parseLocked(settings.is_judge_locked);
 
         if (serverLocked !== lockedRef.current) setIsJudgeLocked(serverLocked);
         if (settings.contest_name     !== undefined) setContestName(settings.contest_name || '');
@@ -107,6 +110,17 @@ export const ContestProvider = ({ children, pollInterval = 4000 }) => {
     return () => clearInterval(interval);
   }, [fetchConfig, pollInterval]);
 
+  // Real-time refresh: any config change (admin save, lock toggle in another
+  // tab, judge submissions…) broadcasts through ConfigChangeContext. Refetch
+  // immediately so the lock state propagates to judge pages without waiting
+  // for the polling interval.
+  const prevChange = useRef(changeCount);
+  useEffect(() => {
+    if (prevChange.current === changeCount) return;
+    prevChange.current = changeCount;
+    fetchConfig();
+  }, [changeCount, fetchConfig]);
+
   // ── Lock / Unlock (admin only, protected endpoint) ────────────────────────
   const setLockState = useCallback(async (locked) => {
     setLockLoading(true);
@@ -124,6 +138,10 @@ export const ContestProvider = ({ children, pollInterval = 4000 }) => {
       }
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Failed to save lock state');
+      // Broadcast the change immediately (BroadcastChannel + localStorage) so
+      // judge pages and other admin tabs refresh the lock without waiting for
+      // their polling interval.
+      notifyConfigChanged();
     } catch (err) {
       setIsJudgeLocked(!locked); // rollback
       setLockError(err.message);
@@ -131,7 +149,7 @@ export const ContestProvider = ({ children, pollInterval = 4000 }) => {
     } finally {
       setLockLoading(false);
     }
-  }, []);
+  }, [notifyConfigChanged]);
 
   const lockJudges   = useCallback(() => setLockState(true),  [setLockState]);
   const unlockJudges = useCallback(() => setLockState(false), [setLockState]);

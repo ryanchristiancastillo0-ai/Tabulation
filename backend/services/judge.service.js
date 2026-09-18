@@ -233,6 +233,51 @@ async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, p
 // ONE source of truth for the LLM instruction — the streamed admin generation
 // and the (legacy) judge-side generation always send byte-identical prompts.
 function buildAiInstruction(prep) {
+  const criteria    = prep.criteria || [];
+  const contestants = prep.contestants || [];
+  const totalCols   = 4 + criteria.length; // No., Name, one per criterion, Total, Rank
+
+  const esc = (v) =>
+    String(v == null ? '' : v)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+  const critCols    = criteria.map((c) => `${c.name} (${c.percentage}%)`).join(' | ');
+  const critHeaders = criteria
+    .map((c) => `<th class="px-3 py-2 border-b">${esc(c.name)} (${Number(c.percentage) || 0}%)</th>`)
+    .join('\n          ');
+  const critCells = criteria
+    .map((c) => `<td class="px-2 py-1"><select class="score-dropdown" id="score-1-${c.id}"><option value="">-</option></select></td>`)
+    .join('\n          ');
+
+  // The default judge layout, shown so the model reproduces the EXACT column
+  // structure. Theme classes are placeholders — the model restyles them, but
+  // the <th>/<td> counts and order are fixed.
+  const skeleton = `<div class="overflow-x-auto w-full">
+  <table class="w-full min-w-full border-separate border-spacing-0 whitespace-nowrap">
+    <thead>
+      <tr>
+        <th class="px-3 py-2 border-b text-center">No.</th>
+        <th class="px-3 py-2 border-b text-left">Name</th>
+        ${critHeaders}
+        <th class="px-3 py-2 border-b text-center">Total</th>
+        <th class="px-3 py-2 border-b text-center">Rank</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="px-2 py-1 text-center">1</td>
+        <td class="px-2 py-1 text-left">First Contestant</td>
+        ${critCells}
+        <td class="px-2 py-1 text-center" id="total-1">0.00</td>
+        <td class="px-2 py-1 text-center" id="rank-1">-</td>
+      </tr>
+    </tbody>
+  </table>
+</div>`;
+
   return `
     Act as a Senior Tailwind Developer.
     [THEME]: "${prep.finalDesignGoal}"
@@ -242,6 +287,34 @@ function buildAiInstruction(prep) {
     - Dark themes (navy, charcoal, dark): use bg-gray-900 or bg-slate-900 for surfaces.
     - Gold accent = use yellow-400 or amber-400 for text and borders.
     - Light themes: use bg-gray-50 surfaces with gray-900 text.
+
+    [STRUCTURE — CRITICAL — DO NOT DEVIATE]:
+    Your ONLY output is a scoring <table>. The header and EVERY body row MUST
+    share the EXACT same column structure — any mismatch in <th>/<td> counts is
+    a broken layout. This is the default judge layout; copy it faithfully.
+    - Exactly ${totalCols} columns, in this exact order:
+      No. | Name | ${critCols} | Total | Rank
+    - The header MUST contain one <th> per criterion showing the name AND its
+      percentage (e.g. "Performance (60%)"), plus No., Name, Total, Rank — that
+      is ${totalCols} <th> cells total. NEVER emit an empty <th>.
+    - The body MUST contain EXACTLY ${contestants.length} <tr> (one per
+      contestant) with exactly ${totalCols} <td> cells each, in the same order.
+    - Each scoring <td> must contain ONLY ONE control:
+      <select class="score-dropdown" id="score-{cId}-{crId}"> ... </select>
+      The id pairs the contestant id with the criterion id. No extra text, no
+      second boxes, no custom dropdown markup inside the cell.
+
+    [REQUIRED REFERENCE LAYOUT — reproduce this exact structure]:
+${skeleton.split('\n').map(l => '    ' + l).join('\n')}
+
+    [LAYOUT RULES]:
+    - Wrap the whole table in <div class="overflow-x-auto w-full"> so a wide
+      table scrolls horizontally instead of squeezing/collapsing columns.
+    - The <table> itself must use: w-full min-w-full border-separate
+      border-spacing-0 whitespace-nowrap. Add table-fixed (or
+      [table-layout:fixed]) when you want fixed predictable widths.
+    - Keep the No. column narrow and centered, Name left-aligned, and every
+      Total/Rank column compact. Do not let any cell shrink below its content.
 
     [FORM ELEMENT RULES — CRITICAL]:
     - Every <select> must use Tailwind classes only — NO inline styles.
@@ -256,19 +329,18 @@ function buildAiInstruction(prep) {
           <option class="bg-gray-50 text-gray-900">95</option>
         </select>
     - ALWAYS add the same bg and text classes to every <option> — browsers ignore parent styles on options.
+    - Do NOT hard-code dropdown options — the server rebuilds every dropdown's
+      range to match each criterion automatically.
 
     [CONTEXT]:
     - Contest: ${prep.settings.contest_name}
-    - Data: ${JSON.stringify((prep.contestants || []).map(c => ({ id: c.id, n: c.name, num: c.entry_number })))}
-    - Criteria: ${JSON.stringify((prep.criteria || []).map(cr => ({ id: cr.id, name: cr.name, percentage: cr.percentage })))}
+    - Data: ${JSON.stringify(contestants.map(c => ({ id: c.id, n: c.name, num: c.entry_number })))}
+    - Criteria: ${JSON.stringify(criteria.map(cr => ({ id: cr.id, name: cr.name, percentage: cr.percentage })))}
 
     [MANDATORY]:
-    - Render EXACTLY ${prep.contestants?.length || 0} rows.
-    - Columns: No., Name, ${(prep.criteria || []).map(c => `${c.name} (${c.percentage}%)`).join(', ')}, Total, Rank.
+    - Render EXACTLY ${contestants.length || 0} rows with the column layout above.
     - The No. column MUST show ONLY the literal entry number (1, 2, 3, …). Never prefix it with "Candidate", "#", "No." etc. If the contestant is number 1, that cell must contain exactly "1".
     - Each criteria column header MUST show name AND percentage: "Performance (60%)"
-    - Dropdowns must have options from the criterion's percentage down to 0 in DESCENDING order (e.g. a 25% criterion gets exactly 25, 24, 23, ... 1, 0; a 100% criterion gets 100, 99, ... 1, 0). NEVER use a hard-coded 0-100 or 1-100 range. class="score-dropdown" id="score-{cId}-{crId}"
-    - Every <option> MUST have a numeric value attribute matching its text: <option value="25">25</option>. No empty or duplicate values.
     - Totals: id="total-{cId}"
     - Ranks: id="rank-{cId}"
 
@@ -292,14 +364,14 @@ function finalizeAiHtml(rawText, contestants, criteria) {
   );
 }
 
-// ── Repair AI designs that forgot the rows ──────────────────────────────────
-// Models sometimes return a decorative shell (a styled <table> with an EMPTY
-// <tbody> and no dropdowns). The judge can't score an empty table, so it used
-// to fall back to the plain built-in table — hiding the AI design entirely.
-// Instead, inject one standard <tr> per contestant (No., Name, a dropdown per
-// criterion, Total, Rank) into the AI's <tbody> when it has none, keeping the
-// AI's own visual theme intact. Existing row-bearing designs pass through
-// unchanged.
+// ── Repair AI designs that break the scoring grid ───────────────────────────
+// Models sometimes return a decorative "shell" (a styled <table> with an EMPTY
+// <tbody>, or with rows but no dropdowns). Injecting rows into such a shell
+// would misalign the header (the AI's <thead> has only some of the columns). So
+// the moment a table is missing a body / has an empty body / has no scoring
+// inputs, the ENTIRE table is rebuilt with the exact default judge layout
+// (buildStaticJudgeTable) so header and every row always share one canonical
+// column structure. Row-bearing designs with dropdowns pass through untouched.
 function ensureScoreRows(html, contestants, criteria) {
   if (!html) return html;
   const rows = buildScoreRows(contestants, criteria);
@@ -307,17 +379,24 @@ function ensureScoreRows(html, contestants, criteria) {
   const s = String(html);
   if (!/<table[\s>]/i.test(s)) return s;
 
-  // Empty <tbody> → fill it with the standard rows.
-  let out = s.replace(/<tbody[^>]*>\s*<\/tbody>/i, (tbody) => {
-    const open = tbody.match(/<tbody[^>]*>/i)[0];
-    return `${open}${rows}</tbody>`;
-  });
-  if (out !== s) return out;
-
-  // No <tbody> at all → append one before </table>.
-  if (!/<tbody[\s>]/i.test(s)) {
-    return s.replace(/<\/table>/i, `<tbody>${rows}</tbody></table>`);
+  // AI tables frequently ship a decorative "shell": a header + an EMPTY
+  // <tbody> (or a body with no scoring inputs). Injecting rows into such a
+  // shell leaves the AI's <thead> with a different column count than the rows →
+  // misaligned, broken layout. In those cases rebuild the ENTIRE table with the
+  // exact default judge layout (header + rows + scoped CSS), so <th>s and every
+  // row ALWAYS share the same canonical column structure.
+  const tableTag = s.match(/<table\b[^>]*>[\s\S]*?<\/table>/i);
+  if (tableTag) {
+    const hasBody      = /<tbody[\s>]/i.test(tableTag[0]);
+    const emptyBody    = /<tbody[^>]*>\s*<\/tbody>/i.test(tableTag[0]);
+    const noInputs     = !/score-dropdown/.test(tableTag[0]);
+    if (!hasBody || emptyBody || noInputs) {
+      const rebuilt = buildStaticJudgeTable(contestants, criteria);
+      if (rebuilt) return s.replace(tableTag[0], rebuilt);
+    }
   }
+
+  // Table already carries rows + dropdowns → leave the AI design untouched.
   return s;
 }
 

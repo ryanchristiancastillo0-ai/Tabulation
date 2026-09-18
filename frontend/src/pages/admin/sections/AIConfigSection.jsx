@@ -88,7 +88,7 @@ const AIConfigSection = ({ aiPrompt, setAiPrompt, aiProvider, setAiProvider, aiM
         <>
           <div style={{ background: 'var(--accent-lt)', border: '1px solid var(--accent-bd)', borderRadius: 6, padding: '12px 14px', fontSize: 13, color: 'var(--accent)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <span style={{ fontSize: 16, flexShrink: 0 }}>✦</span>
-            <div>This prompt tells the AI how to <strong>generate the Judge UI and Tabulation layout</strong>. Pick a theme preset or write your own below.</div>
+            <div>This prompt controls the <strong>theme only</strong>. The AI always follows the standard Judge UI layout — <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11, background: 'var(--surface2)', padding: '1px 5px', borderRadius: 4 }}>No. | Name | each criterion | Total | Rank</code> — with exactly one dropdown per scoring cell and horizontal scroll for wide tables. Pick a theme preset or write your own below.</div>
           </div>
 
           {/* Provider + Model — one unified panel */}
