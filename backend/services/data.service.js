@@ -418,6 +418,12 @@ async function saveConfig(schoolId, body) {
       );
     }
 
+    const [readback] = await connection.execute(
+      'SELECT ui_mode, ai_prompt FROM settings WHERE school_id = ?',
+      [schoolId]
+    );
+    console.log(`🔎 [saveConfig] post-write readback school=${schoolId} rows=${readback.length} ui_mode=${readback[0]?.ui_mode} ai_prompt="${String(readback[0]?.ai_prompt ?? '').slice(0, 60)}"`);
+
     const waiting = [];
     let renderDataChanged = false;
 
