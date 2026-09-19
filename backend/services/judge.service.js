@@ -353,173 +353,99 @@ function buildAiInstruction(prep) {
   const themeHints = inferThemeHints(prep.finalDesignGoal);
 
   return `
-    You are a Senior Tailwind CSS Developer.
+You are a Senior Tailwind CSS Developer. Produce ONLY the Judge UI markup below.
 
-    [HARD RULE — READ FIRST]:
-    Use ONLY Tailwind CSS utility classes for ALL styling. Do NOT write a
-    <style> block. Do NOT invent custom class names — NEVER emit made-up names
-    like "sts-shell", "sts-header", "sts-row", "sts-tr", "sts-td-*" or any
-    "sts-*" variant. Every visual property (color, spacing, border, shadow,
-    font, rounding, gradient) must be a real Tailwind utility class applied
-    directly on the HTML element.
-    - NEVER leave the <tbody> empty or stuffed with a placeholder comment
-      (e.g. "<!-- No contestant rows -->"). Every contestant MUST appear as a
-      real <tr> row with a working score dropdown.
-    - NEVER put background, gradient, or text-color classes on a <tr> — row
-      backgrounds do not paint in browsers. Apply ALL colors to <th>/<td> (or
-      to the wrapper <div>) directly.
-    - Use ONLY these utility families so every class is guaranteed in the
-      compiled CSS: bg-* text-* border-* from-* via-* to-* bg-linear-to-*
-      px-* py-* w-* min-w-* max-w-* overflow-* rounded-* shadow-* font-*
-      whitespace-nowrap table-auto border-separate border-spacing-0
-      tracking-* uppercase. Anything else is at your risk.
+[HARD RULES]:
+- Tailwind ONLY — no <style>, no custom/invented class names (never any sts-*).
+- <tbody> MUST contain all ${contestants.length} contestants as real <tr> rows,
+  each with a score dropdown. No empty rows, no placeholder comments.
+- NEVER color a <tr> (row backgrounds don't paint) — color <th>/<td> only.
+- Use ONLY these utility families (guaranteed in compiled CSS): bg-/text-/
+  border-/from-/via-/to-/bg-linear-to-*, px-/py-/w-/min-w-/max-w-/overflow-/
+  rounded-/shadow-/font-*, whitespace-nowrap, table-auto, border-separate,
+  border-spacing-0, tracking-*, uppercase.
 
-    [THEME]: "${prep.finalDesignGoal}"
+[THEME]: "${prep.finalDesignGoal}"
 
-    [COLOR SCHEME — HARD REQUIREMENT]:
-    - This is REQUIRED, not optional: every background, text, and border color
-      must visibly reflect the requested theme. A reviewer must be able to tell
-      the design apart from a plain default table at a glance.
-    - Derive the FULL palette EXCLUSIVELY from the THEME name. NEVER reuse,
-      copy, or guess colors from any other design in this system.
-    - Starting points for THIS theme (refine freely, but stay on-theme):
-        surfaces:  ${themeHints.surfaces}
-        text:      ${themeHints.text}
-        accent:    ${themeHints.accent}
-        font:      ${themeHints.font}
-    ${themeHints.extra ? `    - ${themeHints.extra}` : ''}
-    - Strong contrast: dark surfaces with light readable text (or the reverse)
-      so names and dropdowns are easy to read.
-    - The theme MUST be unmistakable at first glance: a bold colored band on the
-      header cells, a tinted wrapper, or styled dropdowns. If the output could
-      pass for a plain white table, you FAILED.
-    - Cover the WHOLE visible screen with the theme. The page background BELOW
-      and AROUND the table must be your theme color too (painted on the wrapper
-      <div>) — a colored table floating on a white page still reads as
-      "unstyled".
+[COLORS — the theme must be OBVIOUS and READABLE]:
+- Hint palette for THIS theme — refine freely, stay on-theme:
+    surfaces: ${themeHints.surfaces} · text: ${themeHints.text} · accent: ${themeHints.accent} · font: ${themeHints.font}
+${themeHints.extra ? `- ${themeHints.extra}` : ''}
+- Paint the WHOLE screen: the outer wrapper <div> takes the theme's darkest bg
+  (never a plain white page); the <table> sits on a light card (bg-white
+  rounded-xl shadow-xl). If it could pass for the default table, FAIL.
+- CONTRAST LAW (WCAG): every text must read against its OWN surface — not the page.
+    light text (white/cream/yellow/pink/cyan/pastel) → …-950/…-900 theme surface;
+    dark text (black/navy/deep-green) → white/light surface;
+    mid-tone text → the DARKEST surface available.
+- Never same-hue-on-same-hue or light-on-light. Target ≥4.5:1 (≥3:1 for big
+  numerals). If a pair fails, flip the text/surface pairing — KEEP the theme hue,
+  don't flatten to black/white. Hover/focus/selected states stay readable.
 
-    [SCHEMA — SINGLE SOURCE OF TRUTH — READ BEFORE [STRUCTURE]]:
-    The judging criteria are DYNAMIC — they come ONLY from the JSON in [CONTEXT]
-    below. There is NO fixed or default number of score columns. There are
-    EXACTLY ${criteria.length} criteria this request.
-    - Step 1: DERIVE the schema from [CONTEXT]:
-        criteria[] = [ { id, name, percentage } for every criterion ]
-        Total columns = 4 + criteria.length
-    - Step 2: build the <thead> from that schema (one <th> per criterion, in the
-      order given, each labelled "<name> (<percentage>%)").
-    - Step 3: build EVERY <tbody> row from the SAME schema (one scoring <td> per
-      criterion, in the SAME order, each containing a score dropdown).
-    - NEVER invent or reuse criteria ("Creativity/Presentation/Technical Skill"
-      is not a default), NEVER hold a fixed 4-column floor, and NEVER let the
-      header disagree with the body. A header of just "No | Name | Total | Rank"
-      with scoring columns in the rows is a FAILED OUTPUT.
+    [SCHEMA — ONE SOURCE OF TRUTH]:
+Criteria are DYNAMIC — exactly ${criteria.length} this request: ${critCols}.
+Derive them from [CRITERIA] below. Never invent, never reuse a default set, and
+never hold a fixed floor of 4 columns.
+- Build the <thead> FROM that list: one <th> per criterion, "<name> (<percentage>%)".
+- Build EVERY <tbody> row FROM the SAME list, same order, one scoring <td> each
+  (a score select inside). Total = ${totalCols} columns:
+  No. | Name | ${critCols} | Total | Rank.
+- Header and every row MUST match that schema — any mismatch (e.g. a "No | Name |
+  Total | Rank" header with scoring columns below) is a FAILED output.
+- <tbody> populated with EXACTLY ${contestants.length} real rows — no empty rows,
+  no placeholder comments, no empty <th>.
+- Score cells contain ONLY ONE control:
+  <select class="score-dropdown" id="score-{cId}-{crId}">.
 
-    [STRUCTURE — CRITICAL — DO NOT DEVIATE]:
-    Your ONLY output is a scoring <table>. The header and EVERY body row MUST
-    share the EXACT same column structure — any mismatch in <th>/<td> counts is
-    a broken layout. This is the default judge layout; copy it faithfully.
-    - The <tbody> MUST be fully populated with EXACTLY ${contestants.length}
-      real contestant rows. A skeleton with an empty <tbody> (or a placeholder
-      comment) is REJECTED — a reviewer checks for populated rows FIRST.
-    - Exactly ${totalCols} columns, in this exact order:
-      No. | Name | ${critCols} | Total | Rank
-    - The header MUST contain one <th> per criterion showing the name AND its
-      percentage (e.g. "Performance (60%)"), plus No., Name, Total, Rank — that
-      is ${totalCols} <th> cells total. NEVER emit an empty <th>.
-    - The body MUST contain EXACTLY ${contestants.length} <tr> (one per
-      contestant) with exactly ${totalCols} <td> cells each, in the same order.
-    - Each scoring <td> must contain ONLY ONE control:
-      <select class="score-dropdown" id="score-{cId}-{crId}"> ... </select>
-      The id pairs the contestant id with the criterion id. No extra text, no
-      second boxes, no custom dropdown markup inside the cell.
-
-    [REQUIRED REFERENCE LAYOUT — reproduce this exact structure, restyled with
-    YOUR Tailwind theme classes]:
+    [REFERENCE LAYOUT — copy structure, restyle with YOUR theme]:
 ${skeleton.split('\n').map(l => '    ' + l).join('\n')}
+The skeleton uses PLACEHOLDER classes only (px-3, border-b) — swap them for your
+theme's classes. It shows ONE sample row: REPEAT it for EACH of the
+${contestants.length} contestants using their real id/entry number/name. Never
+truncate — a partial table is rejected.
 
-    The skeleton above uses STRUCTURE PLACEHOLDER classes only (px-3, border-b,
-    etc.) — replace them with your theme's Tailwind color/typography classes.
-    - The skeleton shows ONE example row. REPEAT that row EXACTLY once per
-      contestant (${contestants.length} rows total), using each contestant's real
-      id / entry number / name from [CONTEXT]. Never truncate or abbreviate the
-      output — a partial table is rejected.
+[CONTAINER — you own the page, not just the table]:
+Return ONE outer <div> = the whole page, then a responsive card, then the table:
+- page:  <div class="w-full min-h-screen p-4 sm:p-6 lg:p-8 bg-{darkest theme color}">
+- card:  <div class="w-full max-w-7xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
+- band:  <div class="overflow-x-auto"> wrapping
+         <table class="w-full min-w-full border-separate border-spacing-0 whitespace-nowrap table-auto">
+- Optional slim header band (contest / "Live Scoring" / judge label / accent
+  rule) OUTSIDE the <table>, theme-colored, Tailwind only.
+- table-auto, NOT table-fixed (equal columns = ugly gaps). No. narrow+centered,
+  Name left, Total/Rank compact, even cell padding (px-3 py-2).
 
-    [LAYOUT & CONTAINER RULES — BUILD YOUR OWN THEMED CONTAINER]:
-    The container IS the theme deliverable (the scoring grid itself is
-    normalized server-side), so design a complete, responsive, self-contained
-    page around the table:
-    - Return ONE outer <div> that acts as the full page:
-        <div class="w-full min-h-screen p-4 sm:p-6 lg:p-8 bg-{YOUR darkest theme color}">
-      Put YOUR theme background, optional subtle gradient, and padding here so
-      the whole visible screen is themed — never a plain white page.
-    - Inside it, a responsive, ADAPTIVE card that holds the table:
-        <div class="w-full max-w-7xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
-      It is full-width on small screens, caps at a comfortable max on large
-      screens, and centers itself on wide screens (mx-auto).
-    - Wrap the table in a scroll band so wide tables never collapse:
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-full bg-white border-separate border-spacing-0 whitespace-nowrap table-auto">...
-    - You MAY add a slim header band inside the card (contest title / "Live
-      Scoring" / judge label / accent rule) using YOUR theme colors, as long as
-      it stays OUTSIDE the <table> and uses Tailwind only.
-    - Do NOT set table-fixed. table-fixed spreads every column to an equal width
-      and creates huge empty gaps; table-auto sizes each column from its content
-      so "No." stays narrow, "Name" grows to fit names, and the header and rows
-      always line up column-for-column.
-    - Keep the No. column narrow and centered, Name left-aligned, Total/Rank
-      compact. Give every cell comfortable, even padding (px-3 py-2 is a good
-      default) so the table reads as a polished data grid, not a cramped one.
-    - Make the container responsive and adaptive: padding scales with breakpoints
-      (p-4 sm:p-6 lg:p-8), the card uses max-w-* + mx-auto so it adapts to any
-      screen width, and overflow-x-auto keeps the grid usable on phones.
+[SCORE DROPDOWNS]:
+- <select class="score-dropdown w-full rounded-md border px-2 py-1.5 text-center" id="score-{cId}-{crId}">
+  then add YOUR theme border/bg/text/focus classes (e.g. bg-cyan-950 text-cyan-100
+  focus:border-cyan-400). Keep the id exactly.
+- Contrast applies to the dropdown's OWN bg/border, not the cell; style <option>
+  with light bg + dark text so the open list never vanishes. No inline styles.
+- Do NOT hard-code options — the server rebuilds every range.
 
-    [FORM ELEMENT RULES — CRITICAL]:
-    - Every <select> must use Tailwind classes only — NO inline styles.
-    - Style each dropdown as a modern, polished control — the dropdown look is
-      part of YOUR theme, not an afterthought:
-        <select class="score-dropdown w-full rounded-md border px-2 py-1.5 text-center" id="score-{cId}-{crId}">
-      then layer on YOUR theme's border, bg, text, and focus classes
-      (e.g. border-cyan-500/40 bg-cyan-950 text-cyan-100 focus:border-cyan-400
-      focus:ring-1). Keep id="score-{cId}-{crId}" exactly as-is.
-    - The bg and text must contrast strongly (readable). Never ship a dropdown
-      whose text disappears into its background.
-    - Do NOT hard-code dropdown options — the server rebuilds every dropdown's
-      range to match each criterion automatically.
+[MODERN]: clean, premium, consistent padding, hairline row borders, subtle hover,
+uniform dropdown width, tabular numerals. No absolute badges/overlays/gimmicks.
 
-    [MODERN DESIGN — make it look intentional, not default]:
-    - Aim for a clean, modern, premium feel: even padding (px-3 py-3 or similar
-      in cells), subtle 1px borders, gentle row hover, and a hairline under each
-      row so every row reads as one aligned data grid.
-    - Keep every dropdown the SAME width inside a cell so the score column stays
-      tidy; give numerals (No., Total, Rank, dropdown text) an aligned,
-      tabular feel.
-    - No layout gimmicks: no absolute-positioned badges, no overlays, no
-      marquee/extra gaps. Elegance comes from spacing and palette, not decoration.
+    [DATA]:
+- Contest: ${prep.settings.contest_name}
+- Contestants: ${JSON.stringify(contestants.map(c => ({ id: c.id, n: c.name, num: c.entry_number })))}
+- Criteria: ${JSON.stringify(criteria.map(cr => ({ id: cr.id, name: cr.name, percentage: cr.percentage })))}
 
-    [CONTEXT]:
-    - Contest: ${prep.settings.contest_name}
-    - Data: ${JSON.stringify(contestants.map(c => ({ id: c.id, n: c.name, num: c.entry_number })))}
-    - Criteria: ${JSON.stringify(criteria.map(cr => ({ id: cr.id, name: cr.name, percentage: cr.percentage })))}
+[MANDATORY]:
+- Render EXACTLY ${contestants.length || 0} rows with the column layout above.
+- No. cell = ONLY the literal entry number ("1", "2"…) — no "Candidate"/"#"/"No.".
+- Each criterion header = name AND percentage ("Performance (60%)").
+- Total id="total-{cId}"; Rank id="rank-{cId}".
 
-    [MANDATORY]:
-    - Render EXACTLY ${contestants.length || 0} rows with the column layout above.
-    - The No. column MUST show ONLY the literal entry number (1, 2, 3, …). Never prefix it with "Candidate", "#", "No." etc. If the contestant is number 1, that cell must contain exactly "1".
-    - Each criteria column header MUST show name AND percentage: "Performance (60%)"
-    - Totals: id="total-{cId}"
-    - Ranks: id="rank-{cId}"
+[FINAL CHECK — before you output]:
+- All ${contestants.length || 0} contestants present as real <tr> rows (no placeholders)?
+- Header has every criterion + %, and every row has the same cell count?
+- Every scoring cell = exactly one score-dropdown select; theme visible with strong
+  contrast and NOT painted on any <tr>?
+If any answer is no, fix it — a partial table is rejected.
 
-    [FINAL CHECK — read before you output]:
-    - Are ALL ${contestants.length || 0} contestants present as real <tr> rows? No placeholders, no comments.
-    - Does the header contain every criterion WITH its percentage, and does every row have the same cell count?
-    - Does every scoring cell contain exactly one <select class="score-dropdown" id="score-{cId}-{crId}">?
-    - Is your Tailwind theme clearly visible (colors painted on the header/rows/wrapper, strong contrast) and NOT on any <tr> element?
-    If ANY answer is no, fix it before returning — a partial table will be rejected.
-
-    [OUTPUT]: Return ONLY your single outer container <div> (the full-page themed
-    wrapper from [LAYOUT & CONTAINER RULES]) containing exactly ONE scoring
-    <table>. No markdown, no extra top-level elements. Do NOT include any
-    <button>, <form>, or <input> elements — the scoring page already provides
-    its own Submit button.
+[OUTPUT]: ONLY your single outer container <div> holding exactly ONE scoring
+<table>. No markdown, no extra top-level elements, no <button>/<form>/<input>.
   `;
 }
 
