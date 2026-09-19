@@ -245,6 +245,7 @@ function inferThemeHints(goal) {
 
   let surfaces = 'bg-slate-900 hover:bg-slate-800';
   let text     = 'text-slate-100';
+  let ink      = 'text-slate-900'; // dark ink for white/light surfaces
   let accent   = 'border-slate-500';
   const extra  = [];
 
@@ -254,38 +255,45 @@ function inferThemeHints(goal) {
   if (has(['navy', 'blue', 'indigo', 'azure', 'royal'])) {
     surfaces = 'bg-blue-950 hover:bg-blue-900';
     accent   = 'border-indigo-900';
+    ink      = 'text-blue-900';
   }
   if (has(['green', 'emerald', 'forest', 'olive', 'jade'])) {
     surfaces = 'bg-emerald-950 hover:bg-emerald-900';
     accent   = 'border-emerald-500';
     text     = 'text-emerald-50';
+    ink      = 'text-emerald-900';
   }
   if (has(['burgundy', 'wine', 'crimson', 'maroon', 'red'])) {
     accent = 'border-red-900';
     text   = 'text-red-100';
+    ink    = 'text-red-900';
   }
   if (has(['rose', 'pink', 'magenta', 'fuchsia'])) {
     surfaces = 'bg-rose-950 hover:bg-rose-900';
     accent   = 'border-pink-500';
     text     = 'text-pink-50';
+    ink      = 'text-pink-900';
   }
   if (has(['purple', 'violet', 'grape', 'lavender', 'plum'])) {
     surfaces = 'bg-purple-950 hover:bg-purple-900';
     accent   = 'border-purple-500';
     text     = 'text-purple-50';
+    ink      = 'text-purple-900';
   }
   if (has(['gold', 'amber', 'yellow'])) {
     accent = 'border-amber-400';
     text   = 'text-amber-100';
+    ink    = 'text-amber-900';
   }
   if (has(['cream', 'white', 'ivory', 'beige', 'off-white'])) {
     text = 'text-amber-50';
+    ink  = 'text-slate-900';
   }
   if (has(['gradient', 'glamour', 'festive', 'celebration', 'pageant', 'sparkle', 'shine', 'sparkling'])) {
     extra.push('Use bg-linear-to-br with two of YOUR theme colors (from-*/via-*/to-*) on the <th> cells or on the wrapper <div> — NEVER on <tr> (row backgrounds do not paint).');
   }
   if (has(['sport', 'sporty', 'athlet', 'competition', 'scoreboard', 'arena', 'stadium', 'bold', 'grid', 'high-contrast'])) {
-    extra.push('Scoreboard style: cover the wrapper <div> with your DARKEST theme surface so the whole screen is themed (e.g. bg-emerald-950), render the table itself as a light card on top (bg-white rounded-xl shadow-xl), and use bold numerals (font-extrabold) for the No., Total, and Rank cells.');
+    extra.push('Scoreboard style: cover the wrapper <div> with your DARKEST theme surface so the whole screen is themed (e.g. bg-emerald-950), render the table itself as a light card on top (bg-white rounded-xl shadow-lg), and use bold numerals (font-extrabold) for the No., Total, and Rank cells.');
   }
   if (has(['serif', 'elegant', 'formal', 'classic', 'academic', 'vintage', 'luxury', 'glamorous', 'royal', 'ornate'])) {
     extra.push('Use font-serif for a refined, non-generic feel');
@@ -294,6 +302,7 @@ function inferThemeHints(goal) {
   return {
     surfaces,
     text,
+    ink,
     accent,
     font:    has(['serif', 'elegant', 'formal', 'classic', 'academic', 'vintage', 'luxury', 'glamorous', 'royal', 'ornate']) ? 'font-serif' : 'font-sans',
     extra:   extra.join('; '),
@@ -314,7 +323,7 @@ function buildAiInstruction(prep) {
 
   const critCols    = criteria.map((c) => `${c.name} (${c.percentage}%)`).join(' | ');
   const critHeaders = criteria
-    .map((c) => `<th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide align-middle whitespace-normal break-words">${esc(c.name)}<br>(${Number(c.percentage) || 0}%)</th>`)
+    .map((c) => `<th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide align-middle whitespace-normal break-words">${esc(c.name)}<br><span class="mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs">${Number(c.percentage) || 0}%</span></th>`)
     .join('\n          ');
   const critCells = criteria
     .map((c) => `<td class="px-1.5 py-1 text-center align-middle"><select class="score-dropdown w-full min-w-0 rounded-md border px-1.5 py-1 text-center text-sm" id="score-1-${c.id}"><option value="">-</option></select></td>`)
@@ -324,29 +333,29 @@ function buildAiInstruction(prep) {
   // structure. Theme classes are placeholders — the model restyles them, but
   // the <th>/<td> counts and order are fixed. Designed to FIT a laptop with no
   // horizontal scroll: no forced min-width, wrapping headers, compact cells.
-  const skeleton = `<div class="w-full min-h-screen p-3 sm:p-5 lg:p-6 bg-slate-950">
-  <div class="w-full max-w-7xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+  const skeleton = `<div class="w-full min-h-screen p-4 sm:p-6 bg-slate-950">
+  <div class="w-full max-w-5xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
     <div class="px-4 py-3 bg-slate-900 text-slate-50">
-      <h1 class="text-base sm:text-lg font-semibold tracking-tight">Official Academic Evaluation Panel</h1>
+      <h1 class="text-lg sm:text-xl font-semibold tracking-tight">Official Academic Evaluation Panel</h1>
     </div>
     <div class="overflow-x-auto">
       <table class="w-full table-auto border-separate border-spacing-0">
         <thead>
           <tr>
-            <th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide align-middle">No.</th>
-            <th class="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide align-middle">Name</th>
+            <th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider align-middle">No.</th>
+            <th class="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wider align-middle">Name</th>
             ${critHeaders}
-            <th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide align-middle">Total</th>
-            <th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide align-middle">Rank</th>
+            <th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider align-middle">Total</th>
+            <th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider align-middle">Rank</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td class="px-2 py-1.5 text-center text-sm">1</td>
+            <td class="px-2 py-1.5 text-center text-sm tabular-nums">1</td>
             <td class="px-2 py-1.5 text-left text-sm font-medium">First Contestant</td>
             ${critCells}
-            <td class="px-2 py-1.5 text-center text-sm font-semibold" id="total-1">0.00</td>
-            <td class="px-2 py-1.5 text-center text-sm font-semibold" id="rank-1">-</td>
+            <td class="px-2 py-1.5 text-center text-sm font-bold tabular-nums" id="total-1">0.00</td>
+            <td class="px-2 py-1.5 text-center text-sm font-bold tabular-nums" id="rank-1">-</td>
           </tr>
         </tbody>
       </table>
@@ -374,22 +383,30 @@ You are a Senior Tailwind CSS Developer. Produce ONLY the Judge UI markup below.
 
 [COLORS — the theme must be OBVIOUS and READABLE]:
 - Hint palette for THIS theme — refine freely, stay on-theme:
-    surfaces: ${themeHints.surfaces} · text: ${themeHints.text} · accent: ${themeHints.accent} · font: ${themeHints.font}
+    dark surfaces: ${themeHints.surfaces}
+    LIGHT ink (only on dark surfaces): ${themeHints.text}
+    DARK ink (on white/light surfaces): ${themeHints.ink}
+    accent: ${themeHints.accent} · font: ${themeHints.font}
 ${themeHints.extra ? `- ${themeHints.extra}` : ''}
 - Paint the WHOLE screen: the outer wrapper <div> takes the theme's darkest bg
   (never a plain white page); the <table> sits on a light card (bg-white
   rounded-xl shadow-lg, NO border/ring). If it could pass for the default table, FAIL.
-- TITLE/HEADER BAND: if you show a title ("Official Academic Evaluation Panel" /
-  contest name / "Live Scoring"), the band needs its OWN theme bg with contrasting
-  text — NEVER light text straight on the white card, never dark text on a dark
-  band. Left-align it with the table; keep it full-width inside the card.
-- CONTRAST LAW (WCAG): every text must read against its OWN surface — not the page.
-    light text (white/cream/yellow/pink/cyan/pastel) → …-950/…-900 theme surface;
-    dark text (black/navy/deep-green) → white/light surface;
-    mid-tone text → the DARKEST surface available.
-- Never same-hue-on-same-hue or light-on-light. Target ≥4.5:1 (≥3:1 for big
-  numerals). If a pair fails, flip the text/surface pairing — KEEP the theme hue,
-  don't flatten to black/white. Hover/focus/selected states stay readable.
+- TWO-INK LAW — choose ink from the surface DIRECTLY behind the text:
+    on the WHITE card (body cells, No., Name, Total, Rank, on-light header cells)
+      → DARK ink (${themeHints.ink}, shade 700–950);
+    on a DARK/GRADIENT surface (page wrapper, title band, dark header cells, dark
+      dropdown) → LIGHT ink (${themeHints.text}, shade 50–200).
+  Putting a light-50..300 text class on white/…-50/…-100, or a dark-700..950 text
+  class on a …-900/…-950 surface, is the #1 invisible-text bug — NEVER do it.
+- TITLE/HEADER BAND: the band needs its OWN dark/gradient theme bg with light text.
+  NEVER light text straight on the white card, never dark text on a dark band.
+- DROPDOWNS: the text MUST contrast the dropdown's OWN bg/border — dark text on a
+  white/light dropdown OR light text on a dark dropdown, never light-on-light; keep
+  <option> light-bg/dark-text.
+- Target WCAG ≥4.5:1 (≥3:1 for large numerals). If a pair fails, first darken the
+  surface (add/strengthen a bg), then adjust the text shade — but KEEP the theme
+  hue; never flatten the whole design to plain black/white.
+- Hover/focus/selected states must keep the same readable pairing.
 
 [SCHEMA — ONE SOURCE OF TRUTH]:
 Criteria are DYNAMIC — exactly ${criteria.length} this request: ${critCols}.
@@ -437,25 +454,31 @@ shades 50–950). NEVER use raw hex/custom colors or non-standard opacity modifi
 they are NOT compiled, so they render colorless and the theme looks plain. For dark
 surfaces prefer the 900/950 shade of the hue, never a custom value.
 
-[DESIGN QUALITY — MATCH THE THEME, STAY POLISHED]:
-- COMMIT to the theme hard. If the theme is vibrant/glamorous/pageant, the result
-  MUST look vibrant and glamorous: gradient page wrapper, bold gradient title band,
-  tinted header row, colored borders and dropdowns. A plain default table = FAIL.
-  Use 2–3 theme hues + neutrals — intentional, never random rainbow.
-- Example for a rose-gold / pink / purple pageant theme: page wrapper
-  "bg-linear-to-br from-rose-950 via-fuchsia-950 to-purple-950"; card
-  "bg-white rounded-xl shadow-lg"; title band
-  "bg-linear-to-r from-rose-500 via-pink-500 to-purple-500 text-white"; header
-  cells "bg-gradient-to-r from-rose-100 to-purple-100 text-rose-900"; dropdowns
-  "bg-white border-rose-300 text-rose-950 focus:border-fuchsia-500". Tasteful
-  ✦/✧ glyphs in the title are welcome.
-- Hierarchy: one page title > uppercase text-xs tracking-wide headers > text-sm
-  body > text-xs muted metadata. Don't bold everything.
-- Consistency: one radius family, 1px hairline borders, ONE soft shadow, even
-  4px-scale spacing. No double borders, colored/heavy shadows or random radii.
-- Micro-interactions: row hover tint (e.g. hover:bg-rose-50 transition-colors),
-  dropdown focus ring.
-- No clutter: no absolute badges, overlays, floating chips or icon spam.
+[MODERN UI RECIPE — APPLY TO EVERY THEME, NO EXCEPTIONS]:
+The layout below is fixed for ALL themes; only the palette changes (per the color
+law). Follow it literally so any prompt yields a modern, professional result:
+1) Page: full-screen themed wrapper (theme gradient or darkest surface) with
+   "p-4 sm:p-6"; centered card
+   "w-full max-w-5xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden".
+2) Title band across the card top: theme bg/gradient + light ink, a small uppercase
+   eyebrow + the contest title ("text-lg sm:text-xl font-semibold"), left-aligned
+   with the first column; optional ✦. Never output an unlabeled bare table.
+3) Header row: uppercase "text-xs font-semibold tracking-wider" on a tinted band
+   (theme 50/100 on light, or theme 800/900 with light ink on dark) + 1px border-b.
+4) Body: "text-sm"; subtle hover tint on cells ("hover:bg-{theme}-50" on light,
+   "hover:bg-white/10" on dark) and thin row separators. NEVER color <tr>.
+5) Criterion percentage: a small pill after the <br>:
+   "<br><span class="mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs">60%</span>"
+   Keep the <br> so the name and % never overlap.
+6) Numerals: "tabular-nums"; bold Total; a Rank pill/badge using the theme accent.
+7) Dropdowns: rounded-md border py-1, consistent width, theme focus ring, readable
+   ink pairing (dark-on-light OR light-on-dark).
+8) Spacing/consistency: even "px-2 sm:px-3 py-2" cells; ONE radius family, ONE soft
+   shadow, hairline borders. No double borders, no heavy/colored shadows, no clutter
+   (no absolute badges/overlays/icon spam).
+- COMMIT to the theme: the wrapper + title band + header tint + dropdown accents must
+  make the requested palette obvious. A plain default table = FAIL. Use 2–3 theme
+  hues + neutrals — intentional, never random rainbow, never cramped or gaudy.
 
 [DATA]:
 - Contest: ${prep.settings.contest_name}
@@ -475,6 +498,9 @@ surfaces prefer the 900/950 shade of the hue, never a custom value.
   contrast and NOT painted on any <tr>?
 - Is the title/header text readable against ITS OWN band, and does the grid fit with
   no horizontal scroll?
+- For EVERY text element, is the ink clearly separated from the surface directly
+  behind it (dark ink on white/light, light ink on 900/950/gradient)? No light text
+  on white, no dark text on dark, dropdowns included?
 - Did you express the [THEME] vividly (gradient wrapper + title band, themed header
   cells and dropdowns) instead of a plain table, using only named palette colors?
 If any answer is no, fix it — a partial table is rejected.

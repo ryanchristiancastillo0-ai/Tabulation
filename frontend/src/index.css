@@ -483,18 +483,19 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
 /* Structural + typography utilities the AI judge prompt requires. Tailwind only
    ships classes it has seen, and the AI-only ones appear at runtime, so list
    them explicitly (with the responsive prefixes the prompt asks for). */
-@source inline("{table-auto,table-fixed,border-separate,border-collapse,border-spacing-0,align-top,align-middle,align-bottom,whitespace-normal,whitespace-nowrap,break-words,break-normal,min-w-0,max-w-full,w-full,overflow-hidden,overflow-x-auto,transition-colors,transition-shadow,uppercase,tracking-tight,tracking-wide,tracking-wider,antialiased}");
+@source inline("{table-auto,table-fixed,border-separate,border-collapse,border-spacing-0,align-top,align-middle,align-bottom,whitespace-normal,whitespace-nowrap,break-words,break-normal,min-w-0,max-w-full,w-full,overflow-hidden,overflow-x-auto,transition-colors,transition-shadow,uppercase,tracking-tight,tracking-wide,tracking-wider,antialiased,tabular-nums,inline-block,inline-flex,flex,grid,block,hidden,items-center,items-start,items-baseline,justify-center,justify-between,text-left,text-center,text-right}");
 @source inline("{sm:,md:,lg:,xl:,}{w-full,table-auto,border-separate,align-middle,overflow-x-auto}");
 @source inline("text-{xs,sm,base,lg,xl,2xl}");
 @source inline("{sm:,md:,lg:,}{text-xs,text-sm,text-base,text-lg,text-xl}");
 @source inline("font-{normal,medium,semibold,bold,extrabold}");
-@source inline("{p,px,py,pt,pb,pl,pr}-{0,1,1.5,2,2.5,3,3.5,4,5,6,8,10}");
+@source inline("{p,px,py,pt,pb,pl,pr}-{0,0.5,1,1.5,2,2.5,3,3.5,4,5,6,8,10}");
 @source inline("{sm:,md:,lg:,}{p,px,py,pt,pb}-{0,1,1.5,2,2.5,3,4,5,6,8}");
 @source inline("rounded-{none,sm,md,lg,xl,2xl,3xl,full}");
 @source inline("shadow-{none,sm,md,lg,xl,2xl}");
 @source inline("{min-w,max-w,w,min-h,h}-{0,4,6,8,10,12,16,20,24,28,32,40,48,56,64,72,80,96,full,screen,max,min,fit}");
+@source inline("max-w-{xs,sm,md,lg,xl,2xl,3xl,4xl,5xl,6xl,7xl,full,screen,prose,none}");
 @source inline("{gap,gap-x,gap-y}-{0,1,1.5,2,2.5,3,4,5,6,8}");
-@source inline("{m,mx,my,mt,mb,ml,mr}-{0,1,2,3,4,5,6,8,auto}");
+@source inline("{m,mx,my,mt,mb,ml,mr}-{0,0.5,1,1.5,2,2.5,3,4,5,6,8,auto}");
 @source inline("{ring-0,ring-1,ring-2,ring-4,focus:ring-0,focus:ring-1,focus:ring-2}");
 
 
