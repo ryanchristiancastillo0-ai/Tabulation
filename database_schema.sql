@@ -165,6 +165,7 @@ CREATE TABLE IF NOT EXISTS `system_config` (
 CREATE TABLE IF NOT EXISTS `ui_cache` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `school_id` INT NOT NULL,
+  `design_type` ENUM('ai','default') NOT NULL DEFAULT 'default' COMMENT 'ai = AI-generated judge UI, default = standard deterministic table',
   `prompt_hash` VARCHAR(32) NOT NULL,
   `html_content` LONGTEXT,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

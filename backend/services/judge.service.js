@@ -203,7 +203,10 @@ async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, p
   console.log(`🔐 [prepareRender] configHash=${configHash.slice(0,16)} criteriaSig=${criteriaSignature}`);
 
   const [cache] = await pool.execute(
-    'SELECT html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ? AND design_type = ?',
+    `SELECT html_content FROM ui_cache
+     WHERE prompt_hash = ? AND school_id = ? AND design_type = ?
+       AND NOT (design_type = 'ai' AND (html_content LIKE '%sts-shell%' OR html_content LIKE '%sts-table-wrap%'))
+     LIMIT 1`,
     [configHash, school_id, finalUiMode]
   );
 
@@ -283,10 +286,13 @@ function buildAiInstruction(prep) {
     [THEME]: "${prep.finalDesignGoal}"
 
     [COLOR SCHEME]:
-    - Derive a Tailwind color palette from the theme name.
-    - Dark themes (navy, charcoal, dark): use bg-gray-900 or bg-slate-900 for surfaces.
-    - Gold accent = use yellow-400 or amber-400 for text and borders.
-    - Light themes: use bg-gray-50 surfaces with gray-900 text.
+    - Derive the FULL Tailwind color palette EXCLUSIVELY from the THEME name.
+    - Every color in your output (surfaces, text, borders, accents, gradients)
+      must come from the theme. NEVER reuse, copy, or guess colors from this
+      instruction or from any other design in this system.
+    - Strong contrast: dark surfaces with light readable text, or light surfaces
+      with dark text — the viewer must be able to read names and select scores
+      easily.
 
     [STRUCTURE — CRITICAL — DO NOT DEVIATE]:
     Your ONLY output is a scoring <table>. The header and EVERY body row MUST
@@ -318,16 +324,14 @@ ${skeleton.split('\n').map(l => '    ' + l).join('\n')}
 
     [FORM ELEMENT RULES — CRITICAL]:
     - Every <select> must use Tailwind classes only — NO inline styles.
-    - The bg class on <select> MUST match the table/surface bg (e.g. bg-slate-900).
-    - The text class must contrast strongly (e.g. text-yellow-400 on bg-slate-900).
-    - Example for dark navy + gold:
-        <select class="score-dropdown bg-slate-900 text-yellow-400 border border-yellow-400 rounded px-2 py-1" id="score-{cId}-{crId}">
-          <option class="bg-slate-900 text-yellow-400">95</option>
+    - Style the <select> to match YOUR theme palette: its bg, text, border, and
+      rounded classes come from the colors you derived for [THEME] — nothing else.
+    - The bg and text must contrast strongly (readable).
+    - Example:
+        <select class="score-dropdown border rounded px-2 py-1" id="score-{cId}-{crId}">
+          <option>95</option>
         </select>
-    - Example for light theme:
-        <select class="score-dropdown bg-gray-50 text-gray-900 border border-gray-300 rounded px-2 py-1">
-          <option class="bg-gray-50 text-gray-900">95</option>
-        </select>
+      Fill in the border/bg/text colors with YOUR theme's palette.
     - ALWAYS add the same bg and text classes to every <option> — browsers ignore parent styles on options.
     - Do NOT hard-code dropdown options — the server rebuilds every dropdown's
       range to match each criterion automatically.
@@ -353,6 +357,7 @@ ${skeleton.split('\n').map(l => '    ' + l).join('\n')}
 // dropdown range from the criteria. Shared by the one-shot path and the admin
 // stream so both store byte-identical results in ui_cache.
 function finalizeAiHtml(rawText, contestants, criteria) {
+  console.log(`📨 [finalizeAiHtml] RAW LLM len=${(rawText || '').length} preview="${String(rawText || '').slice(0, 500).replace(/\s+/g, ' ')}"`);
   const cleanTable = String(rawText || '').replace(/```html/g, '').replace(/```/g, '').trim();
   return ensureScoreRows(
     normalizeDropdownRanges(
@@ -366,13 +371,10 @@ function finalizeAiHtml(rawText, contestants, criteria) {
 
 // ── Repair AI designs that break the scoring grid ───────────────────────────
 // Models sometimes return a decorative "shell" (a styled <table> with an EMPTY
-// <tbody>, or with rows but no dropdowns). Injecting rows into such a shell
-// only works if the AI's <thead> already matches the canonical column count
-// (No. + Name + one per criterion + Total + Rank). When it does, we rebuild
-// ONLY the <tbody> — the AI's theme/design is preserved and every row shares
-// the header's structure. Only when the header is itself wrong/missing do we
-// fall back to rebuilding the ENTIRE table with the exact default judge layout
-// (buildStaticJudgeTable). Row-bearing designs with dropdowns pass untouched.
+// <tbody>, or rows but no dropdowns). We only ever INJECT scoring rows into an
+// empty/missing <tbody>. The AI's theme, wrapper, and overall layout are NEVER
+// replaced by the built-in static table — the model owns the design; the
+// frontend hydrator rebuilds dropdown ids/ranges on render.
 function ensureScoreRows(html, contestants, criteria) {
   if (!html) return html;
   const rows = buildScoreRows(contestants, criteria);
@@ -386,36 +388,41 @@ function ensureScoreRows(html, contestants, criteria) {
   const t = tableTag[0];
   const hasBody      = /<tbody[\s>]/i.test(t);
   const emptyBody    = /<tbody[^>]*>\s*<\/tbody>/i.test(t);
-  const noInputs     = !/score-dropdown/.test(t);
 
-  // A design is usable when it has a body AND at least one row with a branded
-  // .score-dropdown whose form the frontend can rebuild. In that case it is a
-  // real AI layout — keep it byte-for-byte (header is only an aesthetic).
-  const hasRowsAndDrops = hasBody && !emptyBody && !noInputs;
-  if (hasRowsAndDrops) return s;
-
-  // Expected columns: No. | Name | one per criterion | Total | Rank.
-  const expectedCols = criteria.length + 4;
-  const headThCount  = (() => {
+  // ── Diagnostics ─────────────────────────────────────────────
+  // The OLD build (still live on Render) used noInputs/expectedCols/headThCount
+  // to decide when to FULLY REPLACE the AI table with buildStaticJudgeTable.
+  // That branch is DELETED here — the numbers are logged ONLY so you can see
+  // exactly what the old trigger saw (e.g. header mismatch / empty tbody).
+  const noInputs      = !/score-dropdown/.test(t);
+  const expectedCols  = criteria.length + 4;
+  const headThCount   = (() => {
     const headRow = t.match(/<thead[\s\S]*?<tr\b[^>]*>([\s\S]*?)<\/tr>/i);
     return headRow ? (headRow[1].match(/<th\b/gi) || []).length : 0;
   })();
+  console.log(`[ensureScoreRows] hasBody=${hasBody} emptyBody=${emptyBody} noInputs=${noInputs} headThCount=${headThCount} expectedCols=${expectedCols}`);
 
-  // Empty/dropdown-less AI table whose header is intact → rebuild JUST the
-  // <tbody> with the canonical rows, keeping the AI's <thead> and styling.
-  if (hasBody && (emptyBody || noInputs) && headThCount === expectedCols) {
-    const rebuilt = s.replace(/<tbody\b[^>]*>[\s\S]*?<\/tbody>/i, () => `<tbody>${rows}</tbody>`);
-    if (rebuilt !== s) return rebuilt;
+  // Anything with a populated body is a real AI layout. Keep it byte-for-byte —
+  // even if its header row or dropdown classes look different. NEVER swap the
+  // AI design for the built-in static table: the model owns the theme, the
+  // front-end hydrator rebuilds the dropdown ids/ranges on render.
+  if (hasBody && !emptyBody) {
+    console.log('✅ [ensureScoreRows] KEPT AI DESIGN byte-for-byte (populated body — no static substitution)');
+    return s;
   }
 
-  // The AI table has no usable scoring grid at all (no body / no header that
-  // matches the canonical layout) → fall back to the exact default judge layout
-  // so the judge is never left with an unscorable shell.
-  const rebuilt = buildStaticJudgeTable(contestants, criteria);
-  if (rebuilt) return s.replace(tableTag[0], rebuilt);
+  // Empty/missing <tbody> → the AI produced a decorative shell without rows.
+  // Inject the canonical scoring rows so the judge can actually score, but keep
+  // the AI's own markup, wrapper, and styling around them. No static fallback.
+  if (hasBody) {
+    console.log(`🔧 [ensureScoreRows] INJECTING canonical rows into AI's empty <tbody> (emptyBody=${emptyBody}) — AI theme preserved`);
+    return s.replace(/<tbody\b[^>]*>[\s\S]*?<\/tbody>/i, () => `<tbody>${rows}</tbody>`);
+  }
 
-  // Table already carries rows + dropdowns → leave the AI design untouched.
-  return s;
+  // No <tbody> tag at all → insert one before </table>, preserving everything
+  // else the AI built.
+  console.log('🔧 [ensureScoreRows] INSERTING new <tbody> into AI table (no <tbody> found) — AI theme preserved');
+  return s.replace(/(<\/table\s*>)/i, `<tbody>${rows}</tbody>$1`);
 }
 
 // ── RENDER JUDGE SCORING TABLE (AI-generated) ──
@@ -609,7 +616,10 @@ async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiMode
     .digest('hex');
 
   const [cache] = await pool.execute(
-    'SELECT html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ? AND design_type = ?',
+    `SELECT html_content FROM ui_cache
+     WHERE prompt_hash = ? AND school_id = ? AND design_type = ?
+       AND NOT (design_type = 'ai' AND (html_content LIKE '%sts-shell%' OR html_content LIKE '%sts-table-wrap%'))
+     LIMIT 1`,
     [configHash, schoolId, uiMode]
   );
 
@@ -625,7 +635,10 @@ async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiMode
   // sit on an empty/fallback screen. Stale rows of the other type are never
   // served, so a default-mode save can never shadow an AI design (or vice versa).
   const [latest] = await pool.execute(
-    'SELECT html_content FROM ui_cache WHERE school_id = ? AND design_type = ? ORDER BY updated_at DESC, id DESC LIMIT 1',
+    `SELECT html_content FROM ui_cache
+     WHERE school_id = ? AND design_type = ?
+       AND NOT (design_type = 'ai' AND (html_content LIKE '%sts-shell%' OR html_content LIKE '%sts-table-wrap%'))
+     ORDER BY updated_at DESC, id DESC LIMIT 1`,
     [schoolId, uiMode]
   );
   if (latest.length > 0) {

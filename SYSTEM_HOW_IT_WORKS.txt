@@ -1,0 +1,467 @@
+================================================================================
+ TABULATION SYSTEM — HOW IT WORKS (walkthrough guide)
+ Root folder: C:\Users\user\Downloads\tabulation-system
+================================================================================
+
+STACK
+-----
+- Frontend : React + Vite  -> frontend\  (calls backend via fetch)
+- Backend  : Node.js + Express -> backend\ (server.js boots Express)
+- Database : MySQL (managed, e.g. Aiven) -> backend\config\db.js (connection pool)
+- Auth     : JWT access tokens (short-lived) + opaque refresh tokens (sessions table)
+- AI/UI    : LLM (Groq / Gemini / OpenRouter) generates the Judge scoring UI (HTML table)
+
+The architecture is a classic 3-layer split inside the backend:
+     Routes (URL mapping)  ->  Controllers (thin, HTTP in/out)
+                           ->  Services (real logic + SQL)
+                           ->  MySQL tables
+
+Every request goes:  BROWSER  ->  Express server.js  ->  Route  ->  Controller
+                     ->  Service (SQL)  ->  MySQL  ->  back up the same way.
+
+
+================================================================================
+ SECTION 1 — DATABASE TABLES (what each table stores)
+================================================================================
+From database_schema.sql (database name: tabulation_db)
+
+  schools           One row per school / organization.
+                    Holds school_name, logo, email, phone, judge_password
+                    (bcrypt hash the judges use to log in), subscription_plan,
+                    status (active/inactive/suspended), last_active_at.
+
+  admins            Admin (back-office) accounts. One admin -> one school.
+                    Login is email + bcrypt password.
+
+  password_resets   Password-reset verification codes (6-digit) for admins,
+                    with attempts counter and expiry.
+
+  sessions          Per-device login sessions (admin or judge).
+                    Stores device_id, refresh_hash (sha256 of refresh token,
+                    NEVER the raw token), last_seen (presence heartbeat),
+                    expires_at, logged_out_at.
+                    This is what "who is online right now" is based on.
+
+  settings          The CONTEST configuration for a school (one row per school):
+                    contest_name, contest_type, judge_count, ai_prompt (the
+                    design goal text), ai_model / ai_provider (AI used to draw
+                    the judge UI), ui_mode ('ai' = AI drawing / 'default' =
+                    plain static table), computation_type ('average' | 'rank' |
+                    'custom'), custom_base, tie_break_method, is_judge_locked
+                    (lock judges out once scoring is done).
+
+  contestants       Contest candidates. name + entry_number (their number).
+
+  criteria          Scoring criteria (e.g. Talent 40%, Interview 35%...),
+                    each with a percentage weight.
+
+  scores            Raw judge scores. One row per (school, judge,
+                    contestant, criterion) — a UNIQUE key prevents duplicates.
+                    This single table powers everything below it (leaderboard,
+                    totals, rankings).
+
+  system_config     School "portal look": school name, portal name, logos,
+                    primary/secondary colors, footer text, logo radius,
+                    header template.
+
+  ui_cache          Cached AI-generated / static judge UI HTML. One row per
+                    unique config (prompt_hash = md5 of provider|prompt|
+                    criteria|model|ui_mode|school_id). The judge page reads
+                    from here — it NEVER calls the AI itself.
+
+  generations       Async AI generation job tracking (QUEUED -> PROCESSING ->
+                    COMPLETED/FAILED). MySQL owns the status; the AI call runs
+                    inside the same Node process.
+
+  fullscreen_config Leaderboard TV/fullscreen display colors + title text.
+
+
+================================================================================
+ SECTION 2 — BACKEND REQUEST PIPELINE
+================================================================================
+server.js mounts the route groups:
+
+  /api/feedback     -> routes\feedback.routes.js      (public)
+  /api/locations    -> routes\location.routes.js      (public, PSGC list)
+  /api/admin, /api/auth      -> routes\auth.routes.js (login/session)
+  /api/schools      -> routes\school.routes.js
+  /api/judge        -> routes\judge.routes.js         (judge JWT required)
+  /api/ai           -> routes\ai.routes.js            (judge JWT required)
+  /api              -> routes\data.routes.js          (mixed public/protected)
+  /api/leaderboard  -> routes\leaderboard.routes.js
+
+CRITICAL SECURITY PATTERN:
+  The JWT middleware (backend\middleware\auth.js) verifies the Bearer token
+  and injects req.school_id. requireAuth  = admin token + active session check.
+                 requireJudge = judge token (role === 'judge') + session check.
+  The school_id ALWAYS comes from the token, never from the query string/body,
+  so a judge cannot read another school's scores by changing ?school_id.
+
+SESSION / PRESENCE (backend\services\session.service.js):
+  - Every login creates a sessions row (device_id + hashed refresh token).
+  - The access JWT carries device_id + school_id + actor.
+  - The browser sends a presence heartbeat (/api/auth/presence) which bumps
+    last_seen (throttled to once/minute).
+  - A device is "online" if the session is not logged out, refresh not expired,
+    and last_seen is within the last 24 hours. The middleware rejects requests
+    for devices that are outside that window.
+
+
+================================================================================
+ SECTION 3 — ENDPOINT REFERENCE
+================================================================================
+
+A) AUTH / SESSION  (backend\routes\auth.routes.js)
+   POST /api/auth/login                  -> auth.controller.login   -> auth.service.login
+       Checks admin email/password, school must be 'active', creates a session,
+       returns access token + refresh token + admin profile.
+   POST /api/auth/judge-login            -> auth.service.judgeLogin
+       Checks school_email + judge_password (bcrypt), returns judge token.
+   POST /api/auth/refresh                -> auth.service.refreshSession
+       Swaps the refresh token for a NEW access token (single-flight on the
+       frontend). Does NOT count as presence.
+   POST /api/auth/presence               -> auth.service.touchPresence
+       Heartbeat. Bumps sessions.last_seen (and schools.last_active_at).
+   POST /api/auth/logout                 -> auth.service.logout
+       Burns this device's refresh token + flags session logged_out_at.
+   POST /api/auth/request-password-reset -> email a 6-digit code
+   POST /api/auth/verify-reset-code      -> returns a short reset JWT
+   POST /api/auth/reset-password         -> updates admins.password
+
+B) SCHOOL ADMIN (backend\routes\school.routes.js)
+   POST   /api/schools/create            -> create school + first admin
+                                            (transaction, atomic)
+   GET    /api/schools/profile           (auth)   -> current school profile
+   PUT    /api/schools/profile           (auth)   -> update profile
+   POST   /api/schools/profile/change-password         (admin password)
+   POST   /api/schools/profile/judge-password          (set judge pass)
+   GET    /api/schools/                  -> list all schools
+   GET    /api/schools/:id               -> one school
+   PUT    /api/schools/:id               -> update a school
+   PATCH  /api/schools/:id/judge-password
+   DELETE /api/schools/:id
+
+C) CONTEST DATA (backend\routes\data.routes.js) — the heart of the admin flow
+   PUBLIC (no token; take school_id in query string):
+     GET /api/public/system-config?school_id=X   -> system_config row (cached)
+     GET /api/public/get-all-data?school_id=X    -> settings + contestants
+                                                    + criteria (cached)
+     GET /api/public/leaderboard?school_id=X     -> computed standings
+     GET /api/public/judge/ids?school_id=X       -> distinct judge_ids
+     GET /api/public/judge/scores?school_id=X&judgeId=J -> one judge's totals
+     GET /api/public/active-schools              -> online schools (presence)
+   PROTECTED (requireAuth = admin JWT):
+     GET    /api/get-all-data        -> full data for MY school (cached)
+     GET    /api/leaderboard         -> standings or 404 if no settings row
+     GET    /api/judge/ids
+     GET    /api/judge/my-scores?judgeId=J
+     DELETE /api/reset-data          -> wipe scores, contestants, criteria
+                                        and reset settings of my school
+     POST   /api/save-config         -> SAVE CONTEST CONFIG (see flow below)
+     POST   /api/stream-ui           -> admin live-sees AI drawing the judge UI
+                                        (SSE stream, token-by-token)
+     GET    /api/system-config
+     POST   /api/save-system-config  -> save portal look (system_config)
+     GET    /api/ai-models           -> safe list of AI providers/models
+
+D) JUDGE (backend\routes\judge.routes.js) — requireJudge
+   POST /api/judge/render-ui             -> AI generate judge UI (202 + job)
+   POST /api/judge/submit                -> save my score sheet (upsert)
+   GET  /api/judge/my-scores?judgeId=J   -> my ranked totals
+   GET  /api/judge/my-scores-raw/:judgeId-> my raw (contestant, criterion, value)
+   GET  /api/judge/render-ui-cached      -> get cached UI html (never AI)
+   GET  /api/judge/render-ui/status/:jobId -> generation status
+
+E) AI (backend\routes\ai.routes.js) — requireJudge
+   POST /api/ai/generate                 -> start generation, optionally wait
+   GET  /api/ai/generations/:id          -> job status + HTML when COMPLETED
+
+F) LEADERBOARD DISPLAY (backend\routes\leaderboard.routes.js)
+   GET  /api/leaderboard/fullscreen-config?school_id=X  -> fullscreen_config
+   POST /api/leaderboard/fullscreen-config            -> save it
+
+G) MISC
+   POST /api/feedback   -> send feedback
+   GET  /api/locations/regions | /provinces/:r | /cities/:p | /barangays/:c
+                        -> Philippine location presets (utils\psgc.js)
+
+
+================================================================================
+ SECTION 4 — END-TO-END FLOWS (with files, step by step)
+================================================================================
+
+----------------------------------------------------------------------
+ FLOW A — ADMIN CLICKS "SAVE CONFIG"  (the one you asked about)
+----------------------------------------------------------------------
+1. The Admin dashboard (React, frontend\src\pages\admin\sections\...)
+   collects the form: contest name, judge count, AI prompt, computation type,
+   lock toggle, the contestant list, the criteria list (name + %).
+   Hook: frontend\src\hooks\handleSave.js builds the JSON payload and calls:
+        POST /api/save-config
+        Authorization: Bearer <admin access token>
+
+2. Express -> data.routes.js line 28:
+        router.post('/save-config', ctrl.saveConfig);
+   -> controllers\data.controller.js -> data.controller.saveConfig (line 73)
+   -> services\data.service.js -> dataService.saveConfig(school_id, body) (line 274)
+
+3. saveConfig opens a DB TRANSACTION (pool.getConnection + beginTransaction):
+   a) Reads the existing settings row. Builds a dynamic UPDATE (only the
+      fields the client actually sent) OR INSERTs a fresh settings row if
+      none exists yet.
+   b) Validates the AI provider/model combo before saving (rejects invalid
+      pairs with a 400).
+   c) Diffs the incoming contestants/criteria against the DB:
+        - If ONLY the prompt/model/mode/lock changed  -> nothing else touched,
+          existing judge scores are KEPT (same contestant/criterion ids).
+        - If the contestant list OR the criteria list actually changed
+          -> DELETE FROM scores for the school (old ids are gone, so the
+          foreign keys would break), then DELETE + re-INSERT contestants and
+          criteria.
+   d) COMMIT, then invalidate the in-memory/public JSON caches for the school
+      (cacheDel on get-all-data, system-config, ui:html:* patterns).
+
+4. Returns { success: true, message: 'Configuration saved!' } to the frontend.
+   The frontend calls loadAllData() to re-fetch /api/get-all-data and refresh
+   the inputs with the DB truth.
+
+DB touched: settings (update/insert), contestants, criteria, scores (only if
+lists changed). Caches invalidated afterwards.
+
+----------------------------------------------------------------------
+ FLOW A-2 — ADMIN CLICKS "SAVE SYSTEM CONFIG" (portal look)
+----------------------------------------------------------------------
+1. Admin page -> POST /api/save-system-config (data.routes.js line 31)
+2. data.controller.saveSystemConfig -> data.service.saveSystemConfig (line 525)
+3. Upsert into system_config (INSERT ... ON DUPLICATE KEY UPDATE for the
+   single per-school row).
+4. Invalidates the public/system-config cache ({ system: true, ui: false }).
+
+----------------------------------------------------------------------
+ FLOW B — ADMIN GENERATES THE JUDGE UI (live stream) 
+----------------------------------------------------------------------
+1. Admin clicks "Generate UI". Dashboard calls POST /api/stream-ui
+   (data.routes.js line 29) and reads a Server-Sent Events stream.
+2. ai-stream.controller.stream (backend\controllers\ai-stream.controller.js):
+   sets SSE headers, sends {type:'ping'} every 10s to keep the proxy alive,
+   sends {type:'status','connected'}, then delegates:
+3. ai-stream.service.streamJudgeUI (backend\services\ai-stream.service.js):
+   a) Re-reads settings + contestants + criteria FRESH from MySQL
+      (dataService.getAllData) so the configHash always matches the judge's.
+   b) judgeService.prepareRender computes configHash =
+      md5(provider|prompt|criteriaSignature|model|ui_mode|school_id).
+   c) CACHE HIT?  -> return cached ui_cache.html, no AI call at all.
+   d) ui_mode='default'? -> build the deterministic static table (static
+      judge-table.js) and cache it.
+   e) Otherwise: create a `generations` row (QUEUED), mark PROCESSING, call
+      aiService.generate with onDelta, stream each delta token live to the
+      admin terminal, THEN finalize the HTML (strip buttons/forms, rebuild
+      dropdown ranges 0..criterion%, inject rows if the AI left an empty
+      tbody), save it into ui_cache, mark generation COMPLETED.
+4. Judge page later reads this cached HTML (Flow D).
+
+DB touched: generations (create/markProcessing/markCompleted), ui_cache
+(prompt_hash + html_content).
+
+----------------------------------------------------------------------
+ FLOW C — JUDGE LOGS IN
+----------------------------------------------------------------------
+1. Judge page -> POST /api/auth/judge-login (school_email + judge_password).
+2. auth.service.judgeLogin: looks up the school by school_email, checks the
+   school is active, bcrypt-compares judge_password, calls
+   sessionService.createSession (INSERT INTO sessions), signs a JWT with
+   { school_id, role:'judge', device_id }, returns token + refreshToken.
+3. Scores are stored per judge_id = ??? (the judge picks a Name/ID inside the
+   scoring page — judgeId is a plain string, see judgeService.submitScores).
+
+----------------------------------------------------------------------
+ FLOW D — JUDGE OPENS THE SCORING PAGE
+----------------------------------------------------------------------
+1. Judge page fetches public data:
+   - GET /api/public/get-all-data?school_id=X  (for contestants + criteria)
+   - GET /api/public/system-config?school_id=X (for school look)
+   - GET /api/judge/render-ui-cached?school_id=X&criteria_signature=...&
+        prompt=...&model=...&ui_mode=...&provider=...   (judge JWT)
+   The judge sends its own prompt/model/mode as query params so the server
+   computes the SAME hash the browser expects (prevents stale/poisoned cache
+   during a settings-save race — see judge.service.js getCachedUI comment).
+2. judge.controller.renderUICached -> judge.service.getCachedUI
+   a) Compute md5 configHash (same formula as prepareRender).
+   b) Exact-hash hit in ui_cache -> serve it (normalized).
+   c) No exact hit -> fall back to the MOST RECENT design of the SAME
+      design_type ('ai'/'default') so the judge never sits on an empty page.
+   d) Nothing at all -> build the plain static table on the fly.
+   The HTML is cleaned through purgeNonScoringElements, dropdown ranges are
+   rebuilt to 0..criterion percentage, and rows are ensured.
+3. On change the judge UI lives in the browser; scores are persisted on submit.
+
+----------------------------------------------------------------------
+ FLOW E — JUDGE SUBMITS SCORES
+----------------------------------------------------------------------
+1. Judge clicks Submit -> POST /api/judge/submit
+   Body: { judgeId, scores: [{ contestantId, criterionId, value }, ...] }
+2. middleware requireJudge reads school_id from the JWT (NEVER the body).
+3. judge.controller.submit -> judge.service.submitScores (line 470):
+   transaction, INSERT INTO scores ... ON DUPLICATE KEY UPDATE
+   (re-submitting the same cell overwrites it — the unique_score key on
+   school_id+judge_id+contestant_id+criterion_id makes this an upsert).
+4. Totals/ranks are NEVER stored — they are recomputed from scores on demand
+   (Flow F). This is why the leaderboard and judge totals are always live.
+
+----------------------------------------------------------------------
+ FLOW F — LEADERBOARD (computation logic, the "logic of the system")
+----------------------------------------------------------------------
+GET /api/leaderboard (protected) or /api/public/leaderboard?school_id=X
+-> data.service.computeLeaderboard (line 108)
+
+Mode from settings.computation_type:
+
+A) 'average' (default):
+   SQL: SUM(score_value) / COUNT(DISTINCT judge_id)  grouped by contestant
+   -> each contestant gets final_score, then ranked with rankValues
+      (ties = midrank) descending. Total is divided by the number of judges
+      who ACTUALLY submitted, not the configured judge_count.
+
+B) 'rank' (rank-sum):
+   1. SQL sums each judge's score per contestant (judge_total).
+   2. Per judge: rank contestants by total (midrank ties).
+   3. Sum each contestant's ranks across all judges (total_rank).
+   4. Final standings: sort by total_rank ascending — LOWEST rank-sum WINS;
+      equal rank-sums share the next midrank.
+
+C) 'custom': base calc = custom_base (average or rank), ties handled with
+   tie_break_method ('midrank' | 'shared' | 'sequential'). Midrank = tied
+   entries all get the average of the occupied positions (1.5, 1.5, 3).
+
+Ranking is implemented in backend\utils\ranks.js (rankValues helper).
+
+DB touched: READ ONLY (settings + scores + contestants). Cache: the public
+leaderboard is computed per request (no cache) — always live.
+
+----------------------------------------------------------------------
+ FLOW G — JUDGE MY-SCORES (checklist while scoring)
+----------------------------------------------------------------------
+GET /api/judge/my-scores?judgeId=J
+-> judge.service.getMyScores: sums a judge's own scores per contestant and
+ranks them (midrank) so the judge sees their current standing, live.
+
+----------------------------------------------------------------------
+ FLOW H — FULLSCREEN LIVE LEADERBOARD
+----------------------------------------------------------------------
+Admin/broadcast shows the leaderboard fullscreen using either the public
+leaderboard endpoint or the scoreboard page (frontend\src\pages\judge\
+scoreboard). Colors/title come from fullscreen_config:
+GET/POST /api/leaderboard/fullscreen-config. Saves are upserts into the one
+row per school.
+
+----------------------------------------------------------------------
+ FLOW I — RESET ALL DATA
+----------------------------------------------------------------------
+DELETE /api/reset-data -> data.service.resetData (line 245):
+transaction that deletes scores, ui_cache, contestants, criteria, generations
+and resets the settings row to defaults (contest_name='', judge_count=3,
+ai_prompt='Modern and Professional', computation_type='average', ui_mode='ai',
+is_judge_locked=0 ...). Caches invalidated after commit.
+
+----------------------------------------------------------------------
+ FLOW J — ONLINE/ACTIVE SCHOOLS ("who's live right now")
+----------------------------------------------------------------------
+GET /api/public/active-schools -> data.service.getActiveSchools (line 18).
+SQL joins schools to live sessions (logged_out_at IS NULL, expires_at > NOW(),
+last_seen >= NOW() - 24H) where school.status = 'active', groups by school,
+orders by most-recent activity. Next to nothing depends on schools.last_active_at
+anymore — the sessions table IS the source of truth for presence.
+
+
+================================================================================
+ SECTION 5 — CACHING (why saves sometimes "take a moment")
+================================================================================
+backend\utils\mem-cache.js + data.service.invalidateSchoolCaches:
+
+  public:get-all-data:<schoolId>     (settings+contestants+criteria JSON)
+  public:system-config:<schoolId>    (portal look JSON)
+  ui:html:<schoolId>:*               (judge UI cache)
+
+ui_cache in MySQL is the REAL judge UI cache (hash keyed on the exact config).
+The Redis-replacement mem-cache is a thin in-memory JSON layer used by the
+public/admin read endpoints. Every write flow (saveConfig, saveSystemConfig,
+resetData) invalidates the matching keys, so the next read always sees fresh DB
+truth. The leadership "cached" data has a TTL (CACHE_TTL_SECONDS) so it expires
+naturally too.
+
+
+================================================================================
+ SECTION 6 — FRONTEND FILE MAP (where each flow lives)
+================================================================================
+frontend\src\services\api.js         API client wrapper (Bearer token,
+                                     401 -> silent refresh -> replay,
+                                     redirect to login on failure)
+frontend\src\services\session.js     refresh / logout / token per school
+frontend\src\hooks\handleSave.js     Admin "Save Config" -> POST /save-config
+frontend\src\hooks\loadData.js       Admin load -> GET /get-all-data
+frontend\src\hooks\useSystemConfig.js  GET /public/system-config
+frontend\src\hooks\useDashpboard.js    dashboard data + leaderboard polling
+frontend\src\hooks\usePresence.js      presence heartbeat loop
+frontend\src\hooks\useJudgeSystem.js / useJudgePersistence.js
+                                      judge page state + localStorage
+                                      persistence + submit
+frontend\src\pages\admin\sections\index.js   admin config/contest page
+frontend\src\pages\admin\leaderboard\index.js admin leaderboard view
+frontend\src\pages\judge\scoreboard\index.js  fullscreen live board
+frontend\src\utils\judge.js etc.      scoring helpers, ranks, badge colors
+
+
+================================================================================
+ SECTION 7 — CHEAT-SHEET: "file -> file -> DB" for the main buttons
+================================================================================
+
+[ADMIN] Save contest config
+  dashboard JS  -> POST /api/save-config
+  -> routes\data.routes.js -> controllers\data.controller.js
+  -> services\data.service.js saveConfig()  [transaction]
+  -> UPDATE/INSERT settings ; DELETE+INSERT contestants & criteria ;
+     DELETE scores (only when lists changed)
+  -> commit -> invalidate caches
+
+[ADMIN] Save portal look
+  -> POST /api/save-system-config
+  -> controllers\data.controller.js -> services\data.service.js saveSystemConfig()
+  -> UPSERT system_config
+
+[ADMIN] Generate judge UI (live stream)
+  -> POST /api/stream-ui (SSE)
+  -> controllers\ai-stream.controller.js
+  -> services\ai-stream.service.js streamJudgeUI()
+  -> fresh data -> prepareRender (hash) -> ai-service.generate (LLM)
+  -> INSERT/UPDATE ui_cache ; UPDATE generations
+
+[ADMIN] Reset data
+  -> DELETE /api/reset-data
+  -> controllers\data.controller.js -> services\data.service.js resetData()
+  -> transaction deletes scores/ui_cache/contestants/criteria/generations
+     + resets settings
+
+[JUDGE] Login
+  -> POST /api/auth/judge-login
+  -> controllers\auth.controller.js -> services\auth.service.js judgeLogin()
+  -> SELECT schools (bcrypt check) -> INSERT sessions -> sign JWT
+
+[JUDGE] Load scoring page
+  -> GET /api/public/get-all-data  + GET /api/judge/render-ui-cached
+  -> services\data.service.js getAllData() (cached)
+  -> services\judge.service.js getCachedUI() (ui_cache hit -> HTML)
+
+[JUDGE] Submit scores
+  -> POST /api/judge/submit
+  -> controllers\judge.controller.js -> services\judge.service.js submitScores()
+  -> transaction upsert scores (ON DUPLICATE KEY UPDATE)
+
+[ANYONE] View leaderboard
+  -> GET /api/public/leaderboard?school_id=X
+  -> services\data.service.js computeLeaderboard()
+  -> READ-ONLY SQL over scores -> rankValues() -> standings
+
+
+================================================================================
+ END OF DOCUMENT
+================================================================================
