@@ -333,8 +333,8 @@ function buildAiInstruction(prep) {
   // structure. Theme classes are placeholders — the model restyles them, but
   // the <th>/<td> counts and order are fixed. Designed to FIT a laptop with no
   // horizontal scroll: no forced min-width, wrapping headers, compact cells.
-  const skeleton = `<div class="w-full min-h-screen p-4 sm:p-6 bg-slate-950">
-  <div class="w-full max-w-5xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
+  const skeleton = `<div class="w-full p-4 sm:p-6 bg-slate-950">
+  <div class="w-full bg-white rounded-2xl shadow-lg overflow-hidden">
     <div class="px-4 py-3 bg-slate-900 text-slate-50">
       <h1 class="text-lg sm:text-xl font-semibold tracking-tight">Official Academic Evaluation Panel</h1>
     </div>
@@ -388,8 +388,8 @@ You are a Senior Tailwind CSS Developer. Produce ONLY the Judge UI markup below.
     DARK ink (on white/light surfaces): ${themeHints.ink}
     accent: ${themeHints.accent} · font: ${themeHints.font}
 ${themeHints.extra ? `- ${themeHints.extra}` : ''}
-- Paint the WHOLE screen: the outer wrapper <div> takes the theme's darkest bg
-  (never a plain white page); the <table> sits on a light card (bg-white
+- Paint the FULL WIDTH: the outer wrapper <div> is w-full and takes the theme's
+  darkest bg (never a plain white page); the <table> sits on a light card (bg-white
   rounded-xl shadow-lg, NO border/ring). If it could pass for the default table, FAIL.
 - TWO-INK LAW — choose ink from the surface DIRECTLY behind the text:
     on the WHITE card (body cells, No., Name, Total, Rank, on-light header cells)
@@ -435,8 +435,11 @@ using their real id/entry number/name. Never truncate — partial tables are rej
   grid should already fit without it.
 
 [CONTAINER — you own the page, not just the table]:
-- page <div> = w-full min-h-screen p-3 sm:p-5 lg:p-6, theme's darkest bg (gradient ok).
-- card <div> = w-full max-w-7xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden.
+- page <div> = w-full p-3 sm:p-5 lg:p-6, theme's darkest bg (gradient ok).
+  Height must be CONTENT-DRIVEN (hugs the card) — NEVER min-h-screen/h-screen/h-full.
+- card <div> = w-full bg-white rounded-xl shadow-lg overflow-hidden. It must span the
+  FULL container width — NO max-w-*, NO mx-auto, NO shrink-to-fit, NO side gutters
+  wider than the page padding.
 - title band inside the card: theme bg + contrasting text (see contrast law).
 - NO border/ring on the page wrapper or the card — shadow only.
 - table-auto NOT table-fixed. No. narrow+centered, Name left, Total/Rank compact.
@@ -457,9 +460,11 @@ surfaces prefer the 900/950 shade of the hue, never a custom value.
 [MODERN UI RECIPE — APPLY TO EVERY THEME, NO EXCEPTIONS]:
 The layout below is fixed for ALL themes; only the palette changes (per the color
 law). Follow it literally so any prompt yields a modern, professional result:
-1) Page: full-screen themed wrapper (theme gradient or darkest surface) with
-   "p-4 sm:p-6"; centered card
-   "w-full max-w-5xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden".
+1) Page: themed wrapper (theme gradient or darkest surface), full width, with
+   "w-full p-4 sm:p-6"; its height is CONTENT-DRIVEN (never min-h-screen/h-screen).
+   Inside it, a full-width card
+   "w-full bg-white rounded-2xl shadow-lg overflow-hidden" — no max-w-*, no mx-auto,
+   so it fills the entire container width.
 2) Title band across the card top: theme bg/gradient + light ink, a small uppercase
    eyebrow + the contest title ("text-lg sm:text-xl font-semibold"), left-aligned
    with the first column; optional ✦. Never output an unlabeled bare table.

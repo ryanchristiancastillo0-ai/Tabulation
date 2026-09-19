@@ -30,4 +30,10 @@ router.post('/stream-ui', streamCtrl.stream);
 router.get('/system-config', ctrl.systemConfig);
 router.post('/save-system-config', ctrl.saveSystemConfig);
 
+// ── Config history (admin audit of every save) ──
+router.get('/history', ctrl.history);
+router.get('/history/:id', ctrl.historyDetail);
+router.post('/history/delete', ctrl.deleteHistory);
+router.delete('/history/all', ctrl.deleteAllHistory);
+
 module.exports = router;

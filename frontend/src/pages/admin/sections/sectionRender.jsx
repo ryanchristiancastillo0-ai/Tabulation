@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  X, LogOut, TrophyIcon, Moon, Sun, Settings
+  X, LogOut, TrophyIcon, Moon, Sun, Settings, History
 } from 'lucide-react';
 import apiClient from '../../../services/api';
 import CriteriaManager from './CreteriaManager';
@@ -136,6 +136,17 @@ export const MobileNavDrawer = ({ isOpen, onClose, activeNav, setActiveNav, navI
               <Settings size={15} />
             </div>
             Settings
+          </button>
+
+          {/* History */}
+          <button
+            onClick={() => { navigate('/admin/history'); onClose(); }}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-md border text-[13px] font-semibold cursor-pointer font-inherit transition-all duration-150 border-transparent bg-transparent text-white/70 hover:bg-white/5 hover:text-white"
+          >
+            <div className="w-6 h-6 rounded flex items-center justify-center shrink-0 bg-white/5 text-white/50">
+              <History size={15} />
+            </div>
+            History
           </button>
 
           {/* Dark / Light toggle */}

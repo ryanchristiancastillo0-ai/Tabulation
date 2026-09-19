@@ -36,8 +36,21 @@ export function GlobalStyles() {
         font-size: clamp(11px, 1.8vw, 14px);
         display: block;
         min-width: 100%;
+        width: 100%;
+      }
+      /* The generated wrapper must fill the parent container horizontally and hug
+         its content vertically — never cap width with max-w-* and never force
+         full viewport height with min-h-screen. */
+      .ai-rendered-content > div {
+        width: 100% !important;
+        max-width: none !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
       }
       .ai-rendered-content table {
+        width: 100%;
         max-width: 100%;
       }
       .ai-rendered-content td,

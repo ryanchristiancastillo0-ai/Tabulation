@@ -15,6 +15,7 @@ const dataService = require('./data.service');
 const judgeService = require('./judge.service');
 const genService = require('./ai-generation.service');
 const aiService = require('../ai/ai-service');
+const historyService = require('./history.service');
 
 // ── main entry: read fresh data → cache-check → stream → persist ─────────────
 async function streamJudgeUI({ school_id, onDelta }) {
@@ -42,6 +43,7 @@ async function streamJudgeUI({ school_id, onDelta }) {
   // Already cached (same prompt/criteria/model/mode) → no provider call at all.
   if (prep.html) {
     console.log(`⚡ [stream-ui] cache hit hash=${prep.configHash.slice(0, 8)} — returning stored HTML`);
+    await backfillHistory(school_id, prep.finalUiMode, prep.configHash);
     return { html: prep.html, promptHash: prep.configHash, fromCache: true, generationId: null };
   }
 
@@ -53,6 +55,7 @@ async function streamJudgeUI({ school_id, onDelta }) {
       aiPrompt: settings.ai_prompt, model: settings.ai_model, uiMode: settings.ui_mode,
       school_id,
     });
+    await backfillHistory(school_id, 'default', promptHash);
     return { html, promptHash, fromCache: false, generationId: null };
   }
 
@@ -87,7 +90,19 @@ async function streamJudgeUI({ school_id, onDelta }) {
   await genService.markCompleted(generationId, prep.configHash);
   console.log(`✅ [stream-ui] cached hash=${prep.configHash.slice(0, 8)} finalLength=${finalHtml.length}`);
 
+  await backfillHistory(school_id, 'ai', prep.configHash);
+
   return { html: finalHtml, generationId, promptHash: prep.configHash, fromCache: false };
+}
+
+// Points the newest config_history row for this school at the design that was
+// just cached, so the History page shows the ui_cache design this save produced.
+async function backfillHistory(schoolId, designType, promptHash) {
+  try {
+    await historyService.updateDesign(schoolId, designType, promptHash);
+  } catch (err) {
+    console.warn(`⚠️  [stream-ui] history design backfill failed school=${schoolId}:`, err.message);
+  }
 }
 
 module.exports = { streamJudgeUI };

@@ -5,6 +5,7 @@ const { rankValues, numeric } = require('../utils/ranks');
 const { PRESENCE_WINDOW_HOURS } = require('./session.service');
 const { DEFAULT_PROVIDER, DEFAULT_MODEL, coalesceProvider, coalesceModel } = aiModels;
 const { cacheGetJson, cacheSetJson, cacheDel, cacheDelPattern, CACHE_TTL_SECONDS } = require('../utils/mem-cache');
+const { addHistory } = require('./history.service');
 
 const allDataKey      = (schoolId) => `public:get-all-data:${schoolId}`;
 const systemConfigKey = (schoolId) => `public:system-config:${schoolId}`;
@@ -511,6 +512,16 @@ async function saveConfig(schoolId, body) {
 
     await connection.commit();
     await invalidateSchoolCaches(schoolId);
+
+    // Every admin save gets one config_history row — a full post-save snapshot.
+    // Logged here (outside the transaction) so a history write failure can
+    // never roll back an otherwise-valid save; it is only surfaced as a warn.
+    try {
+      const entry = await addHistory(schoolId);
+      console.log(`📜 [saveConfig] history entry #${entry.id} logged school=${schoolId}`);
+    } catch (historyErr) {
+      console.warn(`⚠️  [saveConfig] failed to log history school=${schoolId}:`, historyErr.message);
+    }
 
     return { success: true, message: 'Configuration saved!' };
   } catch (error) {

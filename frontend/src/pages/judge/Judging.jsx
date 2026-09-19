@@ -8,8 +8,9 @@ import {CriteriaHeader,EncryptedBadge,CardHeaderStrip,
   
   JudgeFooter,JudgeHeader,
   LoadingSpinner,
-  ScoringCard,StatusModal,SubmitButton
+  ScoringCard,SubmitButton
 } from './components'
+import { SuccessModal, ErrorModal, WarningModal, ConfirmModal } from '../../components/ui';
 
 function JudgeTable() {
   usePresence('judge');
@@ -72,11 +73,28 @@ function JudgeTable() {
     >
       <GlobalStyles />
 
-      <StatusModal
-        isOpen={modal.show}
+      <SuccessModal
+        isOpen={modal.show && modal.type === 'success'}
         title={modal.title}
         message={modal.message}
-        type={modal.type}
+        onClose={closeModal}
+      />
+      <ErrorModal
+        isOpen={modal.show && modal.type === 'error'}
+        title={modal.title}
+        message={modal.message}
+        onClose={closeModal}
+      />
+      <WarningModal
+        isOpen={modal.show && modal.type === 'warning'}
+        title={modal.title}
+        message={modal.message}
+        onClose={closeModal}
+      />
+      <ConfirmModal
+        isOpen={modal.show && modal.type === 'confirm'}
+        title={modal.title}
+        message={modal.message}
         onClose={closeModal}
         onConfirm={modal.onConfirm}
       />
@@ -91,7 +109,7 @@ function JudgeTable() {
         isJudgeLocked={isJudgeLocked}
       />
 
-      <main className="flex-1 w-full max-w-screen-xl xl:max-w-[1440px] 2xl:max-w-[1920px] 3xl:max-w-[2560px] 4xl:max-w-[3200px] mx-auto px-3 sm:px-6 lg:px-8 2xl:px-10 py-4 sm:py-8 lg:py-10">
+      <main className="flex-1 w-full px-3 sm:px-6 lg:px-8 2xl:px-10 py-4 sm:py-8 lg:py-10">
 
         {!loading && !isRichStaticTable && (
           <CriteriaHeader

@@ -1,5 +1,6 @@
 const HttpError = require('../utils/http-error');
 const dataService = require('../services/data.service');
+const historyService = require('../services/history.service');
 const aiModels = require('../ai/ai-models');
 
 // ── SAFE AI MODEL METADATA (no credentials — names + ids only) ──
@@ -80,4 +81,23 @@ exports.systemConfig = async (req, res) => {
 
 exports.saveSystemConfig = async (req, res) => {
   res.json(await dataService.saveSystemConfig(req.school_id, req.body));
+};
+
+// ── CONFIG HISTORY (protected) ──
+exports.history = async (req, res) => {
+  res.json(await historyService.getHistory(req.school_id));
+};
+
+exports.historyDetail = async (req, res) => {
+  const entry = await historyService.getHistoryById(req.school_id, req.params.id);
+  if (!entry) throw new HttpError(404, 'History entry not found.');
+  res.json(entry);
+};
+
+exports.deleteHistory = async (req, res) => {
+  res.json(await historyService.deleteHistory(req.school_id, req.body?.ids));
+};
+
+exports.deleteAllHistory = async (req, res) => {
+  res.json(await historyService.deleteAllHistory(req.school_id));
 };

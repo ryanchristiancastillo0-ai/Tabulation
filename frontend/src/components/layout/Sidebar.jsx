@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   LayoutGrid, Trophy, Sparkles, Scale,
-  Users, UserPlus, Moon, Sun, TrophyIcon, LogOut, MonitorCog, Settings,
+  Users, UserPlus, Moon, Sun, TrophyIcon, LogOut, MonitorCog, Settings, History,
 } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import apiClient from "../../services/api";
@@ -29,6 +29,7 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
   const activeTab = isDashboardRoute ? (searchParams.get("tab") || activeNav) : null;
   const isLeaderboardActive = location.pathname === "/admin/leaderboard";
   const isSettingsActive = location.pathname === "/admin/settings";
+  const isHistoryActive = location.pathname === "/admin/history";
 
   useEffect(() => {
     apiClient
@@ -114,6 +115,25 @@ export default function Sidebar({ activeNav, setActiveNav, dark, setDark }) {
             <TrophyIcon size={15} />
           </div>
           Leaderboard
+        </button>
+      </div>
+
+      {/* ── History ── */}
+      <div className="px-2.5 pb-2">
+        <button
+          onClick={() => navigate("/admin/history")}
+          className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-md border text-[13px] font-semibold cursor-pointer font-inherit transition-all duration-150 ${
+            isHistoryActive
+              ? "border-[#C9A227]/30 bg-[#C9A227]/15 text-[#C9A227]"
+              : "border-transparent bg-transparent text-white/70 hover:bg-white/5 hover:text-white"
+          }`}
+        >
+          <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${
+            isHistoryActive ? "bg-[#C9A227]/20 text-[#C9A227]" : "bg-white/5"
+          }`}>
+            <History size={15} />
+          </div>
+          History
         </button>
       </div>
 
