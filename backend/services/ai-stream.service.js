@@ -77,9 +77,10 @@ async function streamJudgeUI({ school_id, onDelta }) {
 
   const finalHtml = judgeService.finalizeAiHtml(rawHtml, contestants, criteria);
   await pool.execute(
-    `INSERT INTO ui_cache (prompt_hash, school_id, html_content)
-     VALUES (?, ?, ?)
+    `INSERT INTO ui_cache (prompt_hash, school_id, design_type, html_content)
+     VALUES (?, ?, 'ai', ?)
      ON DUPLICATE KEY UPDATE
+       design_type  = VALUES(design_type),
        html_content = VALUES(html_content)`,
     [prep.configHash, school_id, finalHtml]
   );

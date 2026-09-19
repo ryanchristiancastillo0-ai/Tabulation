@@ -88,15 +88,11 @@ async function generate({ provider, model, prompt, onDelta }) {
     throw e;
   }
 
-  const impl = PROVIDER_IMPLS[providerName];
+const impl = PROVIDER_IMPLS[providerName];
   if (!impl) throw safeError(`Unknown AI provider "${providerName}".`);
 
   console.log(`🤖 [ai-service] provider=${providerName} model=${modelName} stream=${typeof onDelta === 'function'}`);
-  const rawText = await chatWithFallback({ providerName, model: modelName, prompt, onDelta });
-  console.log(`\\n===== DEBUG[RAW-LLM] provider=${providerName} model=${modelName} len=${rawText?.length} =====`);
-  console.log(`DEBUG[RAW-LLM] has-sts-shell=${String(rawText || '').includes('sts-shell')} has-1B4332=${String(rawText || '').includes('#1B4332')}`);
-  console.log(`DEBUG[RAW-LLM] first800 >>>${String(rawText || '').slice(0, 800)}<<<`);
-  return rawText;
+  return chatWithFallback({ providerName, model: modelName, prompt, onDelta });
 }
 
 module.exports = { generate };

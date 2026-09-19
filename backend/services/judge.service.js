@@ -203,8 +203,8 @@ async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, p
   console.log(`🔐 [prepareRender] configHash=${configHash.slice(0,16)} criteriaSig=${criteriaSignature}`);
 
   const [cache] = await pool.execute(
-    'SELECT html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ?',
-    [configHash, school_id]
+    'SELECT html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ? AND design_type = ?',
+    [configHash, school_id, finalUiMode]
   );
 
   console.log(`💾 [prepareRender] ui_cache hit=${cache.length > 0} hash=${configHash.slice(0,8)}`);
@@ -354,7 +354,7 @@ ${skeleton.split('\n').map(l => '    ' + l).join('\n')}
 // stream so both store byte-identical results in ui_cache.
 function finalizeAiHtml(rawText, contestants, criteria) {
   const cleanTable = String(rawText || '').replace(/```html/g, '').replace(/```/g, '').trim();
-  const finalized = ensureScoreRows(
+  return ensureScoreRows(
     normalizeDropdownRanges(
       purgeNonScoringElements(cleanTable, contestants),
       criteria
@@ -362,9 +362,6 @@ function finalizeAiHtml(rawText, contestants, criteria) {
     contestants,
     criteria
   );
-  console.log(`\n===== DEBUG[FINALIZED] len=${finalized?.length} has-sts-shell=${String(finalized || '').includes('sts-shell')} has-1B4332=${String(finalized || '').includes('#1B4332')} =====`);
-  console.log(`DEBUG[FINALIZED] first800 >>>${String(finalized || '').slice(0, 800)}<<<`);
-  return finalized;
 }
 
 // ── Repair AI designs that break the scoring grid ───────────────────────────
@@ -391,6 +388,12 @@ function ensureScoreRows(html, contestants, criteria) {
   const emptyBody    = /<tbody[^>]*>\s*<\/tbody>/i.test(t);
   const noInputs     = !/score-dropdown/.test(t);
 
+  // A design is usable when it has a body AND at least one row with a branded
+  // .score-dropdown whose form the frontend can rebuild. In that case it is a
+  // real AI layout — keep it byte-for-byte (header is only an aesthetic).
+  const hasRowsAndDrops = hasBody && !emptyBody && !noInputs;
+  if (hasRowsAndDrops) return s;
+
   // Expected columns: No. | Name | one per criterion | Total | Rank.
   const expectedCols = criteria.length + 4;
   const headThCount  = (() => {
@@ -398,19 +401,18 @@ function ensureScoreRows(html, contestants, criteria) {
     return headRow ? (headRow[1].match(/<th\b/gi) || []).length : 0;
   })();
 
+  // Empty/dropdown-less AI table whose header is intact → rebuild JUST the
+  // <tbody> with the canonical rows, keeping the AI's <thead> and styling.
   if (hasBody && (emptyBody || noInputs) && headThCount === expectedCols) {
-    // Design is intact — only the body is empty/dropdown-less. Rebuild JUST the
-    // <tbody> with the canonical rows, keeping the AI's <thead> and styling.
     const rebuilt = s.replace(/<tbody\b[^>]*>[\s\S]*?<\/tbody>/i, () => `<tbody>${rows}</tbody>`);
     if (rebuilt !== s) return rebuilt;
   }
 
-  if (!hasBody || emptyBody || noInputs || headThCount !== expectedCols) {
-    // Header is itself broken or missing → must rebuild the whole table so the
-    // <th>s and every row always share one canonical column structure.
-    const rebuilt = buildStaticJudgeTable(contestants, criteria);
-    if (rebuilt) return s.replace(tableTag[0], rebuilt);
-  }
+  // The AI table has no usable scoring grid at all (no body / no header that
+  // matches the canonical layout) → fall back to the exact default judge layout
+  // so the judge is never left with an unscorable shell.
+  const rebuilt = buildStaticJudgeTable(contestants, criteria);
+  if (rebuilt) return s.replace(tableTag[0], rebuilt);
 
   // Table already carries rows + dropdowns → leave the AI design untouched.
   return s;
@@ -429,9 +431,10 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, provid
     console.log(`📋 [renderUI] uiMode=default — building static table`);
     const table = buildStaticJudgeTable(contestants, criteria);
     await pool.execute(
-      `INSERT INTO ui_cache (prompt_hash, school_id, html_content)
-       VALUES (?, ?, ?)
+      `INSERT INTO ui_cache (prompt_hash, school_id, design_type, html_content)
+       VALUES (?, ?, 'default', ?)
        ON DUPLICATE KEY UPDATE
+         design_type  = VALUES(design_type),
          html_content = VALUES(html_content)`,
       [prep.configHash, school_id, table]
     );
@@ -459,9 +462,10 @@ async function renderUI({ contestants, criteria, aiPrompt, model, uiMode, provid
     const finalTable = finalizeAiHtml(tableHTML, contestants, criteria);
 
     await pool.execute(
-      `INSERT INTO ui_cache (prompt_hash, school_id, html_content)
-       VALUES (?, ?, ?)
+      `INSERT INTO ui_cache (prompt_hash, school_id, design_type, html_content)
+       VALUES (?, ?, 'ai', ?)
        ON DUPLICATE KEY UPDATE
+         design_type  = VALUES(design_type),
          html_content = VALUES(html_content)`,
       [hash, school_id, finalTable]
     );
@@ -605,37 +609,27 @@ async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiMode
     .digest('hex');
 
   const [cache] = await pool.execute(
-    'SELECT html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ?',
-    [configHash, schoolId]
+    'SELECT html_content FROM ui_cache WHERE prompt_hash = ? AND school_id = ? AND design_type = ?',
+    [configHash, schoolId, uiMode]
   );
-
-  // ==== DEBUG[getCachedUI] instrumentation (remove after diagnosis) ====
-  console.log('\n===== DEBUG[getCachedUI] =====');
-  console.log(`DEBUG[getCachedUI] school=${schoolId} criteriaSig=${criteriaSignature}`);
-  console.log(`DEBUG[getCachedUI] resolved prompt="${String(aiPrompt).slice(0,50)}" provider=${provider} model=${finalModel} uiMode=${uiMode}`);
-  console.log(`DEBUG[getCachedUI] configHash=${configHash} exactHit=${cache.length > 0}`);
-  console.log(`DEBUG[getCachedUI] configured via settings? qPrompt=${!!aiPromptOverride} qProvider=${!!aiProviderOverride} qModel=${!!aiModelOverride} qUiMode=${!!uiModeOverride}`);
 
   // Exact-hash hit → serve it (the normal, strictly-correct path).
   if (cache.length > 0) {
-    const h = String(cache[0].html_content || '');
-    console.log(`DEBUG[getCachedUI] SERVED EXACT-HASH len=${h.length} has-sts-shell=${h.includes('sts-shell')} has-1B4332=${h.includes('#1B4332')} first300 >>>${h.slice(0,300)}<<<`);
+    console.log(`✅ [getCachedUI] exact-hash hit school=${schoolId} hash=${configHash.slice(0, 8)} type=${uiMode}`);
     return normalizeCachedUi(cache[0].html_content, schoolId, true);
   }
 
   // ── Safety net: no exact hash match, but the admin just generated SOMETHING
-  // for this school. Serve the MOST RECENTLY written design (by updated_at —
-  // re-saving/patching a row bumps it, and this table is an archive where old
-  // rows are kept for debugging) instead of making the judge sit on an
-  // empty/fallback screen.
+  // for this school. Serve the MOST RECENTLY written design of the SAME type
+  // ('ai' or 'default' — mirrors the settings row) instead of making the judge
+  // sit on an empty/fallback screen. Stale rows of the other type are never
+  // served, so a default-mode save can never shadow an AI design (or vice versa).
   const [latest] = await pool.execute(
-    'SELECT html_content FROM ui_cache WHERE school_id = ? ORDER BY updated_at DESC, id DESC LIMIT 1',
-    [schoolId]
+    'SELECT html_content FROM ui_cache WHERE school_id = ? AND design_type = ? ORDER BY updated_at DESC, id DESC LIMIT 1',
+    [schoolId, uiMode]
   );
   if (latest.length > 0) {
-    const h = String(latest[0].html_content || '');
-    console.log(`🪄 [getCachedUI] no exact hash hit for school=${schoolId} hash=${configHash.slice(0, 8)} — serving most recent design instead`);
-    console.log(`DEBUG[getCachedUI] SERVED MOST-RECENT len=${h.length} has-sts-shell=${h.includes('sts-shell')} has-1B4332=${h.includes('#1B4332')} first300 >>>${h.slice(0,300)}<<<`);
+    console.log(`🪄 [getCachedUI] no exact hash hit for school=${schoolId} hash=${configHash.slice(0, 8)} type=${uiMode} — serving most recent ${uiMode} design instead`);
     return normalizeCachedUi(latest[0].html_content, schoolId, true);
   }
 

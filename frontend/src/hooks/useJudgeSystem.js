@@ -525,16 +525,7 @@ export const useJudgeSystem = () => {
         const cached = await withTimeout(judgeGet(cachedUrl, 12000), 12000);
         if (cancelled) return;
         if (cached.fromCache === true && cached.html) {
-          // ==== DEBUG[PRE-SANITIZE] instrumentation (remove after diagnosis) ====
-          console.log('\n===== DEBUG[PRE-SANITIZE] =====');
-          console.log(`DEBUG[PRE-SANITIZE] len=${String(cached.html).length} fromCache=${cached.fromCache}`);
-          console.log(`DEBUG[PRE-SANITIZE] has-sts-shell=${String(cached.html).includes('sts-shell')} has-sts-th=${String(cached.html).includes('sts-th')} has-sts-dd-wrap=${String(cached.html).includes('sts-dd-wrap')}`);
-          console.log(`DEBUG[PRE-SANITIZE] has-1B4332=${String(cached.html).includes('#1B4332')} has-F5C2E7=${String(cached.html).includes('F5C2E7')}`);
-          console.log(`DEBUG[PRE-SANITIZE] has-score-dropdown=${String(cached.html).includes('score-dropdown')}`);
-          console.log(`DEBUG[PRE-SANITIZE] url=${cachedUrl}`);
-          console.log(`DEBUG[PRE-SANITIZE] first800 >>>${String(cached.html).slice(0, 800)}<<<`);
           let html = sanitizeAiHtml(cached.html, criteria);
-          const hadDropdownBeforeFallback = html.includes('score-dropdown');
           // The AI sometimes returns a decorative "GUI" with no scoring inputs
           // at all. Never let the judge end up dropdown-less — fall back to the
           // exact same built-in table used by Default mode so AI designs always
@@ -546,11 +537,6 @@ export const useJudgeSystem = () => {
               selectedJudgeRef.current ? `Judge ${selectedJudgeRef.current}` : undefined
             );
           }
-          // ==== DEBUG[POST-SANITIZE] instrumentation (remove after diagnosis) ====
-          console.log(`\n===== DEBUG[POST-SANITIZE] =====`);
-          console.log(`DEBUG[POST-SANITIZE] had-dropdown-before-fallback=${hadDropdownBeforeFallback} fallback-fired=${!hadDropdownBeforeFallback}`);
-          console.log(`DEBUG[POST-SANITIZE] final-has-sts-shell=${String(html).includes('sts-shell')} final-has-1B4332=${String(html).includes('#1B4332')} final-has-F5C2E7=${String(html).includes('F5C2E7')}`);
-          console.log(`DEBUG[POST-SANITIZE] final-first400 >>>${String(html).slice(0, 400)}<<<`);
           applyDesign(html);
           console.log(`🎨 [judge-poll] cached ${uiMode} UI ready school=${school_id} len=${html.length}`);
           if (cancelled) return;
