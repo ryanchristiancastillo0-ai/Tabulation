@@ -314,7 +314,7 @@ function buildAiInstruction(prep) {
 
   const critCols    = criteria.map((c) => `${c.name} (${c.percentage}%)`).join(' | ');
   const critHeaders = criteria
-    .map((c) => `<th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide align-middle">${esc(c.name)} (${Number(c.percentage) || 0}%)</th>`)
+    .map((c) => `<th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide align-middle whitespace-normal break-words">${esc(c.name)}<br>(${Number(c.percentage) || 0}%)</th>`)
     .join('\n          ');
   const critCells = criteria
     .map((c) => `<td class="px-1.5 py-1 text-center align-middle"><select class="score-dropdown w-full min-w-0 rounded-md border px-1.5 py-1 text-center text-sm" id="score-1-${c.id}"><option value="">-</option></select></td>`)
@@ -395,7 +395,7 @@ ${themeHints.extra ? `- ${themeHints.extra}` : ''}
 Criteria are DYNAMIC — exactly ${criteria.length} this request: ${critCols}.
 Derive them from [CRITERIA] below. Never invent, never reuse a default set, never
 hold a fixed floor of 4 columns.
-- Build <thead> from that list: one <th> per criterion, "<name> (<percentage>%)".
+- Build <thead> from that list: one <th> per criterion, "<name><br>(<percentage>%)".
 - Build EVERY <tbody> row from the SAME list, same order, one scoring <td> each.
   Total = ${totalCols} columns: No. | Name | ${critCols} | Total | Rank.
 - Header and every row MUST match that schema — a mismatch is a FAILED output.
@@ -430,16 +430,32 @@ using their real id/entry number/name. Never truncate — partial tables are rej
 - Contrast applies to the dropdown's OWN bg/border, not the cell; <option> = light
   bg + dark text. No inline styles. Keep the id exact; don't hardcode options.
 
-[PROFESSIONAL, NOT "AI-GENERATED"]:
-- Restrained: neutral surfaces for most of the table; theme accent only on the
-  header band, selected/active states, and key emphasis. No rainbow colors.
-- Hierarchy: one page title (text-base/lg font-semibold) > uppercase text-xs
-  headers > text-sm body > text-xs muted metadata. Don't bold everything.
-- Consistency: one radius (rounded-lg/md), 1px hairline borders, ONE soft shadow,
-  even 4px-scale spacing. No double borders, colored/heavy shadows or random radii.
-- Micro-interactions only: row hover tint (transition-colors), dropdown focus ring.
-- No gimmicks: no absolute badges, overlays, floating chips, icon clutter, extra
-  decorative divs, gradients beyond one subtle band. Elegance = spacing + palette.
+[PALETTE RULE — CRITICAL]:
+Use ONLY the standard named Tailwind palette (rose, pink, fuchsia, purple, violet,
+indigo, blue, cyan, teal, emerald, green, amber, yellow, orange, red + white/black,
+shades 50–950). NEVER use raw hex/custom colors or non-standard opacity modifiers —
+they are NOT compiled, so they render colorless and the theme looks plain. For dark
+surfaces prefer the 900/950 shade of the hue, never a custom value.
+
+[DESIGN QUALITY — MATCH THE THEME, STAY POLISHED]:
+- COMMIT to the theme hard. If the theme is vibrant/glamorous/pageant, the result
+  MUST look vibrant and glamorous: gradient page wrapper, bold gradient title band,
+  tinted header row, colored borders and dropdowns. A plain default table = FAIL.
+  Use 2–3 theme hues + neutrals — intentional, never random rainbow.
+- Example for a rose-gold / pink / purple pageant theme: page wrapper
+  "bg-linear-to-br from-rose-950 via-fuchsia-950 to-purple-950"; card
+  "bg-white rounded-xl shadow-lg"; title band
+  "bg-linear-to-r from-rose-500 via-pink-500 to-purple-500 text-white"; header
+  cells "bg-gradient-to-r from-rose-100 to-purple-100 text-rose-900"; dropdowns
+  "bg-white border-rose-300 text-rose-950 focus:border-fuchsia-500". Tasteful
+  ✦/✧ glyphs in the title are welcome.
+- Hierarchy: one page title > uppercase text-xs tracking-wide headers > text-sm
+  body > text-xs muted metadata. Don't bold everything.
+- Consistency: one radius family, 1px hairline borders, ONE soft shadow, even
+  4px-scale spacing. No double borders, colored/heavy shadows or random radii.
+- Micro-interactions: row hover tint (e.g. hover:bg-rose-50 transition-colors),
+  dropdown focus ring.
+- No clutter: no absolute badges, overlays, floating chips or icon spam.
 
 [DATA]:
 - Contest: ${prep.settings.contest_name}
@@ -449,7 +465,7 @@ using their real id/entry number/name. Never truncate — partial tables are rej
 [MANDATORY]:
 - Render EXACTLY ${contestants.length || 0} rows with the column layout above.
 - No. cell = ONLY the literal entry number ("1", "2"…) — no "Candidate"/"#"/"No.".
-- Each criterion header = name AND percentage ("Performance (60%)").
+- Each criterion header = name, then <br>, then "(percentage%)" on the 2nd line.
 - Total id="total-{cId}"; Rank id="rank-{cId}".
 
 [FINAL CHECK — before you output]:
@@ -458,7 +474,10 @@ using their real id/entry number/name. Never truncate — partial tables are rej
 - Every scoring cell = exactly one score-dropdown select; theme visible with strong
   contrast and NOT painted on any <tr>?
 - Is the title/header text readable against ITS OWN band, and does the grid fit with
-  no horizontal scroll? If any answer is no, fix it — a partial table is rejected.
+  no horizontal scroll?
+- Did you express the [THEME] vividly (gradient wrapper + title band, themed header
+  cells and dropdowns) instead of a plain table, using only named palette colors?
+If any answer is no, fix it — a partial table is rejected.
 
 [OUTPUT]: ONLY your single outer container <div> holding exactly ONE scoring
 <table>. No markdown, no extra top-level elements, no <button>/<form>/<input>.
@@ -515,12 +534,19 @@ function repairScoreTableStructure(html, contestants, criteria) {
 
   console.log(`🔧 [repairTableStructure] mismatched AI grid head=${headCells.length} rows=${rows.length} expectedCols=${expectedCols} → rebuilding structure, sampling AI theme`);
 
-  const DEFAULT_CLS = 'px-3 py-2 border-b';
+  const DEFAULT_CLS = 'px-2 py-2 text-center text-xs font-semibold tracking-wide align-middle whitespace-normal';
   const clsOf = (cell, fallback) => {
     if (typeof cell !== 'string') return fallback || DEFAULT_CLS;
     const m = cell.match(/class="([^"]*)"/i);
     return m ? m[1] : (fallback || DEFAULT_CLS);
   };
+  // Header cells must be allowed to wrap — an AI class with whitespace-nowrap or
+  // truncate makes long criterion names overlap/collide when columns compress.
+  const thCls = (cell, fallback) => clsOf(cell, fallback)
+    .replace(/\bwhitespace-nowrap\b/g, 'whitespace-normal')
+    .replace(/\btruncate\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim() || DEFAULT_CLS;
   const cellsOfRow = (r) => (r || '').match(/<td\b[^>]*>[\s\S]*?<\/td>/gi) || [];
 
   const firstCells = rows.length ? cellsOfRow(rows[0]) : [];
@@ -533,22 +559,22 @@ function repairScoreTableStructure(html, contestants, criteria) {
     }
     return '';
   })();
-  const clsScore = clsOf(scoringTd, 'px-2 py-1 text-center');
+  const clsScore = clsOf(scoringTd, 'px-1.5 py-1 text-center align-middle');
   const clsTotal = clsOf(firstCells[firstCells.length - 2] || headCells[headCells.length - 2], 'px-2 py-1 text-center');
   const clsRank  = clsOf(firstCells[firstCells.length - 1] || headCells[headCells.length - 1], 'px-2 py-1 text-center');
   const selTag   = (scoringTd.match(/<select\b[^>]*>/i) || [''])[0];
   let   selClass = clsOf(selTag, '');
-  selClass = ('score-dropdown ' + selClass.replace(/\bscore-dropdown\b/g, '').trim()).trim() || 'score-dropdown w-full rounded-md border px-2 py-1.5 text-center';
+  selClass = ('score-dropdown ' + selClass.replace(/\bscore-dropdown\b/g, '').trim()).trim() || 'score-dropdown w-full min-w-0 rounded-md border px-1.5 py-1 text-center text-sm';
 
   const ths = [
-    `<th class="${clsOf(headCells[0], DEFAULT_CLS)}">No.</th>`,
-    `<th class="${clsOf(headCells[1], DEFAULT_CLS)}">Name</th>`,
+    `<th class="${thCls(headCells[0], DEFAULT_CLS)}">No.</th>`,
+    `<th class="${thCls(headCells[1], DEFAULT_CLS)}">Name</th>`,
   ];
   criteria.forEach((cr, i) => {
-    ths.push(`<th class="${clsOf(headCells[2 + i], clsOf(headCells[2], DEFAULT_CLS))}">${String(cr.name || `Criterion ${i + 1}`)} (${Number(cr.percentage) || 0}%)</th>`);
+    ths.push(`<th class="${thCls(headCells[2 + i], thCls(headCells[2], DEFAULT_CLS))}">${String(cr.name || `Criterion ${i + 1}`)}<br>(${Number(cr.percentage) || 0}%)</th>`);
   });
-  ths.push(`<th class="${clsOf(headCells[headCells.length - 2], DEFAULT_CLS)}">Total</th>`);
-  ths.push(`<th class="${clsOf(headCells[headCells.length - 1], DEFAULT_CLS)}">Rank</th>`);
+  ths.push(`<th class="${thCls(headCells[headCells.length - 2], DEFAULT_CLS)}">Total</th>`);
+  ths.push(`<th class="${thCls(headCells[headCells.length - 1], DEFAULT_CLS)}">Rank</th>`);
 
   const numOf = (c) => {
     const v = Number(c && c.entry_number);
@@ -582,9 +608,105 @@ ${bodyRows}
   return html.slice(0, tableTag.index) + newTable + html.slice(tableTag.index + t.length);
 }
 
+// ── Deterministic layout hardening ──────────────────────────────────────────
+// LLMs frequently emit `table-fixed` + `whitespace-nowrap` + `min-w-full` (copied
+// from older skeletons). With many criteria that forces equal-width columns and
+// no wrapping → header labels collide/overlap and the grid scrolls sideways.
+// This rewrites ONLY those harmful layout classes and puts each criterion
+// percentage on its own line (<br>), leaving every theme color/class untouched.
+function normalizeTableLayout(html) {
+  if (typeof html !== 'string' || !html) return html;
+  let out = html;
+
+  // 1) <table> tag: drop table-fixed / min-w-full / whitespace-nowrap → table-auto.
+  out = out.replace(/<table\b[^>]*>/i, (tag) => {
+    let t = tag
+      .replace(/\btable-fixed\b/g, 'table-auto')
+      .replace(/\bmin-w-full\b/g, '')
+      .replace(/\bwhitespace-nowrap\b/g, '')
+      .replace(/\s+/g, ' ');
+    if (/\bclass="/.test(t) && !/\btable-auto\b/.test(t)) {
+      t = t.replace(/class="([^"]*)"/, (m, c) => `class="${(c.trim() + ' table-auto').trim()}"`);
+    }
+    return t.replace(/\s+>/g, '>');
+  });
+
+  // 2) <th> cells: allow wrapping (never nowrap/truncate) + <br> before "(NN%)".
+  out = out.replace(/<th\b([^>]*)>([\s\S]*?)<\/th>/gi, (m, attrs, inner) => {
+    let a = String(attrs).replace(/\bwhitespace-nowrap\b/g, ' ').replace(/\btruncate\b/g, ' ');
+    if (/class="/.test(a)) {
+      a = a.replace(/class="([^"]*)"/, (mm, c) => {
+        const set = new Set(String(c || '').split(/\s+/).filter(Boolean));
+        set.add('whitespace-normal');
+        set.add('break-words');
+        return `class="${Array.from(set).join(' ')}"`;
+      });
+    } else {
+      a += ' class="whitespace-normal break-words"';
+    }
+    let content = String(inner);
+    if (!/<br\s*\/?>/i.test(content)) {
+      content = content.replace(/\s*\((\d+(?:\.\d+)?)%\)\s*$/, '<br>($1%)');
+    }
+    return `<th${a.replace(/\s+/g, ' ').replace(/\s+>/g, '>')}>${content}</th>`;
+  });
+
+  return out;
+}
+
+// ── Deterministic row identity hydration ─────────────────────────────────────
+// LLMs frequently render the CONTESTANT NAME cell with the entry number again
+// (e.g. rows showing "1 | 1", "2 | 2") or duplicate whole rows. We can identify
+// each scoring row by its ids (score-/total-/rank-<contestantId>) and overwrite
+// the first two cells — No. = entry_number, Name = name — using the real data,
+// keeping every class/theme intact. Duplicate rows for the same contestant are
+// dropped so nobody appears twice.
+function hydrateRowIdentity(html, contestants) {
+  if (typeof html !== 'string' || !html) return html;
+  if (!Array.isArray(contestants) || !contestants.length) return html;
+
+  const escapeHtml = (v) => String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+  const byId = {};
+  contestants.forEach((c) => { if (c && c.id != null) byId[String(c.id)] = c; });
+
+  const seen = new Set();
+  return html.replace(/<tbody\b([^>]*)>([\s\S]*?)<\/tbody>/i, (full, tbodyAttrs, inner) => {
+    const newInner = inner.replace(/<tr\b([^>]*)>([\s\S]*?)<\/tr>/gi, (rowFull, trAttrs, rowInner) => {
+      const idMatch = rowInner.match(/\bid="(?:score|total|rank)-([^-"]+)/i);
+      if (!idMatch) return rowFull;
+      const cId = idMatch[1];
+      const c = byId[cId];
+      if (!c) return rowFull;
+      const cells = rowInner.match(/<td\b[^>]*>[\s\S]*?<\/td>/gi);
+      if (!cells || cells.length < 2) return rowFull;
+      if (seen.has(cId)) return ''; // duplicate row for the same contestant
+      seen.add(cId);
+
+      const num  = (c.entry_number != null && String(c.entry_number) !== '') ? String(c.entry_number) : '';
+      const name = escapeHtml(c.name);
+      const setInner = (cell, value) => cell.replace(/(<td\b[^>]*>)[\s\S]*?(<\/td>)/i, `$1${value}$2`);
+      let idx = 0;
+      const rebuilt = rowInner.replace(/<td\b[^>]*>[\s\S]*?<\/td>/gi, (cell) => {
+        idx += 1;
+        if (idx === 1) return setInner(cell, num);
+        if (idx === 2) return setInner(cell, name);
+        return cell;
+      });
+      return `<tr${trAttrs}>${rebuilt}</tr>`;
+    });
+    return `<tbody${tbodyAttrs}>${newInner}</tbody>`;
+  });
+}
+
 function ensureScoreRows(html, contestants, criteria) {
   if (!html) return html;
-  const s = repairScoreTableStructure(String(html), contestants, criteria);
+  const s = hydrateRowIdentity(
+    normalizeTableLayout(repairScoreTableStructure(String(html), contestants, criteria)),
+    contestants
+  );
   const rows = buildScoreRows(contestants, criteria);
   if (!rows) return html; // no contestants/criteria → nothing to inject
   if (!/<table[\s>]/i.test(s)) return s;
@@ -613,12 +735,13 @@ function ensureScoreRows(html, contestants, criteria) {
   })();
   console.log(`[ensureScoreRows] hasBody=${hasBody} emptyBody=${emptyBody} noInputs=${noInputs} headThCount=${headThCount} expectedCols=${expectedCols}`);
 
-  // Anything with a populated body is a real AI layout. Keep it byte-for-byte —
-  // even if its header row or dropdown classes look different. NEVER swap the
-  // AI design for the built-in static table: the model owns the theme, the
-  // front-end hydrator rebuilds the dropdown ids/ranges on render.
+  // Anything with a populated body is a real AI layout. Keep its markup, theme
+  // and classes (normalizeTableLayout has already fixed table-fixed/nowrap and
+  // added the <br> header break). NEVER swap the AI design for the built-in
+  // static table: the model owns the theme, the front-end hydrator rebuilds the
+  // dropdown ids/ranges on render.
   if (hasBody && !emptyBody) {
-    console.log(`✅ [ensureScoreRows] KEPT AI DESIGN byte-for-byte (body has rows) bodyRows=${(bodyInner.match(/<tr\b/gi) || []).length}`);
+    console.log(`✅ [ensureScoreRows] KEPT AI DESIGN (layout-normalized, body has rows) bodyRows=${(bodyInner.match(/<tr\b/gi) || []).length}`);
     return s;
   }
 

@@ -467,19 +467,23 @@ textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.65; }
 }
 .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
 
-@source inline("{bg,text,border}-{slate,gray,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose}-{50,100,200,300,400,500,600,700,800,900}");
-@source inline("{hover:}{bg,text,border}-{slate,gray,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose}-{50,100,200,300,400,500,600,700,800,900}");
+@source inline("{bg,text,border}-{slate,gray,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose,white,black}-{50,100,200,300,400,500,600,700,800,900,950}");
+@source inline("{hover:,focus:,}{bg,text,border}-{slate,gray,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose}-{50,100,200,300,400,500,600,700,800,900,950}");
 /* Gradient stops + direction utilities — AI-generated judge themes rely on
    these actually existing in the compiled CSS, and Tailwind only ships classes
    it sees in scanned sources. */
-@source inline("{from,via,to}-{slate,gray,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose}-{50,100,200,300,400,500,600,700,800,900}");
+@source inline("{from,via,to}-{slate,gray,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose}-{50,100,200,300,400,500,600,700,800,900,950}");
 @source inline("{bg-gradient-to,bg-linear-to}-{t,tr,r,br,b,bl,l,tl}");
+/* Translucent tints/overlays the AI commonly reaches for (white/black + a
+   bounded set of theme hues). Keeps theme surfaces from rendering transparent. */
+@source inline("{bg,border,text}-{white,black}/{10,20,30,40,50,60,70,80,90}");
+@source inline("{bg,from,via,to,border,text}-{rose,pink,fuchsia,purple,violet,amber}-{500,600,700,800,900,950}/{10,20,30,40,50}");
 /* Focus variants for AI judge themes (dropdown focus rings/borders). */
-@source inline("{focus:,}{bg,text,border}-{slate,gray,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose}-{50,100,200,300,400,500,600,700,800,900}");
+@source inline("{focus:,}{bg,text,border}-{slate,gray,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose}-{50,100,200,300,400,500,600,700,800,900,950}");
 /* Structural + typography utilities the AI judge prompt requires. Tailwind only
    ships classes it has seen, and the AI-only ones appear at runtime, so list
    them explicitly (with the responsive prefixes the prompt asks for). */
-@source inline("{table-auto,table-fixed,border-separate,border-collapse,border-spacing-0,align-top,align-middle,align-bottom,whitespace-normal,whitespace-nowrap,min-w-0,max-w-full,w-full,overflow-hidden,overflow-x-auto,transition-colors,transition-shadow,uppercase,tracking-tight,tracking-wide,tracking-wider,antialiased}");
+@source inline("{table-auto,table-fixed,border-separate,border-collapse,border-spacing-0,align-top,align-middle,align-bottom,whitespace-normal,whitespace-nowrap,break-words,break-normal,min-w-0,max-w-full,w-full,overflow-hidden,overflow-x-auto,transition-colors,transition-shadow,uppercase,tracking-tight,tracking-wide,tracking-wider,antialiased}");
 @source inline("{sm:,md:,lg:,xl:,}{w-full,table-auto,border-separate,align-middle,overflow-x-auto}");
 @source inline("text-{xs,sm,base,lg,xl,2xl}");
 @source inline("{sm:,md:,lg:,}{text-xs,text-sm,text-base,text-lg,text-xl}");
