@@ -364,7 +364,7 @@ function buildAiInstruction(prep) {
     - Use ONLY these utility families so every class is guaranteed in the
       compiled CSS: bg-* text-* border-* from-* via-* to-* bg-linear-to-*
       px-* py-* w-* min-w-* max-w-* overflow-* rounded-* shadow-* font-*
-      whitespace-nowrap table-fixed border-separate border-spacing-0
+      whitespace-nowrap table-auto border-separate border-spacing-0
       tracking-* uppercase. Anything else is at your risk.
 
     [THEME]: "${prep.finalDesignGoal}"
@@ -386,6 +386,22 @@ function buildAiInstruction(prep) {
     - The theme MUST be unmistakable at first glance: a bold colored band on the
       header cells, a tinted wrapper, or styled dropdowns. If the output could
       pass for a plain white table, you FAILED.
+
+    [SCHEMA — SINGLE SOURCE OF TRUTH — READ BEFORE [STRUCTURE]]:
+    The judging criteria are DYNAMIC — they come ONLY from the JSON in [CONTEXT]
+    below. There is NO fixed or default number of score columns. There are
+    EXACTLY ${criteria.length} criteria this request.
+    - Step 1: DERIVE the schema from [CONTEXT]:
+        criteria[] = [ { id, name, percentage } for every criterion ]
+        Total columns = 4 + criteria.length
+    - Step 2: build the <thead> from that schema (one <th> per criterion, in the
+      order given, each labelled "<name> (<percentage>%)").
+    - Step 3: build EVERY <tbody> row from the SAME schema (one scoring <td> per
+      criterion, in the SAME order, each containing a score dropdown).
+    - NEVER invent or reuse criteria ("Creativity/Presentation/Technical Skill"
+      is not a default), NEVER hold a fixed 4-column floor, and NEVER let the
+      header disagree with the body. A header of just "No | Name | Total | Rank"
+      with scoring columns in the rows is a FAILED OUTPUT.
 
     [STRUCTURE — CRITICAL — DO NOT DEVIATE]:
     Your ONLY output is a scoring <table>. The header and EVERY body row MUST
@@ -412,29 +428,46 @@ ${skeleton.split('\n').map(l => '    ' + l).join('\n')}
 
     The skeleton above uses STRUCTURE PLACEHOLDER classes only (px-3, border-b,
     etc.) — replace them with your theme's Tailwind color/typography classes.
+    - The skeleton shows ONE example row. REPEAT that row EXACTLY once per
+      contestant (${contestants.length} rows total), using each contestant's real
+      id / entry number / name from [CONTEXT]. Never truncate or abbreviate the
+      output — a partial table is rejected.
 
     [LAYOUT RULES]:
     - Wrap the whole table in <div class="overflow-x-auto w-full"> so a wide
       table scrolls horizontally instead of squeezing/collapsing columns.
-    - The <table> itself must use: w-full min-w-full border-separate
-      border-spacing-0 whitespace-nowrap. Add table-fixed (or
-      [table-layout:fixed]) when you want fixed predictable widths.
-    - Keep the No. column narrow and centered, Name left-aligned, and every
-      Total/Rank column compact. Do not let any cell shrink below its content.
+    - The <table> itself must use: w-full border-separate border-spacing-0
+      whitespace-nowrap table-auto.
+    - Do NOT set table-fixed. table-fixed spreads every column to an equal width
+      and creates huge empty gaps; table-auto sizes each column from its content
+      so "No." stays narrow, "Name" grows to fit names, and the header and rows
+      always line up column-for-column.
+    - Keep the No. column narrow and centered, Name left-aligned, Total/Rank
+      compact. Give every cell comfortable, even padding (px-3 py-2 is a good
+      default) so the table reads as a polished data grid, not a cramped one.
 
     [FORM ELEMENT RULES — CRITICAL]:
     - Every <select> must use Tailwind classes only — NO inline styles.
-    - Style the <select> to match YOUR theme palette: its bg, text, border, and
-      rounded classes come from the colors you derived for [THEME] — nothing else.
-    - The bg and text must contrast strongly (readable).
-    - Example:
-        <select class="score-dropdown border rounded px-2 py-1" id="score-{cId}-{crId}">
-          <option>95</option>
-        </select>
-      Fill in the border/bg/text colors with YOUR theme's palette.
-    - ALWAYS add the same bg and text classes to every <option> — browsers ignore parent styles on options.
+    - Style each dropdown as a modern, polished control — the dropdown look is
+      part of YOUR theme, not an afterthought:
+        <select class="score-dropdown w-full rounded-md border px-2 py-1.5 text-center" id="score-{cId}-{crId}">
+      then layer on YOUR theme's border, bg, text, and focus classes
+      (e.g. border-cyan-500/40 bg-cyan-950 text-cyan-100 focus:border-cyan-400
+      focus:ring-1). Keep id="score-{cId}-{crId}" exactly as-is.
+    - The bg and text must contrast strongly (readable). Never ship a dropdown
+      whose text disappears into its background.
     - Do NOT hard-code dropdown options — the server rebuilds every dropdown's
       range to match each criterion automatically.
+
+    [MODERN DESIGN — make it look intentional, not default]:
+    - Aim for a clean, modern, premium feel: even padding (px-3 py-3 or similar
+      in cells), subtle 1px borders, gentle row hover, and a hairline under each
+      row so every row reads as one aligned data grid.
+    - Keep every dropdown the SAME width inside a cell so the score column stays
+      tidy; give numerals (No., Total, Rank, dropdown text) an aligned,
+      tabular feel.
+    - No layout gimmicks: no absolute-positioned badges, no overlays, no
+      marquee/extra gaps. Elegance comes from spacing and palette, not decoration.
 
     [CONTEXT]:
     - Contest: ${prep.settings.contest_name}
@@ -482,11 +515,105 @@ function finalizeAiHtml(rawText, contestants, criteria) {
 // empty/missing <tbody>. The AI's theme, wrapper, and overall layout are NEVER
 // replaced by the built-in static table — the model owns the design; the
 // frontend hydrator rebuilds dropdown ids/ranges on render.
+// ── Repair AI tables that break column alignment ─────────────────────────────
+// Models sometimes return a table whose header doesn't match the rows (e.g. a
+// 4-column "No | Name | Total | Rank" <thead> with 8-cell rows, or truncated
+// rows). With whitespace-nowrap that produces the "columns scattered with huge
+// empty gaps" judge screen. This rebuilds ONLY the broken <thead>/<tbody> in
+// canonical column order while sampling the AI's own cell classes so its theme
+// survives. Well-formed AI tables pass through byte-for-byte untouched.
+function repairScoreTableStructure(html, contestants, criteria) {
+  if (typeof html !== 'string' || !html) return html;
+  if (!Array.isArray(contestants) || !Array.isArray(criteria)) return html;
+  if (!contestants.length || !criteria.length) return html;
+
+  const expectedCols = 4 + criteria.length;
+  const tableTag = html.match(/<table\b[^>]*>[\s\S]*?<\/table>/i);
+  if (!tableTag) return html;
+  const t = tableTag[0];
+
+  const headTr     = t.match(/<thead[\s\S]*?<tr\b[^>]*>([\s\S]*?)<\/tr>/i);
+  const headCells  = headTr ? ((headTr[1] || '').match(/<th\b[^>]*>[\s\S]*?<\/th>/gi) || []) : [];
+  const bodyMatch  = t.match(/<tbody\b[^>]*>([\s\S]*?)<\/tbody>/i);
+  const rows       = bodyMatch ? ((bodyMatch[1] || '').match(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi) || []) : [];
+  const badRow     = rows.some((r) => (r.match(/<td\b/gi) || []).length !== expectedCols);
+
+  if (headCells.length === expectedCols && rows.length > 0 && !badRow) return html;
+
+  console.log(`🔧 [repairTableStructure] mismatched AI grid head=${headCells.length} rows=${rows.length} expectedCols=${expectedCols} → rebuilding structure, sampling AI theme`);
+
+  const DEFAULT_CLS = 'px-3 py-2 border-b';
+  const clsOf = (cell, fallback) => {
+    if (typeof cell !== 'string') return fallback || DEFAULT_CLS;
+    const m = cell.match(/class="([^"]*)"/i);
+    return m ? m[1] : (fallback || DEFAULT_CLS);
+  };
+  const cellsOfRow = (r) => (r || '').match(/<td\b[^>]*>[\s\S]*?<\/td>/gi) || [];
+
+  const firstCells = rows.length ? cellsOfRow(rows[0]) : [];
+  const clsNo    = clsOf(firstCells[0], DEFAULT_CLS);
+  const clsName  = clsOf(firstCells[1], DEFAULT_CLS);
+  const scoringTd = (() => {
+    for (const r of rows) {
+      const c = cellsOfRow(r).find((x) => /<select\b/i.test(x));
+      if (c) return c;
+    }
+    return '';
+  })();
+  const clsScore = clsOf(scoringTd, 'px-2 py-1 text-center');
+  const clsTotal = clsOf(firstCells[firstCells.length - 2] || headCells[headCells.length - 2], 'px-2 py-1 text-center');
+  const clsRank  = clsOf(firstCells[firstCells.length - 1] || headCells[headCells.length - 1], 'px-2 py-1 text-center');
+  const selTag   = (scoringTd.match(/<select\b[^>]*>/i) || [''])[0];
+  let   selClass = clsOf(selTag, '');
+  selClass = ('score-dropdown ' + selClass.replace(/\bscore-dropdown\b/g, '').trim()).trim() || 'score-dropdown w-full rounded-md border px-2 py-1.5 text-center';
+
+  const ths = [
+    `<th class="${clsOf(headCells[0], DEFAULT_CLS)}">No.</th>`,
+    `<th class="${clsOf(headCells[1], DEFAULT_CLS)}">Name</th>`,
+  ];
+  criteria.forEach((cr, i) => {
+    ths.push(`<th class="${clsOf(headCells[2 + i], clsOf(headCells[2], DEFAULT_CLS))}">${String(cr.name || `Criterion ${i + 1}`)} (${Number(cr.percentage) || 0}%)</th>`);
+  });
+  ths.push(`<th class="${clsOf(headCells[headCells.length - 2], DEFAULT_CLS)}">Total</th>`);
+  ths.push(`<th class="${clsOf(headCells[headCells.length - 1], DEFAULT_CLS)}">Rank</th>`);
+
+  const numOf = (c) => {
+    const v = Number(c && c.entry_number);
+    return Number.isFinite(v) && v > 0 ? String(v) : '';
+  };
+  const bodyRows = contestants.map((c) => {
+    const crit = criteria.map((cr) => {
+      const max = Number(cr.percentage) || 0;
+      return `<td class="${clsScore}"><select class="${selClass}" id="score-${c.id}-${cr.id}">${buildOptions(max)}</select></td>`;
+    }).join('');
+    return `      <tr>
+        <td class="${clsNo}">${numOf(c)}</td>
+        <td class="${clsName}">${(c && c.name) || ''}</td>
+        ${crit}
+        <td class="${clsTotal}" id="total-${c.id}">0.00</td>
+        <td class="${clsRank}" id="rank-${c.id}">-</td>
+      </tr>`;
+  }).join('\n');
+
+  const newTable = `${(t.match(/<table\b[^>]*>/i) || ['<table>'])[0]}
+    <thead>
+      <tr>
+        ${ths.join('\n        ')}
+      </tr>
+    </thead>
+    <tbody>
+${bodyRows}
+    </tbody>
+  </table>`;
+
+  return html.slice(0, tableTag.index) + newTable + html.slice(tableTag.index + t.length);
+}
+
 function ensureScoreRows(html, contestants, criteria) {
   if (!html) return html;
+  const s = repairScoreTableStructure(String(html), contestants, criteria);
   const rows = buildScoreRows(contestants, criteria);
   if (!rows) return html; // no contestants/criteria → nothing to inject
-  const s = String(html);
   if (!/<table[\s>]/i.test(s)) return s;
 
   const tableTag = s.match(/<table\b[^>]*>[\s\S]*?<\/table>/i);
