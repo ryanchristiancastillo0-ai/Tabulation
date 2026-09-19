@@ -282,7 +282,7 @@ function inferThemeHints(goal) {
     text = 'text-amber-50';
   }
   if (has(['gradient', 'glamour', 'festive', 'celebration', 'pageant', 'sparkle', 'shine', 'sparkling'])) {
-    extra.push('Use bg-gradient-to-br with two of YOUR theme colors (from-*/via-*/to-*) on the table or header row');
+    extra.push('Use bg-linear-to-br with two of YOUR theme colors (from-*/via-*/to-*) on the <th> cells or on the wrapper <div> — NEVER on <tr> (row backgrounds do not paint).');
   }
   if (has(['serif', 'elegant', 'formal', 'classic', 'academic', 'vintage', 'luxury', 'glamorous', 'royal', 'ornate'])) {
     extra.push('Use font-serif for a refined, non-generic feel');
@@ -355,6 +355,17 @@ function buildAiInstruction(prep) {
     "sts-*" variant. Every visual property (color, spacing, border, shadow,
     font, rounding, gradient) must be a real Tailwind utility class applied
     directly on the HTML element.
+    - NEVER leave the <tbody> empty or stuffed with a placeholder comment
+      (e.g. "<!-- No contestant rows -->"). Every contestant MUST appear as a
+      real <tr> row with a working score dropdown.
+    - NEVER put background, gradient, or text-color classes on a <tr> — row
+      backgrounds do not paint in browsers. Apply ALL colors to <th>/<td> (or
+      to the wrapper <div>) directly.
+    - Use ONLY these utility families so every class is guaranteed in the
+      compiled CSS: bg-* text-* border-* from-* via-* to-* bg-linear-to-*
+      px-* py-* w-* min-w-* max-w-* overflow-* rounded-* shadow-* font-*
+      whitespace-nowrap table-fixed border-separate border-spacing-0
+      tracking-* uppercase. Anything else is at your risk.
 
     [THEME]: "${prep.finalDesignGoal}"
 
@@ -372,11 +383,17 @@ function buildAiInstruction(prep) {
     ${themeHints.extra ? `    - ${themeHints.extra}` : ''}
     - Strong contrast: dark surfaces with light readable text (or the reverse)
       so names and dropdowns are easy to read.
+    - The theme MUST be unmistakable at first glance: a bold colored band on the
+      header cells, a tinted wrapper, or styled dropdowns. If the output could
+      pass for a plain white table, you FAILED.
 
     [STRUCTURE — CRITICAL — DO NOT DEVIATE]:
     Your ONLY output is a scoring <table>. The header and EVERY body row MUST
     share the EXACT same column structure — any mismatch in <th>/<td> counts is
     a broken layout. This is the default judge layout; copy it faithfully.
+    - The <tbody> MUST be fully populated with EXACTLY ${contestants.length}
+      real contestant rows. A skeleton with an empty <tbody> (or a placeholder
+      comment) is REJECTED — a reviewer checks for populated rows FIRST.
     - Exactly ${totalCols} columns, in this exact order:
       No. | Name | ${critCols} | Total | Rank
     - The header MUST contain one <th> per criterion showing the name AND its
@@ -431,6 +448,13 @@ ${skeleton.split('\n').map(l => '    ' + l).join('\n')}
     - Totals: id="total-{cId}"
     - Ranks: id="rank-{cId}"
 
+    [FINAL CHECK — read before you output]:
+    - Are ALL ${contestants.length || 0} contestants present as real <tr> rows? No placeholders, no comments.
+    - Does the header contain every criterion WITH its percentage, and does every row have the same cell count?
+    - Does every scoring cell contain exactly one <select class="score-dropdown" id="score-{cId}-{crId}">?
+    - Is your Tailwind theme clearly visible (colors painted on the header/rows/wrapper, strong contrast) and NOT on any <tr> element?
+    If ANY answer is no, fix it before returning — a partial table will be rejected.
+
     [OUTPUT]: Return ONLY a <div> with a Tailwind <table>. No markdown. Do NOT include any <button>, <form>, or <input> elements — the scoring page already provides its own Submit button.
   `;
 }
@@ -470,7 +494,11 @@ function ensureScoreRows(html, contestants, criteria) {
 
   const t = tableTag[0];
   const hasBody      = /<tbody[\s>]/i.test(t);
-  const emptyBody    = /<tbody[^>]*>\s*<\/tbody>/i.test(t);
+  // An AI "shell" can smuggle a placeholder inside <tbody> (e.g. an HTML
+  // comment / "No contestant rows"), so a whitespace regex never catches it.
+  // Empty = the <tbody> contains no actual <tr> row — comments don't count.
+  const bodyInner    = (t.match(/<tbody\b[^>]*>([\s\S]*?)<\/tbody>/i) || [])[1] || '';
+  const emptyBody    = hasBody ? !/<tr\b/i.test(bodyInner) : true;
 
   // ── Diagnostics ─────────────────────────────────────────────
   // The OLD build (still live on Render) used noInputs/expectedCols/headThCount
@@ -490,7 +518,7 @@ function ensureScoreRows(html, contestants, criteria) {
   // AI design for the built-in static table: the model owns the theme, the
   // front-end hydrator rebuilds the dropdown ids/ranges on render.
   if (hasBody && !emptyBody) {
-    console.log('✅ [ensureScoreRows] KEPT AI DESIGN byte-for-byte (populated body — no static substitution)');
+    console.log(`✅ [ensureScoreRows] KEPT AI DESIGN byte-for-byte (body has rows) bodyRows=${(bodyInner.match(/<tr\b/gi) || []).length}`);
     return s;
   }
 
