@@ -101,7 +101,7 @@ const AIConfigSection = ({ aiPrompt, setAiPrompt, aiProvider, setAiProvider, aiM
           <div style={{ border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface2)', overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', padding: '12px 14px 10px' }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>AI Provider & Model</div>
-              <div style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>auto-fallback: gemini → groq → openrouter</div>
+           
             </div>
 
             {providers.length === 0 ? (
@@ -142,7 +142,7 @@ const AIConfigSection = ({ aiPrompt, setAiPrompt, aiProvider, setAiProvider, aiM
                 {/* Summary line */}
                 <div style={{ fontSize: 11, color: 'var(--text2)', lineHeight: 1.5, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
                   <strong style={{ color: 'var(--text1)' }}>{selectedModel}</strong>{currentProvider ? ` (${currentProvider.label})` : ''} generates the Judge UI when you save.
-                  <span style={{ color: 'var(--accent)', fontWeight: 600 }}> API keys live only on the server — never in the browser.</span>
+                 
                 </div>
               </div>
             )}
