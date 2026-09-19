@@ -314,35 +314,39 @@ function buildAiInstruction(prep) {
 
   const critCols    = criteria.map((c) => `${c.name} (${c.percentage}%)`).join(' | ');
   const critHeaders = criteria
-    .map((c) => `<th class="px-3 py-2 border-b">${esc(c.name)} (${Number(c.percentage) || 0}%)</th>`)
+    .map((c) => `<th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide align-middle">${esc(c.name)} (${Number(c.percentage) || 0}%)</th>`)
     .join('\n          ');
   const critCells = criteria
-    .map((c) => `<td class="px-2 py-1"><select class="score-dropdown" id="score-1-${c.id}"><option value="">-</option></select></td>`)
+    .map((c) => `<td class="px-1.5 py-1 text-center align-middle"><select class="score-dropdown w-full min-w-0 rounded-md border px-1.5 py-1 text-center text-sm" id="score-1-${c.id}"><option value="">-</option></select></td>`)
     .join('\n          ');
 
   // The default judge layout, shown so the model reproduces the EXACT column
   // structure. Theme classes are placeholders — the model restyles them, but
-  // the <th>/<td> counts and order are fixed.
-  const skeleton = `<div class="w-full min-h-screen p-4 sm:p-6 lg:p-8 bg-slate-950">
-  <div class="w-full max-w-7xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
+  // the <th>/<td> counts and order are fixed. Designed to FIT a laptop with no
+  // horizontal scroll: no forced min-width, wrapping headers, compact cells.
+  const skeleton = `<div class="w-full min-h-screen p-3 sm:p-5 lg:p-6 bg-slate-950">
+  <div class="w-full max-w-7xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+    <div class="px-4 py-3 bg-slate-900 text-slate-50">
+      <h1 class="text-base sm:text-lg font-semibold tracking-tight">Official Academic Evaluation Panel</h1>
+    </div>
     <div class="overflow-x-auto">
-      <table class="w-full min-w-full border-separate border-spacing-0 whitespace-nowrap table-auto">
+      <table class="w-full table-auto border-separate border-spacing-0">
         <thead>
           <tr>
-            <th class="px-3 py-2 border-b text-center">No.</th>
-            <th class="px-3 py-2 border-b text-left">Name</th>
+            <th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide align-middle">No.</th>
+            <th class="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide align-middle">Name</th>
             ${critHeaders}
-            <th class="px-3 py-2 border-b text-center">Total</th>
-            <th class="px-3 py-2 border-b text-center">Rank</th>
+            <th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide align-middle">Total</th>
+            <th class="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide align-middle">Rank</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td class="px-2 py-1 text-center">1</td>
-            <td class="px-2 py-1 text-left">First Contestant</td>
+            <td class="px-2 py-1.5 text-center text-sm">1</td>
+            <td class="px-2 py-1.5 text-left text-sm font-medium">First Contestant</td>
             ${critCells}
-            <td class="px-2 py-1 text-center" id="total-1">0.00</td>
-            <td class="px-2 py-1 text-center" id="rank-1">-</td>
+            <td class="px-2 py-1.5 text-center text-sm font-semibold" id="total-1">0.00</td>
+            <td class="px-2 py-1.5 text-center text-sm font-semibold" id="rank-1">-</td>
           </tr>
         </tbody>
       </table>
@@ -362,8 +366,9 @@ You are a Senior Tailwind CSS Developer. Produce ONLY the Judge UI markup below.
 - NEVER color a <tr> (row backgrounds don't paint) — color <th>/<td> only.
 - Use ONLY these utility families (guaranteed in compiled CSS): bg-/text-/
   border-/from-/via-/to-/bg-linear-to-*, px-/py-/w-/min-w-/max-w-/overflow-/
-  rounded-/shadow-/font-*, whitespace-nowrap, table-auto, border-separate,
-  border-spacing-0, tracking-*, uppercase.
+  rounded-/shadow-/font-*, align-top/middle/bottom, whitespace-normal/nowrap,
+  table-auto, border-separate, border-spacing-0, tracking-*, uppercase,
+  transition-colors, ring-*.
 
 [THEME]: "${prep.finalDesignGoal}"
 
@@ -373,7 +378,11 @@ You are a Senior Tailwind CSS Developer. Produce ONLY the Judge UI markup below.
 ${themeHints.extra ? `- ${themeHints.extra}` : ''}
 - Paint the WHOLE screen: the outer wrapper <div> takes the theme's darkest bg
   (never a plain white page); the <table> sits on a light card (bg-white
-  rounded-xl shadow-xl). If it could pass for the default table, FAIL.
+  rounded-xl shadow-lg, NO border/ring). If it could pass for the default table, FAIL.
+- TITLE/HEADER BAND: if you show a title ("Official Academic Evaluation Panel" /
+  contest name / "Live Scoring"), the band needs its OWN theme bg with contrasting
+  text — NEVER light text straight on the white card, never dark text on a dark
+  band. Left-align it with the table; keep it full-width inside the card.
 - CONTRAST LAW (WCAG): every text must read against its OWN surface — not the page.
     light text (white/cream/yellow/pink/cyan/pastel) → …-950/…-900 theme surface;
     dark text (black/navy/deep-green) → white/light surface;
@@ -382,51 +391,57 @@ ${themeHints.extra ? `- ${themeHints.extra}` : ''}
   numerals). If a pair fails, flip the text/surface pairing — KEEP the theme hue,
   don't flatten to black/white. Hover/focus/selected states stay readable.
 
-    [SCHEMA — ONE SOURCE OF TRUTH]:
+[SCHEMA — ONE SOURCE OF TRUTH]:
 Criteria are DYNAMIC — exactly ${criteria.length} this request: ${critCols}.
-Derive them from [CRITERIA] below. Never invent, never reuse a default set, and
-never hold a fixed floor of 4 columns.
-- Build the <thead> FROM that list: one <th> per criterion, "<name> (<percentage>%)".
-- Build EVERY <tbody> row FROM the SAME list, same order, one scoring <td> each
-  (a score select inside). Total = ${totalCols} columns:
-  No. | Name | ${critCols} | Total | Rank.
-- Header and every row MUST match that schema — any mismatch (e.g. a "No | Name |
-  Total | Rank" header with scoring columns below) is a FAILED output.
-- <tbody> populated with EXACTLY ${contestants.length} real rows — no empty rows,
-  no placeholder comments, no empty <th>.
-- Score cells contain ONLY ONE control:
-  <select class="score-dropdown" id="score-{cId}-{crId}">.
+Derive them from [CRITERIA] below. Never invent, never reuse a default set, never
+hold a fixed floor of 4 columns.
+- Build <thead> from that list: one <th> per criterion, "<name> (<percentage>%)".
+- Build EVERY <tbody> row from the SAME list, same order, one scoring <td> each.
+  Total = ${totalCols} columns: No. | Name | ${critCols} | Total | Rank.
+- Header and every row MUST match that schema — a mismatch is a FAILED output.
+- <tbody> = EXACTLY ${contestants.length} real rows, no empty rows/comments/<th>.
+- Score cells hold ONLY ONE <select class="score-dropdown" id="score-{cId}-{crId}">.
 
-    [REFERENCE LAYOUT — copy structure, restyle with YOUR theme]:
+[REFERENCE LAYOUT — copy structure, restyle with YOUR theme]:
 ${skeleton.split('\n').map(l => '    ' + l).join('\n')}
-The skeleton uses PLACEHOLDER classes only (px-3, border-b) — swap them for your
-theme's classes. It shows ONE sample row: REPEAT it for EACH of the
-${contestants.length} contestants using their real id/entry number/name. Never
-truncate — a partial table is rejected.
+Placeholder classes only (px-2, text-xs, border) — swap in YOUR theme classes.
+One sample row shown: REPEAT it for EACH of the ${contestants.length} contestants
+using their real id/entry number/name. Never truncate — partial tables are rejected.
+
+[FIT THE SCREEN — NO HORIZONTAL SCROLL]:
+- The table MUST fit a normal laptop with no side scroll. Do NOT force min-width
+  and do NOT nowrap every cell: let criterion headers wrap to 2 lines and columns
+  shrink (w-full + table-auto). Keep No./Total/Rank and dropdowns nowrap.
+- Compact sizing: cells px-2 py-1.5, headers text-xs uppercase tracking-wide,
+  body text-sm, dropdowns w-full min-w-0 px-1.5 py-1. No oversized text/padding.
+- The overflow-x-auto wrapper is only a safety net for tiny phones — by design the
+  grid should already fit without it.
 
 [CONTAINER — you own the page, not just the table]:
-Return ONE outer <div> = the whole page, then a responsive card, then the table:
-- page:  <div class="w-full min-h-screen p-4 sm:p-6 lg:p-8 bg-{darkest theme color}">
-- card:  <div class="w-full max-w-7xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
-- band:  <div class="overflow-x-auto"> wrapping
-         <table class="w-full min-w-full border-separate border-spacing-0 whitespace-nowrap table-auto">
-- Optional slim header band (contest / "Live Scoring" / judge label / accent
-  rule) OUTSIDE the <table>, theme-colored, Tailwind only.
-- table-auto, NOT table-fixed (equal columns = ugly gaps). No. narrow+centered,
-  Name left, Total/Rank compact, even cell padding (px-3 py-2).
+- page <div> = w-full min-h-screen p-3 sm:p-5 lg:p-6, theme's darkest bg (gradient ok).
+- card <div> = w-full max-w-7xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden.
+- title band inside the card: theme bg + contrasting text (see contrast law).
+- NO border/ring on the page wrapper or the card — shadow only.
+- table-auto NOT table-fixed. No. narrow+centered, Name left, Total/Rank compact.
 
 [SCORE DROPDOWNS]:
-- <select class="score-dropdown w-full rounded-md border px-2 py-1.5 text-center" id="score-{cId}-{crId}">
-  then add YOUR theme border/bg/text/focus classes (e.g. bg-cyan-950 text-cyan-100
-  focus:border-cyan-400). Keep the id exactly.
-- Contrast applies to the dropdown's OWN bg/border, not the cell; style <option>
-  with light bg + dark text so the open list never vanishes. No inline styles.
-- Do NOT hard-code options — the server rebuilds every range.
+- <select class="score-dropdown w-full min-w-0 rounded-md border px-1.5 py-1 text-center text-sm"
+  id="score-{cId}-{crId}"> plus YOUR theme border/bg/text/focus classes.
+- Contrast applies to the dropdown's OWN bg/border, not the cell; <option> = light
+  bg + dark text. No inline styles. Keep the id exact; don't hardcode options.
 
-[MODERN]: clean, premium, consistent padding, hairline row borders, subtle hover,
-uniform dropdown width, tabular numerals. No absolute badges/overlays/gimmicks.
+[PROFESSIONAL, NOT "AI-GENERATED"]:
+- Restrained: neutral surfaces for most of the table; theme accent only on the
+  header band, selected/active states, and key emphasis. No rainbow colors.
+- Hierarchy: one page title (text-base/lg font-semibold) > uppercase text-xs
+  headers > text-sm body > text-xs muted metadata. Don't bold everything.
+- Consistency: one radius (rounded-lg/md), 1px hairline borders, ONE soft shadow,
+  even 4px-scale spacing. No double borders, colored/heavy shadows or random radii.
+- Micro-interactions only: row hover tint (transition-colors), dropdown focus ring.
+- No gimmicks: no absolute badges, overlays, floating chips, icon clutter, extra
+  decorative divs, gradients beyond one subtle band. Elegance = spacing + palette.
 
-    [DATA]:
+[DATA]:
 - Contest: ${prep.settings.contest_name}
 - Contestants: ${JSON.stringify(contestants.map(c => ({ id: c.id, n: c.name, num: c.entry_number })))}
 - Criteria: ${JSON.stringify(criteria.map(cr => ({ id: cr.id, name: cr.name, percentage: cr.percentage })))}
@@ -442,7 +457,8 @@ uniform dropdown width, tabular numerals. No absolute badges/overlays/gimmicks.
 - Header has every criterion + %, and every row has the same cell count?
 - Every scoring cell = exactly one score-dropdown select; theme visible with strong
   contrast and NOT painted on any <tr>?
-If any answer is no, fix it — a partial table is rejected.
+- Is the title/header text readable against ITS OWN band, and does the grid fit with
+  no horizontal scroll? If any answer is no, fix it — a partial table is rejected.
 
 [OUTPUT]: ONLY your single outer container <div> holding exactly ONE scoring
 <table>. No markdown, no extra top-level elements, no <button>/<form>/<input>.
