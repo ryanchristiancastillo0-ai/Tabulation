@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const HttpError = require('../utils/http-error');
 const aiModels = require('../ai/ai-models');
+const { rankValues, numeric } = require('../utils/ranks');
 const { PRESENCE_WINDOW_HOURS } = require('./session.service');
 const { DEFAULT_PROVIDER, DEFAULT_MODEL, coalesceProvider, coalesceModel } = aiModels;
 const { cacheGetJson, cacheSetJson, cacheDel, cacheDelPattern, CACHE_TTL_SECONDS } = require('../utils/mem-cache');
@@ -311,8 +312,7 @@ async function saveConfig(schoolId, body) {
   try {
     await connection.beginTransaction();
 
-    // Track whether anything the judge table renders on actually changed, so we
-    // can reset the persisted AI UI cache (ui_cache) on exactly those saves.
+    // Track whether anything the judge table renders on actually changed.
     let promptChanged = false;
     let modelChanged = false;
     let providerChanged = false;
@@ -425,7 +425,6 @@ async function saveConfig(schoolId, body) {
     console.log(`🔎 [saveConfig] post-write readback school=${schoolId} rows=${readback.length} ui_mode=${readback[0]?.ui_mode} ai_prompt="${String(readback[0]?.ai_prompt ?? '').slice(0, 60)}"`);
 
     const waiting = [];
-    let renderDataChanged = false;
 
     if (contestants !== undefined && criteria !== undefined) {
       const [existingContestants] = await connection.execute(
@@ -439,30 +438,25 @@ async function saveConfig(schoolId, body) {
       const contestantsChanged = !rowsEqual(existingContestants, contestants);
       const criteriaChanged    = !criteriaEqual(existingCriteria, criteria);
 
-      if (contestantsChanged || criteriaChanged || promptChanged || modelChanged || providerChanged || modeChanged) {
-        // Contestants/criteria are deleted and re-inserted below with NEW ids,
-        // so any existing scores (which reference the old ids) must be wiped
-        // ONLY when those lists actually change — otherwise the foreign keys
-        // fk_scores_contestant / fk_scores_criteria reject fresh submissions
-        // with "Cannot add or update a child row".
-        //
-        // Rendering-only changes (ai_prompt, ai_model, ai_provider, ui_mode,
-        // computation_type, lock toggle…) keep the exact same contestant and
-        // criterion ids, so the judges' submitted scores remain valid. They
-        // must NOT be wiped or the leaderboard instantly shows empty standings
-        // ("No scores submitted yet") right after a prompt tweak.
-        if (contestantsChanged || criteriaChanged) {
-          await connection.execute('DELETE FROM scores WHERE school_id = ?', [schoolId]);
-        }
-
-        // The judge's rendered table depends on the prompt, the criteria and
-        // the contestant list — when any of those change, the persisted AI UI
-        // is stale (old layout, missing/reordered rows, old percentages).
-        // Wipe it here so the next judge load builds fresh instead of serving
-        // the previous generation.
-        renderDataChanged = true;
-        await connection.execute('DELETE FROM ui_cache WHERE school_id = ?', [schoolId]);
+      // Contestants/criteria are deleted and re-inserted below with NEW ids,
+      // so any existing scores (which reference the old ids) must be wiped
+      // ONLY when those lists actually change — otherwise the foreign keys
+      // fk_scores_contestant / fk_scores_criteria reject fresh submissions
+      // with "Cannot add or update a child row".
+      //
+      // Rendering-only changes (ai_prompt, ai_model, ai_provider, ui_mode,
+      // computation_type, lock toggle…) keep the exact same contestant and
+      // criterion ids, so the judges' submitted scores remain valid. They
+      // must NOT be wiped or the leaderboard instantly shows empty standings
+      // ("No scores submitted yet") right after a prompt tweak.
+      if (contestantsChanged || criteriaChanged) {
+        await connection.execute('DELETE FROM scores WHERE school_id = ?', [schoolId]);
       }
+
+      // NOTE: ui_cache is intentionally NOT cleared here. It acts as an
+      // archive/debug log of every generated design (AI and Default-mode
+      // saves alike) so old layouts can be inspected later. The judge always
+      // fetches the LATEST single row, so stale rows never surface.
 
       if (contestantsChanged) {
         await connection.execute('DELETE FROM contestants WHERE school_id = ?', [schoolId]);
@@ -488,7 +482,6 @@ async function saveConfig(schoolId, body) {
       // clear scores and rebuild whichever list was supplied.
       if (contestants !== undefined || criteria !== undefined) {
         await connection.execute('DELETE FROM scores WHERE school_id = ?', [schoolId]);
-        renderDataChanged = true;
       }
 
       if (contestants !== undefined) {
@@ -510,15 +503,6 @@ async function saveConfig(schoolId, body) {
           ]);
         }
       }
-    }
-
-    // Clear ui_cache ONLY when the rendered table actually changed (prompt,
-    // model, provider, ui_mode, contestants, criteria). Sparse saves that
-    // merely touch is_judge_locked (the lock/unlock toggle) must NOT wipe the
-    // AI design — otherwise a freshly-opened judge terminal would wait forever
-    // for a design that nothing ever regenerates.
-    if (renderDataChanged) {
-      await connection.execute('DELETE FROM ui_cache WHERE school_id = ?', [schoolId]);
     }
 
     for (const [sql, vals] of waiting) {

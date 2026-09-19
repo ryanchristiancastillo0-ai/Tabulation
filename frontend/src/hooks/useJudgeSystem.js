@@ -429,6 +429,7 @@ export const useJudgeSystem = () => {
     // the client (same rich builder the admin previews), never waits for the
     // AI pipeline, never shows a placeholder.
     if (uiMode === 'default') {
+      console.log(`📦 [judge-step2] uiMode=${uiMode} — DEFAULT MODE — judge builds built-in table, AI prompt ignored ("${String(settings?.ai_prompt || '').slice(0, 40)}")`);
       const staticTable = buildRichStaticTable(
         contestants,
         criteria,
@@ -555,7 +556,10 @@ export const useJudgeSystem = () => {
             criteria,
             selectedJudgeRef.current ? `Judge ${selectedJudgeRef.current}` : undefined
           );
-          if (fallback) applyDesign(fallback, false);
+          if (fallback) {
+            console.log(`🎨 [judge-poll] FALLBACK → buildRichStaticTable (ui_cache still empty after ${attempts} poll(s), uiMode=${uiMode})`);
+            applyDesign(fallback, false);
+          }
         }
         if (!dynamicUIRef.current) setUiPending(true);
         else setUiPending(false);

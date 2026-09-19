@@ -612,11 +612,12 @@ async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiMode
   }
 
   // ── Safety net: no exact hash match, but the admin just generated SOMETHING
-  // for this school. Serve the most recently cached design instead of making
-  // the judge sit on an empty/fallback screen. The render-relevant wipe keeps
-  // ui_cache clean between design changes, so the newest row is never stale.
+  // for this school. Serve the MOST RECENTLY written design (by updated_at —
+  // re-saving/patching a row bumps it, and this table is an archive where old
+  // rows are kept for debugging) instead of making the judge sit on an
+  // empty/fallback screen.
   const [latest] = await pool.execute(
-    'SELECT html_content FROM ui_cache WHERE school_id = ? ORDER BY id DESC LIMIT 1',
+    'SELECT html_content FROM ui_cache WHERE school_id = ? ORDER BY updated_at DESC, id DESC LIMIT 1',
     [schoolId]
   );
   if (latest.length > 0) {

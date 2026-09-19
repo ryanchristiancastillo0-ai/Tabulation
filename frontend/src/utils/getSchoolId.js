@@ -63,6 +63,16 @@ function resolveJudgeSchoolBySlug(slug) {
 
 export function getSchoolId() {
   try {
+    const id = resolveSchoolId();
+    console.log(`🔎 [getSchoolId] resolved school_id=${id} | ${window.location.href}`);
+    return id;
+  } catch {
+    return null;
+  }
+}
+
+function resolveSchoolId() {
+  try {
     const params = new URLSearchParams(window.location.search);
     if (params.get('school_id')) return params.get('school_id');
 
