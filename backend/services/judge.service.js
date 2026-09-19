@@ -235,6 +235,68 @@ async function prepareRender({ contestants, criteria, aiPrompt, model, uiMode, p
 // ── AI prompt builder (shared by one-shot renderUI and the admin stream) ─────
 // ONE source of truth for the LLM instruction — the streamed admin generation
 // and the (legacy) judge-side generation always send byte-identical prompts.
+
+// Maps a free-form design-goal phrase to a coherent set of concrete Tailwind
+// starting classes, so the prompt can hand the model on-theme examples instead
+// of leaving color derivation to guesswork. Pure keyword heuristics.
+function inferThemeHints(goal) {
+  const g = String(goal || '').toLowerCase();
+  const has = (words) => words.some((w) => g.includes(w));
+
+  let surfaces = 'bg-slate-900 hover:bg-slate-800';
+  let text     = 'text-slate-100';
+  let accent   = 'border-slate-500';
+  const extra  = [];
+
+  if (has(['dark', 'black', 'night', 'midnight', 'charcoal', 'space', 'slate'])) {
+    surfaces = 'bg-slate-950 hover:bg-slate-900';
+  }
+  if (has(['navy', 'blue', 'indigo', 'azure', 'royal'])) {
+    surfaces = 'bg-blue-950 hover:bg-blue-900';
+    accent   = 'border-indigo-900';
+  }
+  if (has(['green', 'emerald', 'forest', 'olive', 'jade'])) {
+    surfaces = 'bg-emerald-950 hover:bg-emerald-900';
+    accent   = 'border-emerald-500';
+    text     = 'text-emerald-50';
+  }
+  if (has(['burgundy', 'wine', 'crimson', 'maroon', 'red'])) {
+    accent = 'border-red-900';
+    text   = 'text-red-100';
+  }
+  if (has(['rose', 'pink', 'magenta', 'fuchsia'])) {
+    surfaces = 'bg-rose-950 hover:bg-rose-900';
+    accent   = 'border-pink-500';
+    text     = 'text-pink-50';
+  }
+  if (has(['purple', 'violet', 'grape', 'lavender', 'plum'])) {
+    surfaces = 'bg-purple-950 hover:bg-purple-900';
+    accent   = 'border-purple-500';
+    text     = 'text-purple-50';
+  }
+  if (has(['gold', 'amber', 'yellow'])) {
+    accent = 'border-amber-400';
+    text   = 'text-amber-100';
+  }
+  if (has(['cream', 'white', 'ivory', 'beige', 'off-white'])) {
+    text = 'text-amber-50';
+  }
+  if (has(['gradient', 'glamour', 'festive', 'celebration', 'pageant', 'sparkle', 'shine', 'sparkling'])) {
+    extra.push('Use bg-gradient-to-br with two of YOUR theme colors (from-*/via-*/to-*) on the table or header row');
+  }
+  if (has(['serif', 'elegant', 'formal', 'classic', 'academic', 'vintage', 'luxury', 'glamorous', 'royal', 'ornate'])) {
+    extra.push('Use font-serif for a refined, non-generic feel');
+  }
+
+  return {
+    surfaces,
+    text,
+    accent,
+    font:    has(['serif', 'elegant', 'formal', 'classic', 'academic', 'vintage', 'luxury', 'glamorous', 'royal', 'ornate']) ? 'font-serif' : 'font-sans',
+    extra:   extra.join('; '),
+  };
+}
+
 function buildAiInstruction(prep) {
   const criteria    = prep.criteria || [];
   const contestants = prep.contestants || [];
@@ -281,18 +343,35 @@ function buildAiInstruction(prep) {
   </table>
 </div>`;
 
+  const themeHints = inferThemeHints(prep.finalDesignGoal);
+
   return `
-    Act as a Senior Tailwind Developer.
+    You are a Senior Tailwind CSS Developer.
+
+    [HARD RULE — READ FIRST]:
+    Use ONLY Tailwind CSS utility classes for ALL styling. Do NOT write a
+    <style> block. Do NOT invent custom class names — NEVER emit made-up names
+    like "sts-shell", "sts-header", "sts-row", "sts-tr", "sts-td-*" or any
+    "sts-*" variant. Every visual property (color, spacing, border, shadow,
+    font, rounding, gradient) must be a real Tailwind utility class applied
+    directly on the HTML element.
+
     [THEME]: "${prep.finalDesignGoal}"
 
-    [COLOR SCHEME]:
-    - Derive the FULL Tailwind color palette EXCLUSIVELY from the THEME name.
-    - Every color in your output (surfaces, text, borders, accents, gradients)
-      must come from the theme. NEVER reuse, copy, or guess colors from this
-      instruction or from any other design in this system.
-    - Strong contrast: dark surfaces with light readable text, or light surfaces
-      with dark text — the viewer must be able to read names and select scores
-      easily.
+    [COLOR SCHEME — HARD REQUIREMENT]:
+    - This is REQUIRED, not optional: every background, text, and border color
+      must visibly reflect the requested theme. A reviewer must be able to tell
+      the design apart from a plain default table at a glance.
+    - Derive the FULL palette EXCLUSIVELY from the THEME name. NEVER reuse,
+      copy, or guess colors from any other design in this system.
+    - Starting points for THIS theme (refine freely, but stay on-theme):
+        surfaces:  ${themeHints.surfaces}
+        text:      ${themeHints.text}
+        accent:    ${themeHints.accent}
+        font:      ${themeHints.font}
+    ${themeHints.extra ? `    - ${themeHints.extra}` : ''}
+    - Strong contrast: dark surfaces with light readable text (or the reverse)
+      so names and dropdowns are easy to read.
 
     [STRUCTURE — CRITICAL — DO NOT DEVIATE]:
     Your ONLY output is a scoring <table>. The header and EVERY body row MUST
@@ -310,8 +389,12 @@ function buildAiInstruction(prep) {
       The id pairs the contestant id with the criterion id. No extra text, no
       second boxes, no custom dropdown markup inside the cell.
 
-    [REQUIRED REFERENCE LAYOUT — reproduce this exact structure]:
+    [REQUIRED REFERENCE LAYOUT — reproduce this exact structure, restyled with
+    YOUR Tailwind theme classes]:
 ${skeleton.split('\n').map(l => '    ' + l).join('\n')}
+
+    The skeleton above uses STRUCTURE PLACEHOLDER classes only (px-3, border-b,
+    etc.) — replace them with your theme's Tailwind color/typography classes.
 
     [LAYOUT RULES]:
     - Wrap the whole table in <div class="overflow-x-auto w-full"> so a wide
