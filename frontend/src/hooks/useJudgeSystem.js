@@ -343,13 +343,11 @@ export const useJudgeSystem = () => {
       if (configSyncBusyRef.current) return;
       configSyncBusyRef.current = true;
       try {
-        console.log(`🔄 [syncNow] fetching config school=${schoolId} trigger=configChangeCount:${configChangeCount}`);
         const data = await withTimeout(
           judgeGet(`/public/get-all-data?school_id=${schoolId}`),
           12000
         );
         if (!data || data.error) {
-          console.log(`⚠️ [syncNow] no data or error school=${schoolId}`);
           return;
         }
 
@@ -358,22 +356,17 @@ export const useJudgeSystem = () => {
           criteria:    data.criteria    || [],
           settings:    data.settings    || {},
         };
-        console.log(`📥 [syncNow] fresh config school=${schoolId} uiMode=${fresh.settings?.ui_mode} prompt="${fresh.settings?.ai_prompt?.slice(0,40)}..." model=${fresh.settings?.ai_model} contestants=${fresh.contestants.length} criteria=${fresh.criteria.length}`);
         saveConfigToLocalStorage(schoolId, fresh);
 
         if (configsMatch(configRef.current, fresh)) {
-          console.log(`⏭️ [syncNow] configsMatch=true — no change school=${schoolId}`);
           return;
         }
 
         if (renderRelevantChanged(configRef.current, fresh)) {
-          console.log(`🎨 [syncNow] renderRelevantChanged=true — showing overlay school=${schoolId}`);
           const hasTable = !!dynamicUIRef.current;
           uiRendered.current = '';
           setLoading(!hasTable);
           setUiRefreshing(hasTable);
-        } else {
-          console.log(`📝 [syncNow] config changed but not render-relevant (e.g. lock toggle) school=${schoolId}`);
         }
         setConfig(fresh);
       } catch (err) {
@@ -384,7 +377,6 @@ export const useJudgeSystem = () => {
     };
 
     if (configChangeCount > 0) {
-      console.log(`🔔 [syncNow] triggered by configChangeCount=${configChangeCount}`);
       syncNow();
     }
 
@@ -429,7 +421,6 @@ export const useJudgeSystem = () => {
     // the client (same rich builder the admin previews), never waits for the
     // AI pipeline, never shows a placeholder.
     if (uiMode === 'default') {
-      console.log(`📦 [judge-step2] uiMode=${uiMode} — DEFAULT MODE — judge builds built-in table, AI prompt ignored ("${String(settings?.ai_prompt || '').slice(0, 40)}")`);
       const staticTable = buildRichStaticTable(
         contestants,
         criteria,
@@ -516,7 +507,6 @@ export const useJudgeSystem = () => {
         setUiRefreshing(hasTable);
         setUiPending(!hasTable);
         attempts = 0;
-        console.log(`⏳ [judge-poll] admin is regenerating ui_cache — spinner stays school=${school_id}`);
         timer = setTimeout(poll, 3000);
         return;
       }
@@ -538,7 +528,6 @@ export const useJudgeSystem = () => {
             );
           }
           applyDesign(html);
-          console.log(`🎨 [judge-poll] cached ${uiMode} UI ready school=${school_id} len=${html.length}`);
           if (cancelled) return;
           // A design is on screen. Keep a light background poll so a re-save of
           // the SAME signature (which overwrites the same hash row) is picked
@@ -557,13 +546,11 @@ export const useJudgeSystem = () => {
             selectedJudgeRef.current ? `Judge ${selectedJudgeRef.current}` : undefined
           );
           if (fallback) {
-            console.log(`🎨 [judge-poll] FALLBACK → buildRichStaticTable (ui_cache still empty after ${attempts} poll(s), uiMode=${uiMode})`);
             applyDesign(fallback, false);
           }
         }
         if (!dynamicUIRef.current) setUiPending(true);
         else setUiPending(false);
-        console.log(`⏳ [judge-poll] ui_cache still generating school=${school_id} — retrying…`);
         attempts += 1;
         timer = setTimeout(poll, attempts < 3 ? 4000 : 6000);
       } catch (err) {

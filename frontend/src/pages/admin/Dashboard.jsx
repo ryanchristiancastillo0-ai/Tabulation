@@ -179,7 +179,6 @@ function Dashboard() {
         contestants: contestants.map((c)  => ({ name: c.name, entry_number: c.number })),
         criteria:    criteria.map((cr)    => ({ name: cr.name, percentage: cr.weight })),
       };
-      console.log('[save-config] payload ->', JSON.stringify(payload));
       await apiClient.post("/save-config", payload);
       await apiClient.post("/save-system-config", {
         school_name:     schoolName,    portal_name:     portalName,

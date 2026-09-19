@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../layouts/AdminLayout';
 import { USALoader, ConfirmDialog } from '../../components/ui';
+import Table from '../../components/ui/Table';
+import EmptyState from '../../components/common/EmptyState';
 import apiClient from '../../services/api';
 import {
   History as HistoryIcon, Eye, Trash2, RefreshCw, X,

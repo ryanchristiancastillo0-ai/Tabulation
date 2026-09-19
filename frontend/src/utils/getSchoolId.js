@@ -64,7 +64,6 @@ function resolveJudgeSchoolBySlug(slug) {
 export function getSchoolId() {
   try {
     const id = resolveSchoolId();
-    console.log(`🔎 [getSchoolId] resolved school_id=${id} | ${window.location.href}`);
     return id;
   } catch {
     return null;

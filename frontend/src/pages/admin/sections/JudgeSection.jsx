@@ -6,6 +6,7 @@ import {
 import { card } from './card.js'
 import apiClient from '../../../services/api';
 import { getSchoolId } from '../../../utils/getSchoolId';
+import ExplanationModal from '../components/ExplanationModal';
 
 const JudgePasswordManager = () => {
   const [pw, setPw] = useState('');
@@ -101,19 +102,142 @@ const JudgePasswordManager = () => {
   );
 };
 
+const seeMoreBtnStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 5,
+  background: 'none',
+  border: 'none',
+  color: 'var(--accent)',
+  fontSize: 11,
+  fontWeight: 700,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  padding: '4px 0',
+  margin: 0,
+};
+
+const OptionCard = ({ active, compact, onClick, title, desc, onSeeMore }) => (
+  <div
+    onClick={onClick}
+    style={{
+      flex: 1,
+      padding: compact ? 12 : 14,
+      borderRadius: 6,
+      cursor: 'pointer',
+      transition: 'all .2s',
+      border: `2px solid ${active ? 'var(--accent-mid)' : 'var(--border)'}`,
+      background: active ? 'var(--accent-lt)' : 'var(--surface2)',
+      boxShadow: active ? '0 0 0 3px var(--accent-lt)' : 'none',
+      display: 'flex',
+      flexDirection: 'column',
+    }}
+  >
+    <div style={{ fontWeight: 800, color: active ? 'var(--accent)' : 'var(--text1)', fontSize: compact ? 13 : 14 }}>{title}</div>
+    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: compact ? 3 : 4 }}>{desc}</div>
+    <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: compact ? 8 : 10 }}>
+      <button
+        onClick={(e) => { e.stopPropagation(); onSeeMore && onSeeMore(); }}
+        style={seeMoreBtnStyle}
+      >
+        See More
+      </button>
+    </div>
+  </div>
+);
+
+const helpContent = {
+  average: {
+    title: 'By Average',
+    description: "Each judge gives a score; the contestant's final score is the average of all judges' scores. Contestants are ranked from highest to lowest average — the highest average wins.",
+    table: {
+      headers: ['Contestant', 'Judge 1', 'Judge 2', 'Judge 3', 'Average', 'Rank'],
+      rows: [
+        [{ v: 'Contestant 1', highlight: true }, '85', '90', '80', '85.00', { v: '1st', highlight: true }],
+        ['Contestant 2', '78', '82', '88', '82.67', '2nd'],
+        ['Contestant 3', '80', '70', '75', '75.00', '3rd'],
+      ],
+    },
+  },
+  rank: {
+    title: 'By Place (Rank-Sum)',
+    description: 'Each judge ranks the contestants (1st, 2nd, 3rd…). The rank numbers across all judges are summed — the contestant with the lowest sum of ranks wins.',
+    table: {
+      headers: ['Contestant', 'Judge 1', 'Judge 2', 'Judge 3', 'Sum', 'Rank'],
+      rows: [
+        [{ v: 'Contestant 1', highlight: true }, '1', '1', '2', '4', { v: '1st', highlight: true }],
+        ['Contestant 2', '2', '2', '1', '5', '2nd'],
+        ['Contestant 3', '3', '3', '3', '9', '3rd'],
+      ],
+    },
+  },
+  custom: {
+    title: 'Custom',
+    description: "Pick a base calculation (By Average or By Place) plus your own tie-break rule. The base calculation decides the winner; the tie-break method only decides how equal scores are ranked.",
+    table: {
+      headers: ['Contestant', 'Average', 'Rank'],
+      rows: [
+        [{ v: 'Contestant 1', highlight: true }, '85.00', { v: '1st', highlight: true }],
+        ['Contestant 2', '85.00', 'Tied — resolved by tie-break'],
+        ['Contestant 3', '75.00', '3rd'],
+      ],
+    },
+  },
+  midrank: {
+    title: 'Midrank',
+    description: 'Tied contestants share the average of the positions they occupy. Two contestants tied for 2nd and 3rd both receive 2.5; the next contestant follows at 4.',
+    table: {
+      headers: ['Contestant', 'Score', 'Final Rank'],
+      rows: [
+        ['Contestant 1', '90', '1'],
+        [{ v: 'Contestant 2', highlight: true }, '85', { v: '2.5', highlight: true }],
+        [{ v: 'Contestant 3', highlight: true }, '85', { v: '2.5', highlight: true }],
+        ['Contestant 4', '70', '4'],
+      ],
+    },
+  },
+  shared: {
+    title: 'Shared',
+    description: 'Tied contestants all receive the first position among them. Two contestants tied for 2nd and 3rd both receive 2; the next contestant follows at 4.',
+    table: {
+      headers: ['Contestant', 'Score', 'Final Rank'],
+      rows: [
+        ['Contestant 1', '90', '1'],
+        [{ v: 'Contestant 2', highlight: true }, '85', { v: '2', highlight: true }],
+        [{ v: 'Contestant 3', highlight: true }, '85', { v: '2', highlight: true }],
+        ['Contestant 4', '70', '4'],
+      ],
+    },
+  },
+  sequential: {
+    title: 'Sequential',
+    description: 'Tied contestants get consecutive positions instead of sharing. Two contestants tied for 2nd and 3rd receive 2 and 3; the next contestant follows at 4.',
+    table: {
+      headers: ['Contestant', 'Score', 'Final Rank'],
+      rows: [
+        ['Contestant 1', '90', '1'],
+        [{ v: 'Contestant 2', highlight: true }, '85', { v: '2', highlight: true }],
+        [{ v: 'Contestant 3', highlight: true }, '85', { v: '3', highlight: true }],
+        ['Contestant 4', '70', '4'],
+      ],
+    },
+  },
+};
+
 const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculationType, customBase, setCustomBase, tieBreakMethod, setTieBreakMethod }) => {
   const { isJudgeLocked, toggleLock, lockLoading, lockError } = useContestContext();
+  const [help, setHelp] = useState(null);
 
   const baseOpts = [
-    { id: 'average', title: 'By Average', desc: 'Standard percentage-based average. Highest score wins.' },
-    { id: 'rank',    title: 'By Place (Rank-Sum)', desc: 'Rank points summed from all judges. Lowest sum wins.' },
-    { id: 'custom',  title: 'Custom', desc: 'Pick a base calculation and your own tie-breaking rule.' },
+    { id: 'average', title: 'By Average', desc: 'Standard percentage-based average. Highest score wins.', help: helpContent.average },
+    { id: 'rank',    title: 'By Place (Rank-Sum)', desc: 'Rank points summed from all judges. Lowest sum wins.', help: helpContent.rank },
+    { id: 'custom',  title: 'Custom', desc: 'Pick a base calculation and your own tie-breaking rule.', help: helpContent.custom },
   ];
 
   const tieOpts = [
-    { id: 'midrank',    title: 'Midrank',    desc: 'Tied contestants share the average position — e.g. 1, 2.5, 2.5, 4.' },
-    { id: 'shared',     title: 'Shared',     desc: 'Tied contestants share the first position — e.g. 1, 2, 2, 4.' },
-    { id: 'sequential', title: 'Sequential', desc: 'Tied contestants get consecutive positions — e.g. 1, 2, 3, 4.' },
+    { id: 'midrank',    title: 'Midrank',    desc: 'Tied contestants share the average position — e.g. 1, 2.5, 2.5, 4.', help: helpContent.midrank },
+    { id: 'shared',     title: 'Shared',     desc: 'Tied contestants share the first position — e.g. 1, 2, 2, 4.', help: helpContent.shared },
+    { id: 'sequential', title: 'Sequential', desc: 'Tied contestants get consecutive positions — e.g. 1, 2, 3, 4.', help: helpContent.sequential },
   ];
 
   return (
@@ -158,15 +282,16 @@ const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculat
       <div>
         <div className="field-label" style={{ marginBottom: 12 }}>Result Calculation Type</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} className="sm:flex-row">
-          {baseOpts.map(opt => {
-            const active = calculationType === opt.id;
-            return (
-              <div key={opt.id} onClick={() => setCalculationType(opt.id)} style={{ flex: 1, padding: 14, borderRadius: 6, cursor: 'pointer', transition: 'all .2s', border: `2px solid ${active ? 'var(--accent-mid)' : 'var(--border)'}`, background: active ? 'var(--accent-lt)' : 'var(--surface2)', boxShadow: active ? '0 0 0 3px var(--accent-lt)' : 'none' }}>
-                <div style={{ fontWeight: 800, color: active ? 'var(--accent)' : 'var(--text1)', fontSize: 14 }}>{opt.title}</div>
-                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>{opt.desc}</div>
-              </div>
-            );
-          })}
+          {baseOpts.map(opt => (
+            <OptionCard
+              key={opt.id}
+              active={calculationType === opt.id}
+              onClick={() => setCalculationType(opt.id)}
+              title={opt.title}
+              desc={opt.desc}
+              onSeeMore={() => setHelp(opt.help)}
+            />
+          ))}
         </div>
       </div>
 
@@ -176,36 +301,48 @@ const JudgesSection = ({ judgeCount, setJudgeCount, calculationType, setCalculat
             <div className="field-label" style={{ marginBottom: 8 }}>Custom Base Calculation</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} className="sm:flex-row">
               {[
-                { id: 'average', title: 'By Average', desc: 'Rank the final average of all judges\' scores.' },
-                { id: 'rank',    title: 'By Place (Rank-Sum)', desc: 'Sum each judge\'s rank; lowest sum wins.' },
-              ].map(opt => {
-                const active = customBase === opt.id;
-                return (
-                  <div key={opt.id} onClick={() => setCustomBase(opt.id)} style={{ flex: 1, padding: 12, borderRadius: 6, cursor: 'pointer', transition: 'all .2s', border: `2px solid ${active ? 'var(--accent-mid)' : 'var(--border)'}`, background: active ? 'var(--accent-lt)' : 'var(--surface2)' }}>
-                    <div style={{ fontWeight: 800, color: active ? 'var(--accent)' : 'var(--text1)', fontSize: 13 }}>{opt.title}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{opt.desc}</div>
-                  </div>
-                );
-              })}
+                { id: 'average', title: 'By Average', desc: 'Rank the final average of all judges\' scores.', help: helpContent.average },
+                { id: 'rank',    title: 'By Place (Rank-Sum)', desc: 'Sum each judge\'s rank; lowest sum wins.', help: helpContent.rank },
+              ].map(opt => (
+                <OptionCard
+                  key={opt.id}
+                  compact
+                  active={customBase === opt.id}
+                  onClick={() => setCustomBase(opt.id)}
+                  title={opt.title}
+                  desc={opt.desc}
+                  onSeeMore={() => setHelp(opt.help)}
+                />
+              ))}
             </div>
           </div>
 
           <div>
             <div className="field-label" style={{ marginBottom: 8 }}>Tie-Break Method</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} className="sm:flex-row">
-              {tieOpts.map(opt => {
-                const active = tieBreakMethod === opt.id;
-                return (
-                  <div key={opt.id} onClick={() => setTieBreakMethod(opt.id)} style={{ flex: 1, padding: 12, borderRadius: 6, cursor: 'pointer', transition: 'all .2s', border: `2px solid ${active ? 'var(--accent-mid)' : 'var(--border)'}`, background: active ? 'var(--accent-lt)' : 'var(--surface2)' }}>
-                    <div style={{ fontWeight: 800, color: active ? 'var(--accent)' : 'var(--text1)', fontSize: 13 }}>{opt.title}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{opt.desc}</div>
-                  </div>
-                );
-              })}
+              {tieOpts.map(opt => (
+                <OptionCard
+                  key={opt.id}
+                  compact
+                  active={tieBreakMethod === opt.id}
+                  onClick={() => setTieBreakMethod(opt.id)}
+                  title={opt.title}
+                  desc={opt.desc}
+                  onSeeMore={() => setHelp(opt.help)}
+                />
+              ))}
             </div>
           </div>
         </div>
       )}
+
+      <ExplanationModal
+        open={!!help}
+        onClose={() => setHelp(null)}
+        title={help?.title}
+        description={help?.description}
+        table={help?.table}
+      />
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }

@@ -28,8 +28,6 @@ export const getJudgeDataFetch = async (setLoading, setConfig, setDynamicUI, sho
       criteria:    data.criteria     || [],
     });
 
-    console.log('ui data',uiData)
-
     setDynamicUI(uiData);
 
   } catch (err) {
