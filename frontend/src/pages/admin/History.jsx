@@ -1,10 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../layouts/AdminLayout';
-import { USALoader } from '../../components/ui';
-import Table from '../../components/ui/Table';
-import EmptyState from '../../components/common/EmptyState';
-import ConfirmDialog from '../../components/common/ConfirmDialog';
+import { USALoader, ConfirmDialog } from '../../components/ui';
 import apiClient from '../../services/api';
 import {
   History as HistoryIcon, Eye, Trash2, RefreshCw, X,
@@ -349,7 +346,7 @@ export default function History() {
       {/* ── View detail modal ── */}
       {view.open && (
         <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 sm:p-8 overflow-y-auto" style={{ fontFamily: "'Inter', sans-serif" }}>
-          <div className="absolute inset-0 bg-[#0B1710]/60 backdrop-blur-sm" onClick={() => setView((v) => ({ ...v, open: false }))} />
+          <div className="fixed inset-0 bg-[#0B1710]/60 backdrop-blur-sm" onClick={() => setView((v) => ({ ...v, open: false }))} />
           <div className="relative w-full max-w-2xl bg-[var(--surface)] border border-[var(--border)] rounded-sm shadow-2xl animate-in zoom-in-95 duration-200 mt-4 sm:mt-10">
             {/* Header */}
             <div className="bg-[#1B4332] px-6 sm:px-8 py-6">

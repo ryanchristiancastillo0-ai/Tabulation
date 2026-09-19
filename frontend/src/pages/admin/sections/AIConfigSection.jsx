@@ -11,6 +11,12 @@ const THEME_PRESETS = [
   { name: 'Sport & Bold', desc: 'Green, white, athletic', swatches: ['#15803d', '#ffffff', '#1e293b'], prompt: 'Design a bold sporty Judge UI with deep green and white colors, strong grid layouts, and an athletic competition feel. Use bold numbers and a high-contrast scoreboard style.' },
   { name: 'Academic Classic', desc: 'Navy, cream, burgundy', swatches: ['#1e3a5f', '#fdf8f0', '#8b1a1a'], prompt: 'Design a classic academic Judge UI inspired by university aesthetics. Use deep navy blue, cream white, and burgundy red. Formal serif typography, structured tables, and a scholarly tone.' },
   { name: 'Tech & Futuristic', desc: 'Dark, electric blue, mono', swatches: ['#0f172a', '#0ea5e9', '#06b6d4'], prompt: 'Design a modern tech-style Judge UI with electric blue, cyan, and dark slate backgrounds. Use monospace fonts, terminal-inspired borders, and a futuristic digital aesthetic.' },
+  { name: 'Modern Professional', desc: 'Slate, white, clean corporate', swatches: ['#f8fafc', '#e2e8f0', '#334155'], prompt: 'Design a modern professional Judge UI with a clean slate-gray and white palette, subtle borders, and minimal visual noise. Use refined sans-serif typography, crisp grid lines, and a polished, corporate-grade finish.' },
+  { name: 'Spring Pastel', desc: 'Soft mint, blush, lavender', swatches: ['#d4f7e8', '#fbd5e0', '#d8d3f5'], prompt: 'Design a soft spring-themed Judge UI using gentle pastel colors like mint green, blush pink, and lavender. Keep it light, airy, and friendly with rounded corners and delicate accents.' },
+  { name: 'Corporate Blue', desc: 'Navy, cyan, trustworthy', swatches: ['#0b2545', '#1b4965', '#5fa8d3'], prompt: 'Design a trustworthy corporate Judge UI in deep navy and cyan blues. Use clean geometric layouts, strong typography, and confident accents that feel stable and institutional.' },
+  { name: 'Nature Earth', desc: 'Forest, sand, terracotta', swatches: ['#2f4f2f', '#e8dcc0', '#b5651d'], prompt: 'Design an earthy nature-inspired Judge UI with forest green, warm sand, and terracotta tones. Use organic textures, grounded colors, and a calm, natural atmosphere.' },
+  { name: 'Midnight Neon', desc: 'Deep black, neon pink/cyan', swatches: ['#09090b', '#ff2ec4', '#22d3ee'], prompt: 'Design a striking midnight Judge UI on deep black with neon pink and cyan accents. Use glowing highlights, bold contrast, and an energetic night-club style.' },
+  { name: 'Vintage Retro', desc: 'Cream, teal, burnt orange', swatches: ['#f9f3e7', '#2a9d8f', '#e76f51'], prompt: 'Design a nostalgic retro Judge UI with cream paper backgrounds, retro teal, and burnt orange. Use vintage typography, subtle grain, and classic mid-century design cues.' },
 ];
 
 const QUICK_TAGS = ['Use large scoreboard numbers', 'Add animated transitions', 'Dark mode table', 'Mobile-friendly layout', 'Clean Design'];
@@ -150,7 +156,7 @@ const AIConfigSection = ({ aiPrompt, setAiPrompt, aiProvider, setAiProvider, aiM
                   <button key={theme.name} onClick={() => selectTheme(theme)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, padding: '10px 12px', borderRadius: 6, textAlign: 'left', border: isActive ? '2px solid var(--accent-mid)' : '1px solid var(--border)', background: isActive ? 'var(--accent-lt)' : 'var(--surface2)', cursor: 'pointer', transition: 'all .15s', fontFamily: 'inherit', boxShadow: isActive ? '0 0 0 3px var(--accent-lt)' : 'none' }}>
                     <div style={{ display: 'flex', gap: 4 }}>
                       {theme.swatches.map((color, i) => (
-                        <div key={i} style={{ width: 13, height: 13, borderRadius: 3, background: color, border: color === '#ffffff' || color === '#fdf8f0' ? '1px solid var(--border)' : 'none' }} />
+                        <div key={i} style={{ width: 13, height: 13, borderRadius: 3, background: color, border: ['#ffffff', '#fdf8f0', '#f8fafc', '#e2e8f0', '#d4f7e8', '#fbd5e0', '#d8d3f5', '#e8dcc0', '#f9f3e7'].includes(color) ? '1px solid var(--border)' : 'none' }} />
                       ))}
                     </div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? 'var(--accent)' : 'var(--text1)' }}>{theme.name}</div>

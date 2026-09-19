@@ -137,6 +137,14 @@ export const getHydra_and_Calcu = (
     const dropdowns = document.querySelectorAll('.score-dropdown');
     if (dropdowns.length === 0) return false;
 
+    // The shared ui_cache is judge-agnostic (backend bakes in "Judge 1"), so
+    // re-stamp the built-in header with the actual logged-in judge.
+    if (selectedJudge) {
+      const nameEl = document.querySelector('.sts-judge-name');
+      const label  = `Judge ${selectedJudge}`;
+      if (nameEl && nameEl.textContent.trim() !== label) nameEl.textContent = label;
+    }
+
     const dbLookup = {};
     if (Array.isArray(dbScores)) {
       dbScores.forEach(s => {

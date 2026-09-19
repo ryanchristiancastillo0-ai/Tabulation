@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import AdminLayout from "../../layouts/AdminLayout";
 import Button from "../../components/ui/Button";
-import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { ConfirmDialog } from "../../components/ui";
 import SectionRender from "./sections/sectionRender"
 import AiGenerationTerminal from "./components/AiGenerationTerminal";
 import { streamUiUi } from "../../utils/streamUi";

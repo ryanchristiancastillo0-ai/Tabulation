@@ -33,7 +33,40 @@ function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 1') {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
 
-  const initial = escAttr(String(judgeName || 'J').trim().charAt(0).toUpperCase() || 'J');
+const initial = escAttr(String(judgeName || 'J').trim().charAt(0).toUpperCase() || 'J');
+
+  // ── Adaptive density ─────────────────────────────────────────────────
+  // Few criteria → roomy columns like the current layout. Many criteria →
+  // compress column widths, padding and the score dropdown together so the
+  // table fits without an inner horizontal scroll that piles up, growing
+  // only the bare minimum a dropdown needs.
+  const count    = criteria.length;
+  const dense    = count >= 6;
+  const heavy    = count >= 10;
+  const nameW    = dense ? (heavy ? 140 : 160) : 200;
+  const totW     = dense ? (heavy ? 80  : 88 ) : 100;
+  const rankW    = dense ? (heavy ? 68  : 76 ) : 84;
+  const fixedW   = 60 + nameW + totW + rankW;            // num + name + total + rank
+  const critW    = dense ? Math.max(56, Math.floor((1080 - fixedW) / count)) : 132;
+  const tableMin = 60 + nameW + totW + rankW + critW * count;
+  const ddW      = dense ? Math.max(70, Math.min(76, critW - 6)) : 76;
+  const ddH      = dense ? 32 : 38;
+
+  const densityCss = dense ? `
+    .sts-table { min-width: ${tableMin}px; }
+    .sts-table thead th.sts-col-crit { width: ${critW}px; }
+    .sts-table thead th.sts-col-name { width: ${nameW}px; }
+    .sts-table thead th.sts-col-tot  { width: ${totW}px; }
+    .sts-table thead th.sts-col-rank { width: ${rankW}px; }
+    .sts-table thead th.sts-th { padding: 8px 5px; font-size: 9px; }
+    .sts-crit-name { font-size: 10px; line-height: 1.25; }
+    .sts-weight-track { width: 30px; }
+    .sts-pct { font-size: 9px; }
+    .sts-table tbody td { padding: 7px 5px; font-size: 12px; }
+    .sts-dd-wrap select.score-dropdown { width: ${ddW}px; height: ${ddH}px; padding: 0 22px 0 6px; font-size: 12px; background-position: right 6px center; }
+    .sts-tot-chip { min-width: 46px; height: 26px; font-size: 12px; }
+    .sts-rank-pill { min-width: 26px; height: 26px; font-size: 11px; }
+  ` : '';
 
   const head = criteria.map(c => {
     const pct = Number(c.percentage) || 0;
@@ -216,11 +249,14 @@ function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 1') {
       line-height: 1;
       flex-shrink: 0;
     }
-    .sts-judge-meta {
+.sts-judge-meta {
       display: flex;
       flex-direction: column;
+      align-items: center;
+      justify-content: center;
       gap: 1px;
       line-height: 1.15;
+      text-align: center;
     }
     .sts-judge-label {
       font-size: 9px;
@@ -279,9 +315,9 @@ function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 1') {
       text-transform: uppercase;
       color: var(--c-text-soft);
     }
-    .sts-table thead th.sts-col-name {
-      text-align: left;
-      padding-left: var(--sp-5);
+.sts-table thead th.sts-col-name {
+      text-align: center;
+      padding-left: 0;
     }
 
     .sts-crit-inner {
@@ -377,9 +413,8 @@ function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 1') {
       line-height: 1;
     }
 
-    .sts-td-name {
-      text-align: left;
-      padding-left: var(--sp-5);
+.sts-td-name {
+      text-align: center;
       overflow: hidden;
     }
     .sts-name-text {
@@ -527,7 +562,7 @@ function buildStaticJudgeTable(contestants, criteria, judgeName = 'Judge 1') {
     }
   `;
 
-  return `<style>${css}</style>` +
+  return `<style>${css}${densityCss}</style>` +
     `<div class="sts-shell sts-table-wrap">` +
       `<div class="sts-accent"></div>` +
       `<div class="sts-header">` +
