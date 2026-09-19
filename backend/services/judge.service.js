@@ -354,7 +354,7 @@ ${skeleton.split('\n').map(l => '    ' + l).join('\n')}
 // stream so both store byte-identical results in ui_cache.
 function finalizeAiHtml(rawText, contestants, criteria) {
   const cleanTable = String(rawText || '').replace(/```html/g, '').replace(/```/g, '').trim();
-  return ensureScoreRows(
+  const finalized = ensureScoreRows(
     normalizeDropdownRanges(
       purgeNonScoringElements(cleanTable, contestants),
       criteria
@@ -362,6 +362,9 @@ function finalizeAiHtml(rawText, contestants, criteria) {
     contestants,
     criteria
   );
+  console.log(`\n===== DEBUG[FINALIZED] len=${finalized?.length} has-sts-shell=${String(finalized || '').includes('sts-shell')} has-1B4332=${String(finalized || '').includes('#1B4332')} =====`);
+  console.log(`DEBUG[FINALIZED] first800 >>>${String(finalized || '').slice(0, 800)}<<<`);
+  return finalized;
 }
 
 // ── Repair AI designs that break the scoring grid ───────────────────────────
@@ -606,8 +609,17 @@ async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiMode
     [configHash, schoolId]
   );
 
+  // ==== DEBUG[getCachedUI] instrumentation (remove after diagnosis) ====
+  console.log('\n===== DEBUG[getCachedUI] =====');
+  console.log(`DEBUG[getCachedUI] school=${schoolId} criteriaSig=${criteriaSignature}`);
+  console.log(`DEBUG[getCachedUI] resolved prompt="${String(aiPrompt).slice(0,50)}" provider=${provider} model=${finalModel} uiMode=${uiMode}`);
+  console.log(`DEBUG[getCachedUI] configHash=${configHash} exactHit=${cache.length > 0}`);
+  console.log(`DEBUG[getCachedUI] configured via settings? qPrompt=${!!aiPromptOverride} qProvider=${!!aiProviderOverride} qModel=${!!aiModelOverride} qUiMode=${!!uiModeOverride}`);
+
   // Exact-hash hit → serve it (the normal, strictly-correct path).
   if (cache.length > 0) {
+    const h = String(cache[0].html_content || '');
+    console.log(`DEBUG[getCachedUI] SERVED EXACT-HASH len=${h.length} has-sts-shell=${h.includes('sts-shell')} has-1B4332=${h.includes('#1B4332')} first300 >>>${h.slice(0,300)}<<<`);
     return normalizeCachedUi(cache[0].html_content, schoolId, true);
   }
 
@@ -621,7 +633,9 @@ async function getCachedUI(schoolId, criteriaSignature, aiPromptOverride, aiMode
     [schoolId]
   );
   if (latest.length > 0) {
+    const h = String(latest[0].html_content || '');
     console.log(`🪄 [getCachedUI] no exact hash hit for school=${schoolId} hash=${configHash.slice(0, 8)} — serving most recent design instead`);
+    console.log(`DEBUG[getCachedUI] SERVED MOST-RECENT len=${h.length} has-sts-shell=${h.includes('sts-shell')} has-1B4332=${h.includes('#1B4332')} first300 >>>${h.slice(0,300)}<<<`);
     return normalizeCachedUi(latest[0].html_content, schoolId, true);
   }
 
