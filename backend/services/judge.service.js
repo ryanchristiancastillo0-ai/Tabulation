@@ -284,6 +284,9 @@ function inferThemeHints(goal) {
   if (has(['gradient', 'glamour', 'festive', 'celebration', 'pageant', 'sparkle', 'shine', 'sparkling'])) {
     extra.push('Use bg-linear-to-br with two of YOUR theme colors (from-*/via-*/to-*) on the <th> cells or on the wrapper <div> — NEVER on <tr> (row backgrounds do not paint).');
   }
+  if (has(['sport', 'sporty', 'athlet', 'competition', 'scoreboard', 'arena', 'stadium', 'bold', 'grid', 'high-contrast'])) {
+    extra.push('Scoreboard style: cover the wrapper <div> with your DARKEST theme surface so the whole screen is themed (e.g. bg-emerald-950), render the table itself as a light card on top (bg-white rounded-xl shadow-xl), and use bold numerals (font-extrabold) for the No., Total, and Rank cells.');
+  }
   if (has(['serif', 'elegant', 'formal', 'classic', 'academic', 'vintage', 'luxury', 'glamorous', 'royal', 'ornate'])) {
     extra.push('Use font-serif for a refined, non-generic feel');
   }
@@ -320,27 +323,31 @@ function buildAiInstruction(prep) {
   // The default judge layout, shown so the model reproduces the EXACT column
   // structure. Theme classes are placeholders — the model restyles them, but
   // the <th>/<td> counts and order are fixed.
-  const skeleton = `<div class="overflow-x-auto w-full">
-  <table class="w-full min-w-full border-separate border-spacing-0 whitespace-nowrap">
-    <thead>
-      <tr>
-        <th class="px-3 py-2 border-b text-center">No.</th>
-        <th class="px-3 py-2 border-b text-left">Name</th>
-        ${critHeaders}
-        <th class="px-3 py-2 border-b text-center">Total</th>
-        <th class="px-3 py-2 border-b text-center">Rank</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td class="px-2 py-1 text-center">1</td>
-        <td class="px-2 py-1 text-left">First Contestant</td>
-        ${critCells}
-        <td class="px-2 py-1 text-center" id="total-1">0.00</td>
-        <td class="px-2 py-1 text-center" id="rank-1">-</td>
-      </tr>
-    </tbody>
-  </table>
+  const skeleton = `<div class="w-full min-h-screen p-4 sm:p-6 lg:p-8 bg-slate-950">
+  <div class="w-full max-w-7xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-full border-separate border-spacing-0 whitespace-nowrap table-auto">
+        <thead>
+          <tr>
+            <th class="px-3 py-2 border-b text-center">No.</th>
+            <th class="px-3 py-2 border-b text-left">Name</th>
+            ${critHeaders}
+            <th class="px-3 py-2 border-b text-center">Total</th>
+            <th class="px-3 py-2 border-b text-center">Rank</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="px-2 py-1 text-center">1</td>
+            <td class="px-2 py-1 text-left">First Contestant</td>
+            ${critCells}
+            <td class="px-2 py-1 text-center" id="total-1">0.00</td>
+            <td class="px-2 py-1 text-center" id="rank-1">-</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>`;
 
   const themeHints = inferThemeHints(prep.finalDesignGoal);
@@ -386,6 +393,10 @@ function buildAiInstruction(prep) {
     - The theme MUST be unmistakable at first glance: a bold colored band on the
       header cells, a tinted wrapper, or styled dropdowns. If the output could
       pass for a plain white table, you FAILED.
+    - Cover the WHOLE visible screen with the theme. The page background BELOW
+      and AROUND the table must be your theme color too (painted on the wrapper
+      <div>) — a colored table floating on a white page still reads as
+      "unstyled".
 
     [SCHEMA — SINGLE SOURCE OF TRUTH — READ BEFORE [STRUCTURE]]:
     The judging criteria are DYNAMIC — they come ONLY from the JSON in [CONTEXT]
@@ -433,11 +444,24 @@ ${skeleton.split('\n').map(l => '    ' + l).join('\n')}
       id / entry number / name from [CONTEXT]. Never truncate or abbreviate the
       output — a partial table is rejected.
 
-    [LAYOUT RULES]:
-    - Wrap the whole table in <div class="overflow-x-auto w-full"> so a wide
-      table scrolls horizontally instead of squeezing/collapsing columns.
-    - The <table> itself must use: w-full border-separate border-spacing-0
-      whitespace-nowrap table-auto.
+    [LAYOUT & CONTAINER RULES — BUILD YOUR OWN THEMED CONTAINER]:
+    The container IS the theme deliverable (the scoring grid itself is
+    normalized server-side), so design a complete, responsive, self-contained
+    page around the table:
+    - Return ONE outer <div> that acts as the full page:
+        <div class="w-full min-h-screen p-4 sm:p-6 lg:p-8 bg-{YOUR darkest theme color}">
+      Put YOUR theme background, optional subtle gradient, and padding here so
+      the whole visible screen is themed — never a plain white page.
+    - Inside it, a responsive, ADAPTIVE card that holds the table:
+        <div class="w-full max-w-7xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
+      It is full-width on small screens, caps at a comfortable max on large
+      screens, and centers itself on wide screens (mx-auto).
+    - Wrap the table in a scroll band so wide tables never collapse:
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-full bg-white border-separate border-spacing-0 whitespace-nowrap table-auto">...
+    - You MAY add a slim header band inside the card (contest title / "Live
+      Scoring" / judge label / accent rule) using YOUR theme colors, as long as
+      it stays OUTSIDE the <table> and uses Tailwind only.
     - Do NOT set table-fixed. table-fixed spreads every column to an equal width
       and creates huge empty gaps; table-auto sizes each column from its content
       so "No." stays narrow, "Name" grows to fit names, and the header and rows
@@ -445,6 +469,9 @@ ${skeleton.split('\n').map(l => '    ' + l).join('\n')}
     - Keep the No. column narrow and centered, Name left-aligned, Total/Rank
       compact. Give every cell comfortable, even padding (px-3 py-2 is a good
       default) so the table reads as a polished data grid, not a cramped one.
+    - Make the container responsive and adaptive: padding scales with breakpoints
+      (p-4 sm:p-6 lg:p-8), the card uses max-w-* + mx-auto so it adapts to any
+      screen width, and overflow-x-auto keeps the grid usable on phones.
 
     [FORM ELEMENT RULES — CRITICAL]:
     - Every <select> must use Tailwind classes only — NO inline styles.
@@ -488,7 +515,11 @@ ${skeleton.split('\n').map(l => '    ' + l).join('\n')}
     - Is your Tailwind theme clearly visible (colors painted on the header/rows/wrapper, strong contrast) and NOT on any <tr> element?
     If ANY answer is no, fix it before returning — a partial table will be rejected.
 
-    [OUTPUT]: Return ONLY a <div> with a Tailwind <table>. No markdown. Do NOT include any <button>, <form>, or <input> elements — the scoring page already provides its own Submit button.
+    [OUTPUT]: Return ONLY your single outer container <div> (the full-page themed
+    wrapper from [LAYOUT & CONTAINER RULES]) containing exactly ONE scoring
+    <table>. No markdown, no extra top-level elements. Do NOT include any
+    <button>, <form>, or <input> elements — the scoring page already provides
+    its own Submit button.
   `;
 }
 
